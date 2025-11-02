@@ -1,78 +1,66 @@
-import React from "react";
-import { Stack, Link } from "expo-router";
-import { FlatList, Pressable, StyleSheet, View, Text, Alert, Platform } from "react-native";
-import { IconSymbol } from "@/components/IconSymbol";
-import { GlassView } from "expo-glass-effect";
-import { useTheme } from "@react-navigation/native";
 
-const ICON_COLOR = "#007AFF";
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
+import { colors, commonStyles } from '@/styles/commonStyles';
+import { useTheme } from '@react-navigation/native';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const theme = useTheme();
-  const modalDemos = [
-    {
-      title: "Standard Modal",
-      description: "Full screen modal presentation",
-      route: "/modal",
-      color: "#007AFF",
-    },
-    {
-      title: "Form Sheet",
-      description: "Bottom sheet with detents and grabber",
-      route: "/formsheet",
-      color: "#34C759",
-    },
-    {
-      title: "Transparent Modal",
-      description: "Overlay without obscuring background",
-      route: "/transparent-modal",
-      color: "#FF9500",
-    }
-  ];
 
-  const renderModalDemo = ({ item }: { item: (typeof modalDemos)[0] }) => (
-    <GlassView style={[
-      styles.demoCard,
-      Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-    ]} glassEffectStyle="regular">
-      <View style={[styles.demoIcon, { backgroundColor: item.color }]}>
-        <IconSymbol name="square.grid.3x3" color="white" size={24} />
-      </View>
-      <View style={styles.demoContent}>
-        <Text style={[styles.demoTitle, { color: theme.colors.text }]}>{item.title}</Text>
-        <Text style={[styles.demoDescription, { color: theme.dark ? '#98989D' : '#666' }]}>{item.description}</Text>
-      </View>
-      <Link href={item.route as any} asChild>
-        <Pressable>
-          <GlassView style={[
-            styles.tryButton,
-            Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)' }
-          ]} glassEffectStyle="clear">
-            <Text style={[styles.tryButtonText, { color: theme.colors.primary }]}>Try It</Text>
-          </GlassView>
-        </Pressable>
-      </Link>
-    </GlassView>
-  );
+  const mainFeatures = [
+    {
+      title: 'Mattutina di Routine',
+      description: 'Checklist giornaliera mattutina',
+      icon: 'sunrise.fill',
+      color: colors.warning,
+      route: '/morning-routine',
+    },
+    {
+      title: 'Preparazione & Recupero',
+      description: 'Riscaldamento, raffreddamento, stretching',
+      icon: 'figure.strengthtraining.traditional',
+      color: colors.primary,
+      route: '/preparation',
+    },
+    {
+      title: 'Controllo Prontezza',
+      description: 'Valutazione giornaliera della condizione',
+      icon: 'heart.text.square.fill',
+      color: colors.secondary,
+      route: '/(tabs)/readiness',
+    },
+    {
+      title: 'Timer Multi-Intervallo',
+      description: 'Timer personalizzabili per allenamenti',
+      icon: 'timer',
+      color: colors.accent,
+      route: '/timer',
+    },
+    {
+      title: 'Sistema Bandiera Rossa',
+      description: 'Monitoraggio segnali di allarme',
+      icon: 'flag.fill',
+      color: colors.error,
+      route: '/red-flags',
+    },
+    {
+      title: 'Strumenti Avanzati',
+      description: 'Calcolatore ACR, Tracker carico, Monitor HRV',
+      icon: 'wrench.and.screwdriver.fill',
+      color: colors.textSecondary,
+      route: '/tools',
+    },
+  ];
 
   const renderHeaderRight = () => (
     <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
+      onPress={() => router.push('/settings')}
+      style={styles.headerButton}
     >
-      <IconSymbol name="plus" color={theme.colors.primary} />
-    </Pressable>
-  );
-
-  const renderHeaderLeft = () => (
-    <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol
-        name="gear"
-        color={theme.colors.primary}
-      />
+      <IconSymbol name="gear" color={colors.primary} size={24} />
     </Pressable>
   );
 
@@ -81,81 +69,158 @@ export default function HomeScreen() {
       {Platform.OS === 'ios' && (
         <Stack.Screen
           options={{
-            title: "Building the app...",
+            title: 'Moto3 Training',
             headerRight: renderHeaderRight,
-            headerLeft: renderHeaderLeft,
           }}
         />
       )}
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <FlatList
-          data={modalDemos}
-          renderItem={renderModalDemo}
-          keyExtractor={(item) => item.route}
+      <View style={[commonStyles.container]}>
+        <ScrollView
           contentContainerStyle={[
-            styles.listContainer,
-            Platform.OS !== 'ios' && styles.listContainerWithTabBar
+            styles.scrollContent,
+            Platform.OS !== 'ios' && styles.scrollContentWithTabBar
           ]}
-          contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
-        />
+        >
+          <View style={styles.header}>
+            <Text style={styles.welcomeText}>Benvenuto Pilota</Text>
+            <Text style={styles.dateText}>
+              {new Date().toLocaleDateString('it-IT', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </Text>
+          </View>
+
+          <View style={styles.featuresGrid}>
+            {mainFeatures.map((feature, index) => (
+              <Pressable
+                key={index}
+                style={[commonStyles.card, styles.featureCard]}
+                onPress={() => router.push(feature.route as any)}
+              >
+                <View style={[styles.iconContainer, { backgroundColor: feature.color + '20' }]}>
+                  <IconSymbol name={feature.icon as any} size={32} color={feature.color} />
+                </View>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDescription}>{feature.description}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={[commonStyles.card, styles.quickAccessCard]}>
+            <Text style={styles.sectionTitle}>Accesso Rapido</Text>
+            <Pressable 
+              style={styles.quickAccessButton}
+              onPress={() => router.push('/(tabs)/calendar')}
+            >
+              <IconSymbol name="calendar" size={20} color={colors.primary} />
+              <Text style={styles.quickAccessText}>Calendario 18 Settimane</Text>
+              <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable 
+              style={styles.quickAccessButton}
+              onPress={() => router.push('/(tabs)/progress')}
+            >
+              <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color={colors.primary} />
+              <Text style={styles.quickAccessText}>Progressi & Analisi</Text>
+              <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable 
+              style={styles.quickAccessButton}
+              onPress={() => router.push('/quick-reference')}
+            >
+              <IconSymbol name="book.fill" size={20} color={colors.primary} />
+              <Text style={styles.quickAccessText}>Riferimento Rapido</Text>
+              <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        </ScrollView>
       </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // backgroundColor handled dynamically
-  },
-  listContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  listContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
-  },
-  demoCard: {
-    borderRadius: 12,
+  scrollContent: {
     padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingBottom: 32,
   },
-  demoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  scrollContentWithTabBar: {
+    paddingBottom: 100,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textTransform: 'capitalize',
+  },
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  featureCard: {
+    width: '48%',
+    marginBottom: 12,
+    alignItems: 'center',
+    padding: 20,
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 12,
   },
-  demoContent: {
-    flex: 1,
+  featureTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  demoTitle: {
+  featureDescription: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  quickAccessCard: {
+    marginTop: 8,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 4,
-    // color handled dynamically
+    color: colors.text,
+    marginBottom: 12,
   },
-  demoDescription: {
-    fontSize: 14,
-    lineHeight: 18,
-    // color handled dynamically
+  quickAccessButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  headerButtonContainer: {
-    padding: 6,
+  quickAccessText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 12,
   },
-  tryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  tryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    // color handled dynamically
+  headerButton: {
+    padding: 8,
   },
 });
