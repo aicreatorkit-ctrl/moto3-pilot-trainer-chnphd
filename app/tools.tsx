@@ -15,6 +15,7 @@ export default function ToolsScreen() {
       icon: 'function',
       color: colors.primary,
       info: 'Monitora il rapporto tra carico acuto e cronico per prevenire infortuni',
+      route: '/acr-calculator',
     },
     {
       title: 'Tracker del Carico',
@@ -22,6 +23,7 @@ export default function ToolsScreen() {
       icon: 'chart.line.uptrend.xyaxis',
       color: colors.accent,
       info: 'Registra e analizza il carico di allenamento settimanale',
+      route: '/load-tracker',
     },
     {
       title: 'Monitor HRV',
@@ -29,6 +31,7 @@ export default function ToolsScreen() {
       icon: 'waveform.path.ecg',
       color: colors.secondary,
       info: 'Traccia la variabilità della frequenza cardiaca per valutare il recupero',
+      route: '/hrv-monitor',
     },
     {
       title: 'Valutazione Postura',
@@ -36,6 +39,7 @@ export default function ToolsScreen() {
       icon: 'figure.stand',
       color: colors.warning,
       info: 'Valuta e migliora la postura specifica per la guida in Moto3',
+      route: '/posture-assessment',
     },
   ];
 
@@ -71,7 +75,10 @@ export default function ToolsScreen() {
                 </View>
               </View>
               <Text style={styles.toolInfo}>{tool.info}</Text>
-              <Pressable style={[styles.toolButton, { backgroundColor: tool.color }]}>
+              <Pressable 
+                style={[styles.toolButton, { backgroundColor: tool.color }]}
+                onPress={() => router.push(tool.route as any)}
+              >
                 <Text style={styles.toolButtonText}>Apri Strumento</Text>
                 <IconSymbol name="arrow.right" size={16} color="#FFFFFF" />
               </Pressable>
