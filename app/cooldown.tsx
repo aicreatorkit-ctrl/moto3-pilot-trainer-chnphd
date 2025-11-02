@@ -1,13 +1,33 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { cooldownExercises } from '@/data/trainingData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Exercise } from '@/types/training';
+
+const STORAGE_KEY = '@moto3_custom_cooldown';
 
 export default function CooldownScreen() {
+  const [exercises, setExercises] = useState<Exercise[]>(cooldownExercises);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadExercises();
+  }, []);
+
+  const loadExercises = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setExercises(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading cooldown exercises:', error);
+    }
+  };
 
   const toggleExercise = (id: string) => {
     if (completedExercises.includes(id)) {
@@ -39,7 +59,7 @@ export default function CooldownScreen() {
             </Text>
           </View>
 
-          {cooldownExercises.map((exercise) => (
+          {exercises.map((exercise) => (
             <Pressable
               key={exercise.id}
               style={[

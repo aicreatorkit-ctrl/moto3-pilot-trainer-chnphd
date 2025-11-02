@@ -1,14 +1,32 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { defaultMorningRoutine } from '@/data/trainingData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = '@moto3_custom_morning_routine';
 
 export default function MorningRoutineScreen() {
   const router = useRouter();
   const [routine, setRoutine] = useState(defaultMorningRoutine);
+
+  useEffect(() => {
+    loadRoutine();
+  }, []);
+
+  const loadRoutine = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setRoutine(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading morning routine:', error);
+    }
+  };
 
   const toggleItem = (id: string) => {
     setRoutine(routine.map(item => 

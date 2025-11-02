@@ -1,13 +1,33 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { warmupExercises } from '@/data/trainingData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Exercise } from '@/types/training';
+
+const STORAGE_KEY = '@moto3_custom_warmup';
 
 export default function WarmupScreen() {
+  const [exercises, setExercises] = useState<Exercise[]>(warmupExercises);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadExercises();
+  }, []);
+
+  const loadExercises = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setExercises(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading warmup exercises:', error);
+    }
+  };
 
   const toggleExercise = (id: string) => {
     if (completedExercises.includes(id)) {
@@ -39,7 +59,7 @@ export default function WarmupScreen() {
             </Text>
           </View>
 
-          {warmupExercises.map((exercise) => (
+          {exercises.map((exercise) => (
             <Pressable
               key={exercise.id}
               style={[
