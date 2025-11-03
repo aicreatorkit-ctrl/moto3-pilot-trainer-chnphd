@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, Modal, Alert } from 'react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
@@ -8,6 +8,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle, Line, Text as SvgText, Path, Rect } from 'react-native-svg';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
+import { storage } from '@/utils/storage';
+import { measurePerformance, debounce } from '@/utils/performance';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +56,8 @@ export default function ProgressScreen() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showExercises, setShowExercises] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const metrics = [
     { key: 'weight', label: 'Peso', icon: 'scalemass.fill', color: colors.primary, unit: 'kg' },
@@ -75,9 +81,24 @@ export default function ProgressScreen() {
   ];
 
   useEffect(() => {
-    loadProgressData();
-    checkForUpdates();
+    initializeData();
   }, []);
+
+  const initializeData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await measurePerformance('initializeProgressData', async () => {
+        await loadProgressData();
+        await checkForUpdates();
+      });
+    } catch (err) {
+      console.error('Error initializing progress data:', err);
+      setError('Failed to load progress data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Use focus effect to reload data when screen comes into focus
   useFocusEffect(
@@ -165,17 +186,19 @@ export default function ProgressScreen() {
 
   const loadProgressData = async () => {
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      // Use optimized storage with caching
+      const stored = await storage.get<ProgressData[]>(STORAGE_KEY, { useCache: true });
       if (stored) {
-        setProgressData(JSON.parse(stored));
+        setProgressData(stored);
       } else {
         // Generate mock data
         const mockData = generateMockData();
         setProgressData(mockData);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockData));
+        await storage.set(STORAGE_KEY, mockData);
       }
     } catch (error) {
-      console.log('Error loading progress data:', error);
+      console.error('Error loading progress data:', error);
+      throw error;
     }
   };
 
@@ -360,12 +383,53 @@ export default function ProgressScreen() {
     return { avg, min, max, trend };
   };
 
-  const filteredData = getFilteredData();
-  const currentMetricData = filteredData.map(d => d[selectedMetric]);
-  const stats = calculateStats(currentMetricData);
-  const currentMetric = metrics.find(m => m.key === selectedMetric);
+  // Memoize expensive calculations
+  const filteredData = useMemo(() => getFilteredData(), [progressData, selectedPeriod]);
+  const currentMetricData = useMemo(() => filteredData.map(d => d[selectedMetric]), [filteredData, selectedMetric]);
+  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData]);
+  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric]);
 
   const weekProgress = 44; // Week 8 of 18
+
+  // Show loading state
+  if (loading) {
+    return (
+      <>
+        {Platform.OS === 'ios' && (
+          <Stack.Screen
+            options={{
+              title: 'Progressi & Analisi',
+            }}
+          />
+        )}
+        <View style={commonStyles.container}>
+          <LoadingState message="Caricamento progressi..." fullScreen />
+        </View>
+      </>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <>
+        {Platform.OS === 'ios' && (
+          <Stack.Screen
+            options={{
+              title: 'Progressi & Analisi',
+            }}
+          />
+        )}
+        <View style={commonStyles.container}>
+          <ErrorState 
+            message={error} 
+            onRetry={initializeData}
+            fullScreen 
+          />
+        </View>
+      </>
+    );
+  }
 
   return (
     <>
