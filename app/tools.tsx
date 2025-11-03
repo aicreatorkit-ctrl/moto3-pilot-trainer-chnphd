@@ -41,13 +41,37 @@ export default function ToolsScreen() {
       info: 'Valuta e migliora la postura specifica per la guida in Moto3',
       route: '/posture-assessment',
     },
+    {
+      title: 'Test Tempo di Reazione',
+      description: 'Simulazione partenza gara',
+      icon: 'bolt.fill',
+      color: '#FF8C00',
+      info: 'Allena e misura il tempo di reazione ai semafori di partenza',
+      route: '/reaction-time',
+    },
+    {
+      title: 'Simulatore Giro',
+      description: 'Analisi tempi e settori',
+      icon: 'flag.checkered',
+      color: '#2196F3',
+      info: 'Analizza i tempi sul giro e confronta i settori per migliorare le prestazioni',
+      route: '/lap-simulator',
+    },
+    {
+      title: 'Setup Moto',
+      description: 'Configurazione e telemetria',
+      icon: 'wrench.and.screwdriver.fill',
+      color: '#9C27B0',
+      info: 'Registra e ottimizza il setup della moto per ogni circuito',
+      route: '/bike-setup',
+    },
   ];
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Strumenti Avanzati',
+          title: 'Strumenti Moto3',
           presentation: 'card',
         }}
       />
@@ -59,7 +83,7 @@ export default function ToolsScreen() {
           <View style={[commonStyles.card, styles.infoCard]}>
             <IconSymbol name="wrench.and.screwdriver.fill" size={32} color={colors.primary} />
             <Text style={styles.infoText}>
-              Strumenti professionali per il monitoraggio e l&apos;ottimizzazione delle prestazioni
+              Strumenti professionali per piloti Moto3: allenamento, analisi e ottimizzazione prestazioni
             </Text>
           </View>
 
@@ -89,10 +113,12 @@ export default function ToolsScreen() {
             <IconSymbol name="sparkles" size={24} color={colors.warning} />
             <Text style={styles.comingSoonTitle}>Prossimamente</Text>
             <Text style={styles.comingSoonText}>
-              - Analisi video tecnica{'\n'}
-              - Comparazione telemetria{'\n'}
-              - Simulatore reazioni{'\n'}
-              - Diario alimentare integrato
+              - Analisi video tecnica con AI{'\n'}
+              - Comparazione telemetria avanzata{'\n'}
+              - Simulatore reazioni multiple{'\n'}
+              - Diario alimentare integrato{'\n'}
+              - Analisi biomeccanica 3D{'\n'}
+              - Coach virtuale con feedback real-time
             </Text>
           </View>
         </ScrollView>
@@ -137,13 +163,14 @@ const styles = StyleSheet.create({
   },
   toolTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 4,
   },
   toolDescription: {
     fontSize: 14,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
   toolInfo: {
     fontSize: 14,
@@ -155,13 +182,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
   },
   toolButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     marginRight: 8,
   },
   comingSoonCard: {
@@ -171,7 +198,7 @@ const styles = StyleSheet.create({
   },
   comingSoonTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginTop: 8,
     marginBottom: 12,
