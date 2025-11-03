@@ -99,7 +99,7 @@ export default function ContentAIGuideScreen() {
 
           <View style={[commonStyles.card, styles.enhancementCard]}>
             <View style={styles.enhancementHeader}>
-              <IconSymbol name="arrow.triangle.2.circlepath" size={24} color="#FF9500} />
+              <IconSymbol name="arrow.triangle.2.circlepath" size={24} color="#FF9500" />
               <Text style={styles.enhancementTitle}>Merge Intelligente</Text>
             </View>
             <Text style={styles.enhancementDescription}>

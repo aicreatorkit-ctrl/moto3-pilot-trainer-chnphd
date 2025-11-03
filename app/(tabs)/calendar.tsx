@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput, Mod
 import { Stack } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import PropTypes from 'prop-types';
 
 const TRAINING_TYPES = {
   FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: 'dumbbell.fill' },
@@ -754,6 +755,20 @@ function SessionCard({ session, title }) {
     </View>
   );
 }
+
+SessionCard.propTypes = {
+  session: PropTypes.shape({
+    type: PropTypes.string.isRequired,
+    time: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired,
+    reps: PropTypes.string,
+    execution: PropTypes.string,
+    focus: PropTypes.string,
+    recovery: PropTypes.string,
+    rpe: PropTypes.number,
+  }).isRequired,
+  title: PropTypes.string.isRequired,
+};
 
 const styles = StyleSheet.create({
   scrollContent: {
