@@ -60,6 +60,14 @@ export default function HomeScreen() {
       gradient: ['#8B5CF6', '#7C3AED'],
       route: '/tools',
     },
+    {
+      title: 'Gestione',
+      subtitle: 'Contenuti',
+      description: 'Aggiornamento automatico',
+      icon: 'doc.text.fill',
+      gradient: ['#06B6D4', '#0891B2'],
+      route: '/content-manager',
+    },
   ];
 
   const quickAccessItems = [

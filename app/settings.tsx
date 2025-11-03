@@ -69,6 +69,14 @@ const styles = StyleSheet.create({
   dangerText: {
     color: '#FF3B30',
   },
+  featureCard: {
+    backgroundColor: colors.primary + '15',
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  featureText: {
+    color: colors.primary,
+  },
 });
 
 export default function SettingsScreen() {
@@ -141,6 +149,30 @@ export default function SettingsScreen() {
         }}
       />
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Content Management Feature */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Gestione Contenuti</Text>
+          <Pressable
+            style={[styles.settingCard, styles.featureCard]}
+            onPress={() => router.push('/content-manager' as any)}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+                <IconSymbol name="doc.text.fill" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingTitle, styles.featureText]}>
+                  Aggiornamento Automatico
+                </Text>
+                <Text style={styles.settingDescription}>
+                  Gestisci e aggiorna contenuti automaticamente
+                </Text>
+              </View>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.primary} />
+          </Pressable>
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Modifica Dati</Text>
           {dataSettings.map((setting, index) => (
