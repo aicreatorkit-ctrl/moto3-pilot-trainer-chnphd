@@ -25,6 +25,7 @@ interface ReadinessEntry {
 }
 
 const STORAGE_KEY = '@readiness_history';
+const UPDATE_TRIGGER_KEY = '@progress_update_trigger';
 
 export default function ReadinessScreen() {
   const [sleepQuality, setSleepQuality] = useState(8);
@@ -61,6 +62,17 @@ export default function ReadinessScreen() {
       setHistory(newHistory);
     } catch (error) {
       console.log('Error saving history:', error);
+    }
+  };
+
+  const triggerProgressUpdate = async () => {
+    try {
+      // Set a timestamp to trigger progress screen update
+      const timestamp = new Date().toISOString();
+      await AsyncStorage.setItem(UPDATE_TRIGGER_KEY, timestamp);
+      console.log('Progress update triggered at:', timestamp);
+    } catch (error) {
+      console.log('Error triggering progress update:', error);
     }
   };
 
@@ -189,8 +201,15 @@ export default function ReadinessScreen() {
     const newHistory = [newEntry, ...history].slice(0, 30); // Keep last 30 entries
     await saveHistory(newHistory);
     
+    // Trigger progress screen update
+    await triggerProgressUpdate();
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('✅ Salvato', 'Valutazione prontezza salvata con successo');
+    Alert.alert(
+      '✅ Salvato', 
+      'Valutazione prontezza salvata con successo.\n\nI dati sono stati sincronizzati con la sezione Progressi & Analisi.',
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   const getWeeklyAverage = () => {
@@ -305,6 +324,14 @@ export default function ReadinessScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
+          {/* Sync Info Banner */}
+          <View style={styles.syncBanner}>
+            <IconSymbol name="arrow.triangle.2.circlepath" size={18} color={colors.accent} />
+            <Text style={styles.syncBannerText}>
+              I dati salvati vengono automaticamente sincronizzati con Progressi & Analisi
+            </Text>
+          </View>
+
           {/* Quick Stats */}
           {history.length > 0 && (
             <View style={styles.quickStatsContainer}>
@@ -501,7 +528,7 @@ export default function ReadinessScreen() {
               style={styles.saveButtonGradient}
             >
               <IconSymbol name="checkmark.circle.fill" size={22} color="#FFFFFF" />
-              <Text style={styles.saveButtonText}>Salva Valutazione</Text>
+              <Text style={styles.saveButtonText}>Salva e Sincronizza</Text>
             </LinearGradient>
           </Pressable>
         </ScrollView>
@@ -658,6 +685,24 @@ const styles = StyleSheet.create({
   },
   scrollContentWithTabBar: {
     paddingBottom: 100,
+  },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accent + '15',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.accent + '30',
+  },
+  syncBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.accent,
+    flex: 1,
+    lineHeight: 18,
   },
   quickStatsContainer: {
     flexDirection: 'row',

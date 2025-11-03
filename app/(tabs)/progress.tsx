@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, Modal, Alert } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,7 +26,24 @@ interface ExerciseProgress {
   unit: string;
 }
 
+interface ReadinessEntry {
+  id: string;
+  date: string;
+  sleepQuality: number;
+  muscleSoreness: number;
+  mood: number;
+  energy: number;
+  motivation: number;
+  weight: string;
+  hrv: string;
+  restingHR: string;
+  notes: string;
+  score: number;
+}
+
 const STORAGE_KEY = '@progress_data';
+const READINESS_STORAGE_KEY = '@readiness_history';
+const UPDATE_TRIGGER_KEY = '@progress_update_trigger';
 
 export default function ProgressScreen() {
   const [selectedMetric, setSelectedMetric] = useState<'weight' | 'hrv' | 'load' | 'stiffness'>('weight');
@@ -34,6 +51,7 @@ export default function ProgressScreen() {
   const [progressData, setProgressData] = useState<ProgressData[]>([]);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showExercises, setShowExercises] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
 
   const metrics = [
     { key: 'weight', label: 'Peso', icon: 'scalemass.fill', color: colors.primary, unit: 'kg' },
@@ -58,7 +76,92 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     loadProgressData();
+    checkForUpdates();
   }, []);
+
+  // Use focus effect to reload data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      checkForUpdates();
+    }, [])
+  );
+
+  const checkForUpdates = async () => {
+    try {
+      const updateTrigger = await AsyncStorage.getItem(UPDATE_TRIGGER_KEY);
+      if (updateTrigger && updateTrigger !== lastUpdate) {
+        console.log('Progress data update detected, reloading...');
+        setLastUpdate(updateTrigger);
+        await updateProgressFromReadiness();
+      }
+    } catch (error) {
+      console.log('Error checking for updates:', error);
+    }
+  };
+
+  const updateProgressFromReadiness = async () => {
+    try {
+      // Load readiness history
+      const readinessData = await AsyncStorage.getItem(READINESS_STORAGE_KEY);
+      if (!readinessData) {
+        console.log('No readiness data found');
+        return;
+      }
+
+      const readinessHistory: ReadinessEntry[] = JSON.parse(readinessData);
+      console.log(`Updating progress from ${readinessHistory.length} readiness entries`);
+
+      // Load existing progress data
+      let existingProgress = progressData;
+      if (existingProgress.length === 0) {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          existingProgress = JSON.parse(stored);
+        } else {
+          existingProgress = generateMockData();
+        }
+      }
+
+      // Update progress data with readiness entries
+      const updatedProgress = [...existingProgress];
+      
+      readinessHistory.forEach((entry) => {
+        const entryDate = new Date(entry.date).toISOString().split('T')[0];
+        
+        // Find if we already have data for this date
+        const existingIndex = updatedProgress.findIndex(
+          (p) => new Date(p.date).toISOString().split('T')[0] === entryDate
+        );
+
+        const newData: ProgressData = {
+          date: entry.date,
+          weight: entry.weight ? parseFloat(entry.weight) : (existingIndex >= 0 ? updatedProgress[existingIndex].weight : 72),
+          hrv: entry.hrv ? parseFloat(entry.hrv) : (existingIndex >= 0 ? updatedProgress[existingIndex].hrv : 60),
+          load: existingIndex >= 0 ? updatedProgress[existingIndex].load : 500 + Math.random() * 100,
+          stiffness: (11 - entry.muscleSoreness), // Convert soreness to stiffness
+        };
+
+        if (existingIndex >= 0) {
+          // Update existing entry
+          updatedProgress[existingIndex] = newData;
+        } else {
+          // Add new entry
+          updatedProgress.push(newData);
+        }
+      });
+
+      // Sort by date
+      updatedProgress.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // Save updated progress
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProgress));
+      setProgressData(updatedProgress);
+      
+      console.log('Progress data updated successfully');
+    } catch (error) {
+      console.log('Error updating progress from readiness:', error);
+    }
+  };
 
   const loadProgressData = async () => {
     try {
@@ -272,6 +375,12 @@ export default function ProgressScreen() {
             title: 'Progressi & Analisi',
             headerRight: () => (
               <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable onPress={() => {
+                  checkForUpdates();
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}>
+                  <IconSymbol name="arrow.clockwise" size={22} color={colors.primary} />
+                </Pressable>
                 <Pressable onPress={() => setShowExercises(true)}>
                   <IconSymbol name="figure.strengthtraining.traditional" size={22} color={colors.primary} />
                 </Pressable>
@@ -291,6 +400,16 @@ export default function ProgressScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
+          {/* Update Indicator */}
+          {lastUpdate && (
+            <View style={styles.updateBanner}>
+              <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
+              <Text style={styles.updateBannerText}>
+                Dati aggiornati da Controllo Prontezza
+              </Text>
+            </View>
+          )}
+
           {/* Overview Card */}
           <LinearGradient
             colors={gradients.racing}
@@ -668,6 +787,21 @@ const styles = StyleSheet.create({
   },
   scrollContentWithTabBar: {
     paddingBottom: 100,
+  },
+  updateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.success + '20',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  updateBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+    flex: 1,
   },
   overviewCard: {
     borderRadius: 24,
