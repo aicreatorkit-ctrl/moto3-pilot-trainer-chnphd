@@ -653,7 +653,7 @@ export default function CalendarScreen() {
                       ...editingSession,
                       data: { ...editingSession.data, recovery: text }
                     })}
-                    placeholder="es. 90\" tra serie, 2' tra esercizi"
+                    placeholder="es. 90 secondi tra serie, 2 minuti tra esercizi"
                     placeholderTextColor={colors.textSecondary}
                   />
 
