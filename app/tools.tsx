@@ -145,39 +145,106 @@ export default function ToolsScreen() {
             </Pressable>
           ))}
 
-          {/* Coming Soon Section */}
-          <View style={[commonStyles.card, styles.comingSoonCard]}>
-            <View style={styles.comingSoonHeader}>
+          {/* Advanced Features Section */}
+          <View style={[commonStyles.card, styles.advancedCard]}>
+            <View style={styles.advancedHeader}>
               <IconSymbol name="sparkles" size={28} color={colors.racingGold} />
-              <Text style={styles.comingSoonTitle}>Prossimamente</Text>
+              <Text style={styles.advancedTitle}>Funzionalità Avanzate</Text>
             </View>
-            <View style={styles.featuresList}>
-              <View style={styles.featureItem}>
-                <IconSymbol name="camera.fill" size={18} color={colors.primary} />
-                <Text style={styles.featureText}>Analisi video tecnica con AI</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <IconSymbol name="chart.xyaxis.line" size={18} color={colors.accent} />
-                <Text style={styles.featureText}>Comparazione telemetria avanzata</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <IconSymbol name="brain.head.profile" size={18} color={colors.purple} />
-                <Text style={styles.featureText}>Allenamento mentale e visualizzazione</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <IconSymbol name="fork.knife" size={18} color={colors.success} />
-                <Text style={styles.featureText}>Diario alimentare con macro tracking</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <IconSymbol name="figure.walk.motion" size={18} color={colors.warning} />
-                <Text style={styles.featureText}>Analisi biomeccanica 3D</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <IconSymbol name="person.badge.shield.checkmark.fill" size={18} color={colors.info} />
-                <Text style={styles.featureText}>Coach virtuale con feedback real-time</Text>
-              </View>
-            </View>
+            <Text style={styles.advancedDescription}>
+              Strumenti professionali per portare il tuo allenamento al livello successivo
+            </Text>
           </View>
+
+          {/* New Advanced Tools */}
+          {[
+            {
+              title: 'Analisi Video AI',
+              description: 'Analisi tecnica con intelligenza artificiale',
+              icon: 'camera.fill',
+              gradient: gradients.racing,
+              info: 'Carica video delle tue sessioni e ricevi feedback dettagliato su postura, tecnica di curva e punti di miglioramento',
+              route: '/video-analysis',
+              badge: 'AI',
+            },
+            {
+              title: 'Telemetria Avanzata',
+              description: 'Comparazione dati telemetrici',
+              icon: 'chart.xyaxis.line',
+              gradient: gradients.cyan,
+              info: 'Confronta velocità, gas, freno e RPM tra diverse sessioni per identificare aree di ottimizzazione',
+              route: '/telemetry-comparison',
+              badge: 'PRO',
+            },
+            {
+              title: 'Allenamento Mentale',
+              description: 'Meditazione e visualizzazione',
+              icon: 'brain.head.profile',
+              gradient: gradients.purple,
+              info: 'Esercizi guidati di meditazione, visualizzazione e focus per migliorare concentrazione e gestire la pressione',
+              route: '/mental-training',
+              badge: 'MENTAL',
+            },
+            {
+              title: 'Diario Alimentare',
+              description: 'Tracking macro e nutrizione',
+              icon: 'fork.knife',
+              gradient: gradients.success,
+              info: 'Monitora calorie e macronutrienti per ottimizzare energia, recupero e prestazioni',
+              route: '/nutrition-diary',
+              badge: 'NUTRITION',
+            },
+            {
+              title: 'Biomeccanica 3D',
+              description: 'Analisi movimento avanzata',
+              icon: 'figure.walk.motion',
+              gradient: gradients.warning,
+              info: 'Analisi tridimensionale di angoli articolari, simmetria e distribuzione forze per prevenire infortuni',
+              route: '/biomechanics-3d',
+              badge: '3D',
+            },
+            {
+              title: 'Coach Virtuale',
+              description: 'Feedback real-time durante sessione',
+              icon: 'person.badge.shield.checkmark.fill',
+              gradient: gradients.blue,
+              info: 'Assistente AI che monitora le tue prestazioni e fornisce suggerimenti in tempo reale',
+              route: '/virtual-coach',
+              badge: 'LIVE',
+            },
+          ].map((tool, index) => (
+            <Pressable
+              key={index}
+              style={styles.toolCard}
+              onPress={() => handleToolPress(tool.route)}
+            >
+              <LinearGradient
+                colors={tool.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.toolGradient}
+              >
+                <View style={styles.toolIconContainer}>
+                  <IconSymbol name={tool.icon as any} size={36} color="#FFFFFF" />
+                </View>
+              </LinearGradient>
+              
+              <View style={styles.toolContent}>
+                <View style={styles.toolHeader}>
+                  <Text style={styles.toolTitle}>{tool.title}</Text>
+                  <View style={styles.toolBadge}>
+                    <Text style={styles.toolBadgeText}>{tool.badge}</Text>
+                  </View>
+                </View>
+                <Text style={styles.toolDescription}>{tool.description}</Text>
+                <Text style={styles.toolInfo}>{tool.info}</Text>
+              </View>
+              
+              <View style={styles.toolArrow}>
+                <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
+              </View>
+            </Pressable>
+          ))}
         </ScrollView>
       </View>
     </>
@@ -284,36 +351,28 @@ const styles = StyleSheet.create({
   toolArrow: {
     marginLeft: 12,
   },
-  comingSoonCard: {
+  advancedCard: {
     marginTop: 8,
     backgroundColor: colors.highlightGold,
     borderLeftWidth: 4,
     borderLeftColor: colors.racingGold,
   },
-  comingSoonHeader: {
+  advancedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     gap: 12,
   },
-  comingSoonTitle: {
+  advancedTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.3,
   },
-  featuresList: {
-    gap: 14,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  featureText: {
+  advancedDescription: {
     fontSize: 15,
     color: colors.text,
-    fontWeight: '600',
-    flex: 1,
+    lineHeight: 22,
+    fontWeight: '500',
   },
 });
