@@ -1,115 +1,79 @@
 
 /**
- * Data validation utilities for form inputs and data integrity
+ * Data validation utilities
  */
-
-export interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-}
 
 /**
  * Validate email format
  */
-export function validateEmail(email: string): ValidationResult {
+export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
-  if (!email) {
-    return { isValid: false, error: 'Email is required' };
-  }
-  
-  if (!emailRegex.test(email)) {
-    return { isValid: false, error: 'Invalid email format' };
-  }
-  
-  return { isValid: true };
+  return emailRegex.test(email);
+}
+
+/**
+ * Validate phone number
+ */
+export function isValidPhone(phone: string): boolean {
+  const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
+  return phoneRegex.test(phone);
 }
 
 /**
  * Validate number range
  */
-export function validateNumberRange(
-  value: number,
-  min: number,
-  max: number,
-  fieldName: string = 'Value'
-): ValidationResult {
-  if (isNaN(value)) {
-    return { isValid: false, error: `${fieldName} must be a number` };
-  }
-  
-  if (value < min || value > max) {
-    return { isValid: false, error: `${fieldName} must be between ${min} and ${max}` };
-  }
-  
-  return { isValid: true };
+export function isInRange(value: number, min: number, max: number): boolean {
+  return value >= min && value <= max;
 }
 
 /**
  * Validate required field
  */
-export function validateRequired(value: any, fieldName: string = 'Field'): ValidationResult {
-  if (value === null || value === undefined || value === '') {
-    return { isValid: false, error: `${fieldName} is required` };
+export function isRequired(value: any): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+/**
+ * Validate date
+ */
+export function isValidDate(date: any): boolean {
+  if (date instanceof Date) {
+    return !isNaN(date.getTime());
   }
-  
-  return { isValid: true };
-}
-
-/**
- * Validate HRV value (typical range: 20-200ms)
- */
-export function validateHRV(hrv: number): ValidationResult {
-  return validateNumberRange(hrv, 10, 300, 'HRV');
-}
-
-/**
- * Validate heart rate (typical range: 40-220 bpm)
- */
-export function validateHeartRate(hr: number): ValidationResult {
-  return validateNumberRange(hr, 30, 250, 'Heart Rate');
-}
-
-/**
- * Validate weight (kg)
- */
-export function validateWeight(weight: number): ValidationResult {
-  return validateNumberRange(weight, 30, 200, 'Weight');
-}
-
-/**
- * Validate rating scale (1-10)
- */
-export function validateRating(rating: number): ValidationResult {
-  return validateNumberRange(rating, 1, 10, 'Rating');
-}
-
-/**
- * Validate date is not in future
- */
-export function validatePastDate(date: Date): ValidationResult {
-  const now = new Date();
-  
-  if (date > now) {
-    return { isValid: false, error: 'Date cannot be in the future' };
+  if (typeof date === 'string') {
+    const parsed = new Date(date);
+    return !isNaN(parsed.getTime());
   }
-  
-  return { isValid: true };
+  return false;
 }
 
 /**
- * Sanitize text input
+ * Sanitize string input
  */
-export function sanitizeText(text: string): string {
-  return text.trim().replace(/[<>]/g, '');
+export function sanitizeString(input: string): string {
+  return input.trim().replace(/[<>]/g, '');
 }
 
 /**
- * Validate and parse number input
+ * Validate HRV value
  */
-export function parseNumberInput(input: string): number | null {
-  const cleaned = input.replace(/[^\d.-]/g, '');
-  const parsed = parseFloat(cleaned);
-  
-  return isNaN(parsed) ? null : parsed;
+export function isValidHRV(hrv: number): boolean {
+  return isInRange(hrv, 20, 200);
+}
+
+/**
+ * Validate heart rate
+ */
+export function isValidHeartRate(hr: number): boolean {
+  return isInRange(hr, 40, 220);
+}
+
+/**
+ * Validate weight
+ */
+export function isValidWeight(weight: number): boolean {
+  return isInRange(weight, 30, 200);
 }

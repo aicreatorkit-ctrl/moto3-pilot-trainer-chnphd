@@ -167,131 +167,47 @@ export function getItalianDayName(date: Date | string, short: boolean = false): 
  */
 export function getItalianMonthName(date: Date | string, short: boolean = false): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  const months = shortNow let me implement comprehensive improvements based on the implementation plan. I'll focus on:
+  const months = short 
+    ? ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
+    : ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+  
+  return months[d.getMonth()];
+}
 
-1. **Code Architecture & Modularity** - Create utility modules and improve state management
-2. **Performance Optimization** - Add caching, memoization, and lazy loading
-3. **UX/UI Improvements** - Better loading states, error handling, and offline support
-4. **Data Management** - Enhanced data persistence and synchronization
-5. **Security & Scalability** - Better data protection and modular structure
-
-Let me start by creating improved utility modules and enhancing the existing code:
-
-<write file="utils/cache.ts">
 /**
- * Advanced caching utility for performance optimization
- * Implements memory cache with TTL and size limits
+ * Parse date string to Date object
  */
-
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  ttl: number;
-}
-
-class CacheManager {
-  private cache: Map<string, CacheEntry<any>>;
-  private maxSize: number;
-  private defaultTTL: number;
-
-  constructor(maxSize: number = 100, defaultTTL: number = 5 * 60 * 1000) {
-    this.cache = new Map();
-    this.maxSize = maxSize;
-    this.defaultTTL = defaultTTL;
-  }
-
-  /**
-   * Set a value in cache with optional TTL
-   */
-  set<T>(key: string, data: T, ttl?: number): void {
-    // Enforce size limit
-    if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-    }
-
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: ttl || this.defaultTTL,
-    });
-  }
-
-  /**
-   * Get a value from cache if not expired
-   */
-  get<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    
-    if (!entry) {
-      return null;
-    }
-
-    const now = Date.now();
-    const age = now - entry.timestamp;
-
-    if (age > entry.ttl) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return entry.data as T;
-  }
-
-  /**
-   * Check if a key exists and is not expired
-   */
-  has(key: string): boolean {
-    return this.get(key) !== null;
-  }
-
-  /**
-   * Clear a specific key
-   */
-  delete(key: string): void {
-    this.cache.delete(key);
-  }
-
-  /**
-   * Clear all cache
-   */
-  clear(): void {
-    this.cache.clear();
-  }
-
-  /**
-   * Get cache statistics
-   */
-  getStats() {
-    return {
-      size: this.cache.size,
-      maxSize: this.maxSize,
-      keys: Array.from(this.cache.keys()),
-    };
-  }
-
-  /**
-   * Clean expired entries
-   */
-  cleanup(): void {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-
-    this.cache.forEach((entry, key) => {
-      const age = now - entry.timestamp;
-      if (age > entry.ttl) {
-        keysToDelete.push(key);
-      }
-    });
-
-    keysToDelete.forEach(key => this.cache.delete(key));
+export function parseDate(dateString: string): Date | null {
+  try {
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? null : date;
+  } catch (error) {
+    console.error('Error parsing date:', error);
+    return null;
   }
 }
 
-// Export singleton instance
-export const cache = new CacheManager();
-
-// Auto cleanup every 5 minutes
-setInterval(() => {
-  cache.cleanup();
-}, 5 * 60 * 1000);
+/**
+ * Get date range for a specific period
+ */
+export function getDateRange(period: '7d' | '30d' | '90d' | 'all'): { start: Date; end: Date } {
+  const end = new Date();
+  const start = new Date();
+  
+  switch (period) {
+    case '7d':
+      start.setDate(end.getDate() - 7);
+      break;
+    case '30d':
+      start.setDate(end.getDate() - 30);
+      break;
+    case '90d':
+      start.setDate(end.getDate() - 90);
+      break;
+    case 'all':
+      start.setFullYear(2000);
+      break;
+  }
+  
+  return { start, end };
+}

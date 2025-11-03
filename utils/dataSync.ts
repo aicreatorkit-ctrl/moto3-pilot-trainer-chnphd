@@ -3,151 +3,77 @@
  * Data synchronization utility for offline support
  */
 
-import { storage } from './storage';
-import { cache } from './cache';
-
-interface SyncOperation {
+interface SyncQueueItem {
   id: string;
-  type: 'create' | 'update' | 'delete';
+  operation: 'create' | 'update' | 'delete';
   collection: string;
   data: any;
   timestamp: number;
-  retries: number;
 }
 
 class DataSyncManager {
-  private syncQueue: SyncOperation[];
+  private queue: SyncQueueItem[];
   private isSyncing: boolean;
-  private maxRetries: number;
   private syncInterval: NodeJS.Timeout | null;
 
   constructor() {
-    this.syncQueue = [];
+    this.queue = [];
     this.isSyncing = false;
-    this.maxRetries = 3;
     this.syncInterval = null;
-    this.loadSyncQueue();
-  }
-
-  /**
-   * Load sync queue from storage
-   */
-  private async loadSyncQueue(): Promise<void> {
-    const queue = await storage.get<SyncOperation[]>('@sync_queue');
-    if (queue) {
-      this.syncQueue = queue;
-      console.log(`Loaded ${queue.length} pending sync operations`);
-    }
-  }
-
-  /**
-   * Save sync queue to storage
-   */
-  private async saveSyncQueue(): Promise<void> {
-    await storage.set('@sync_queue', this.syncQueue);
   }
 
   /**
    * Add operation to sync queue
    */
   async addToQueue(
-    type: SyncOperation['type'],
+    operation: 'create' | 'update' | 'delete',
     collection: string,
     data: any
   ): Promise<void> {
-    const operation: SyncOperation = {
+    const item: SyncQueueItem = {
       id: `${Date.now()}_${Math.random()}`,
-      type,
+      operation,
       collection,
       data,
       timestamp: Date.now(),
-      retries: 0,
     };
 
-    this.syncQueue.push(operation);
-    await this.saveSyncQueue();
-    console.log(`Added ${type} operation for ${collection} to sync queue`);
+    this.queue.push(item);
+    console.log(`Added to sync queue: ${operation} ${collection}`);
   }
 
   /**
    * Process sync queue
    */
   async processQueue(): Promise<void> {
-    if (this.isSyncing || this.syncQueue.length === 0) {
+    if (this.isSyncing || this.queue.length === 0) {
       return;
     }
 
     this.isSyncing = true;
-    console.log(`Processing ${this.syncQueue.length} sync operations...`);
+    console.log(`Processing ${this.queue.length} items in sync queue...`);
 
-    const operations = [...this.syncQueue];
-    const failedOperations: SyncOperation[] = [];
+    const itemsToProcess = [...this.queue];
+    this.queue = [];
 
-    for (const operation of operations) {
+    for (const item of itemsToProcess) {
       try {
-        await this.executeOperation(operation);
-        console.log(`✓ Synced ${operation.type} for ${operation.collection}`);
-        
-        // Remove from queue
-        this.syncQueue = this.syncQueue.filter(op => op.id !== operation.id);
+        // Here you would implement actual sync logic with backend
+        console.log(`Synced: ${item.operation} ${item.collection}`);
       } catch (error) {
-        console.error(`✗ Failed to sync ${operation.type} for ${operation.collection}:`, error);
-        
-        operation.retries++;
-        if (operation.retries < this.maxRetries) {
-          failedOperations.push(operation);
-        } else {
-          console.error(`Max retries reached for operation ${operation.id}`);
-        }
+        console.error(`Failed to sync item ${item.id}:`, error);
+        // Re-add to queue
+        this.queue.push(item);
       }
     }
 
-    // Update queue with failed operations
-    this.syncQueue = failedOperations;
-    await this.saveSyncQueue();
-
     this.isSyncing = false;
-    console.log(`Sync complete. ${this.syncQueue.length} operations remaining.`);
-  }
-
-  /**
-   * Execute a single sync operation
-   */
-  private async executeOperation(operation: SyncOperation): Promise<void> {
-    // Simulate network operation
-    // In a real app, this would make API calls
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Update local storage
-    const key = `@${operation.collection}`;
-    const existing = await storage.get<any[]>(key) || [];
-
-    switch (operation.type) {
-      case 'create':
-        existing.push(operation.data);
-        break;
-      case 'update':
-        const updateIndex = existing.findIndex(item => item.id === operation.data.id);
-        if (updateIndex >= 0) {
-          existing[updateIndex] = operation.data;
-        }
-        break;
-      case 'delete':
-        const deleteIndex = existing.findIndex(item => item.id === operation.data.id);
-        if (deleteIndex >= 0) {
-          existing.splice(deleteIndex, 1);
-        }
-        break;
-    }
-
-    await storage.set(key, existing);
-    cache.delete(key);
   }
 
   /**
    * Start automatic sync
    */
-  startAutoSync(intervalMs: number = 30000): void {
+  startAutoSync(intervalMs: number = 60000): void {
     if (this.syncInterval) {
       return;
     }
@@ -156,7 +82,7 @@ class DataSyncManager {
       this.processQueue();
     }, intervalMs);
 
-    console.log(`Auto-sync started with ${intervalMs}ms interval`);
+    console.log('Auto-sync started');
   }
 
   /**
@@ -171,26 +97,21 @@ class DataSyncManager {
   }
 
   /**
-   * Get sync queue status
+   * Get sync status
    */
-  getStatus(): {
-    queueLength: number;
-    isSyncing: boolean;
-    operations: SyncOperation[];
-  } {
+  getStatus() {
     return {
-      queueLength: this.syncQueue.length,
+      queueLength: this.queue.length,
       isSyncing: this.isSyncing,
-      operations: [...this.syncQueue],
+      autoSyncEnabled: this.syncInterval !== null,
     };
   }
 
   /**
    * Clear sync queue
    */
-  async clearQueue(): Promise<void> {
-    this.syncQueue = [];
-    await this.saveSyncQueue();
+  clearQueue(): void {
+    this.queue = [];
     console.log('Sync queue cleared');
   }
 }

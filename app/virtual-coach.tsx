@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
@@ -60,7 +60,7 @@ export default function VirtualCoachScreen() {
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [feedbackFrequency, setFeedbackFrequency] = useState<'low' | 'medium' | 'high'>('medium');
-  const [selectedCoach, setSelectedCoach] = useState<CoachProfile>({
+  const [selectedCoach] = useState<CoachProfile>({
     name: 'Coach AI Pro',
     specialty: 'Moto3 Racing',
     experience: '15+ anni',
@@ -79,47 +79,7 @@ export default function VirtualCoachScreen() {
   });
   const [showPlanModal, setShowPlanModal] = useState(false);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isSessionActive) {
-      interval = setInterval(() => {
-        setSessionDuration((prev) => prev + 1);
-        
-        // Simulate real-time metrics with AI-driven variations
-        setMetrics((prev) => {
-          const newMetrics = {
-            heartRate: 140 + Math.floor(Math.random() * 20),
-            speed: 180 + Math.floor(Math.random() * 40),
-            lapTime: `1:${50 + Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 999)}`,
-            consistency: Math.min(prev.consistency + (Math.random() * 2), 100),
-            fatigue: Math.min(prev.fatigue + 0.3, 100),
-            focus: Math.max(prev.focus - (Math.random() * 0.5), 60),
-            technique: Math.min(prev.technique + (Math.random() * 1.5), 100),
-          };
-
-          // AI-driven feedback triggers
-          if (newMetrics.heartRate > 170 && Math.random() > 0.7) {
-            generateAIFeedback('safety', 'high');
-          } else if (newMetrics.consistency > 80 && Math.random() > 0.85) {
-            generateAIFeedback('performance', 'medium');
-          } else if (newMetrics.focus < 70 && Math.random() > 0.8) {
-            generateAIFeedback('motivation', 'medium');
-          }
-
-          return newMetrics;
-        });
-
-        // Periodic feedback based on frequency setting
-        const feedbackChance = feedbackFrequency === 'high' ? 0.92 : feedbackFrequency === 'medium' ? 0.95 : 0.97;
-        if (Math.random() > feedbackChance) {
-          generateAIFeedback();
-        }
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isSessionActive, feedbackFrequency]);
-
-  const generateAIFeedback = (forceType?: string, forcePriority?: string) => {
+  const generateAIFeedback = useCallback((forceType?: string, forcePriority?: string) => {
     const feedbackDatabase = {
       technique: [
         { message: 'Ottima linea in curva 3! Mantieni questa traiettoria.', priority: 'low', category: 'Traiettoria' },
@@ -192,7 +152,47 @@ export default function VirtualCoachScreen() {
     setTimeout(() => {
       setShowFeedbackModal(false);
     }, 4000);
-  };
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isSessionActive) {
+      interval = setInterval(() => {
+        setSessionDuration((prev) => prev + 1);
+        
+        // Simulate real-time metrics with AI-driven variations
+        setMetrics((prev) => {
+          const newMetrics = {
+            heartRate: 140 + Math.floor(Math.random() * 20),
+            speed: 180 + Math.floor(Math.random() * 40),
+            lapTime: `1:${50 + Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 999)}`,
+            consistency: Math.min(prev.consistency + (Math.random() * 2), 100),
+            fatigue: Math.min(prev.fatigue + 0.3, 100),
+            focus: Math.max(prev.focus - (Math.random() * 0.5), 60),
+            technique: Math.min(prev.technique + (Math.random() * 1.5), 100),
+          };
+
+          // AI-driven feedback triggers
+          if (newMetrics.heartRate > 170 && Math.random() > 0.7) {
+            generateAIFeedback('safety', 'high');
+          } else if (newMetrics.consistency > 80 && Math.random() > 0.85) {
+            generateAIFeedback('performance', 'medium');
+          } else if (newMetrics.focus < 70 && Math.random() > 0.8) {
+            generateAIFeedback('motivation', 'medium');
+          }
+
+          return newMetrics;
+        });
+
+        // Periodic feedback based on frequency setting
+        const feedbackChance = feedbackFrequency === 'high' ? 0.92 : feedbackFrequency === 'medium' ? 0.95 : 0.97;
+        if (Math.random() > feedbackChance) {
+          generateAIFeedback();
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isSessionActive, feedbackFrequency, generateAIFeedback]);
 
   const startSession = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);

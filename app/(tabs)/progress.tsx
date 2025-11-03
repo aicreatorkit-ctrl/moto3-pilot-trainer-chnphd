@@ -80,47 +80,45 @@ export default function ProgressScreen() {
     { name: 'Trazioni', current: 12, target: 20, unit: 'reps' },
   ];
 
-  useEffect(() => {
-    initializeData();
+  const generateMockData = useCallback((): ProgressData[] => {
+    const data: ProgressData[] = [];
+    const now = new Date();
+    
+    for (let i = 90; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      data.push({
+        date: date.toISOString(),
+        weight: 72 - (i / 90) * 2 + Math.random() * 0.5,
+        hrv: 55 + (i / 90) * 12 + Math.random() * 5,
+        load: 450 + Math.random() * 150,
+        stiffness: 7 - (i / 90) * 3 + Math.random() * 1,
+      });
+    }
+    
+    return data;
   }, []);
 
-  const initializeData = async () => {
+  const loadProgressData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      await measurePerformance('initializeProgressData', async () => {
-        await loadProgressData();
-        await checkForUpdates();
-      });
-    } catch (err) {
-      console.error('Error initializing progress data:', err);
-      setError('Failed to load progress data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Use focus effect to reload data when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      checkForUpdates();
-    }, [])
-  );
-
-  const checkForUpdates = async () => {
-    try {
-      const updateTrigger = await AsyncStorage.getItem(UPDATE_TRIGGER_KEY);
-      if (updateTrigger && updateTrigger !== lastUpdate) {
-        console.log('Progress data update detected, reloading...');
-        setLastUpdate(updateTrigger);
-        await updateProgressFromReadiness();
+      // Use optimized storage with caching
+      const stored = await storage.get<ProgressData[]>(STORAGE_KEY, { useCache: true });
+      if (stored) {
+        setProgressData(stored);
+      } else {
+        // Generate mock data
+        const mockData = generateMockData();
+        setProgressData(mockData);
+        await storage.set(STORAGE_KEY, mockData);
       }
     } catch (error) {
-      console.log('Error checking for updates:', error);
+      console.error('Error loading progress data:', error);
+      throw error;
     }
-  };
+  }, [generateMockData]);
 
-  const updateProgressFromReadiness = async () => {
+  const updateProgressFromReadiness = useCallback(async () => {
     try {
       // Load readiness history
       const readinessData = await AsyncStorage.getItem(READINESS_STORAGE_KEY);
@@ -182,50 +180,74 @@ export default function ProgressScreen() {
     } catch (error) {
       console.log('Error updating progress from readiness:', error);
     }
-  };
+  }, [progressData, generateMockData]);
 
-  const loadProgressData = async () => {
+  const checkForUpdates = useCallback(async () => {
     try {
-      // Use optimized storage with caching
-      const stored = await storage.get<ProgressData[]>(STORAGE_KEY, { useCache: true });
-      if (stored) {
-        setProgressData(stored);
-      } else {
-        // Generate mock data
-        const mockData = generateMockData();
-        setProgressData(mockData);
-        await storage.set(STORAGE_KEY, mockData);
+      const updateTrigger = await AsyncStorage.getItem(UPDATE_TRIGGER_KEY);
+      if (updateTrigger && updateTrigger !== lastUpdate) {
+        console.log('Progress data update detected, reloading...');
+        setLastUpdate(updateTrigger);
+        await updateProgressFromReadiness();
       }
     } catch (error) {
-      console.error('Error loading progress data:', error);
-      throw error;
+      console.log('Error checking for updates:', error);
     }
-  };
+  }, [lastUpdate, updateProgressFromReadiness]);
 
-  const generateMockData = (): ProgressData[] => {
-    const data: ProgressData[] = [];
-    const now = new Date();
-    
-    for (let i = 90; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      
-      data.push({
-        date: date.toISOString(),
-        weight: 72 - (i / 90) * 2 + Math.random() * 0.5,
-        hrv: 55 + (i / 90) * 12 + Math.random() * 5,
-        load: 450 + Math.random() * 150,
-        stiffness: 7 - (i / 90) * 3 + Math.random() * 1,
+  const initializeData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await measurePerformance('initializeProgressData', async () => {
+        await loadProgressData();
+        await checkForUpdates();
       });
+    } catch (err) {
+      console.error('Error initializing progress data:', err);
+      setError('Failed to load progress data');
+    } finally {
+      setLoading(false);
     }
-    
-    return data;
-  };
+  }, [loadProgressData, checkForUpdates]);
 
-  const getFilteredData = () => {
+  useEffect(() => {
+    initializeData();
+  }, [initializeData]);
+
+  // Use focus effect to reload data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      checkForUpdates();
+    }, [checkForUpdates])
+  );
+
+  const getFilteredData = useCallback(() => {
     const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90;
     return progressData.slice(-days);
-  };
+  }, [progressData, selectedPeriod]);
+
+  const calculateStats = useCallback((data: number[]) => {
+    if (data.length === 0) return { avg: 0, min: 0, max: 0, trend: 0 };
+    
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    
+    // Calculate trend (difference between first half and second half)
+    const midPoint = Math.floor(data.length / 2);
+    const firstHalf = data.slice(0, midPoint).reduce((a, b) => a + b, 0) / midPoint;
+    const secondHalf = data.slice(midPoint).reduce((a, b) => a + b, 0) / (data.length - midPoint);
+    const trend = ((secondHalf - firstHalf) / firstHalf) * 100;
+    
+    return { avg, min, max, trend };
+  }, []);
+
+  // Memoize expensive calculations
+  const filteredData = useMemo(() => getFilteredData(), [getFilteredData]);
+  const currentMetricData = useMemo(() => filteredData.map(d => d[selectedMetric]), [filteredData, selectedMetric]);
+  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData, calculateStats]);
+  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric, metrics]);
 
   const renderLineChart = (data: number[], metric: string) => {
     if (data.length < 2) return null;
@@ -366,28 +388,6 @@ export default function ProgressScreen() {
       </Svg>
     );
   };
-
-  const calculateStats = (data: number[]) => {
-    if (data.length === 0) return { avg: 0, min: 0, max: 0, trend: 0 };
-    
-    const avg = data.reduce((a, b) => a + b, 0) / data.length;
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    
-    // Calculate trend (difference between first half and second half)
-    const midPoint = Math.floor(data.length / 2);
-    const firstHalf = data.slice(0, midPoint).reduce((a, b) => a + b, 0) / midPoint;
-    const secondHalf = data.slice(midPoint).reduce((a, b) => a + b, 0) / (data.length - midPoint);
-    const trend = ((secondHalf - firstHalf) / firstHalf) * 100;
-    
-    return { avg, min, max, trend };
-  };
-
-  // Memoize expensive calculations
-  const filteredData = useMemo(() => getFilteredData(), [progressData, selectedPeriod]);
-  const currentMetricData = useMemo(() => filteredData.map(d => d[selectedMetric]), [filteredData, selectedMetric]);
-  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData]);
-  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric]);
 
   const weekProgress = 44; // Week 8 of 18
 

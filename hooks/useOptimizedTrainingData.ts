@@ -74,16 +74,20 @@ export function useOptimizedTrainingData() {
 
   // Debounced save functions for better performance
   const saveMorningRoutine = useCallback(
-    debounce(async (routine: MorningRoutineItem[]) => {
-      try {
-        await storage.set(STORAGE_KEYS.MORNING_ROUTINE, routine);
-        setMorningRoutine(routine);
-        await dataSync.addToQueue('update', 'morning_routine', routine);
-      } catch (err) {
-        console.error('Error saving morning routine:', err);
-        setError('Failed to save morning routine');
-      }
-    }, 500),
+    (routine: MorningRoutineItem[]) => {
+      const debouncedSave = debounce(async (data: MorningRoutineItem[]) => {
+        try {
+          await storage.set(STORAGE_KEYS.MORNING_ROUTINE, data);
+          setMorningRoutine(data);
+          await dataSync.addToQueue('update', 'morning_routine', data);
+        } catch (err) {
+          console.error('Error saving morning routine:', err);
+          setError('Failed to save morning routine');
+        }
+      }, 500);
+      
+      debouncedSave(routine);
+    },
     []
   );
 
