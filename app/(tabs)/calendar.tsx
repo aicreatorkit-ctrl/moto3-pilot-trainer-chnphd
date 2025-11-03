@@ -21,6 +21,36 @@ const TRAINING_TYPES = {
   TAPER: { label: 'Taper', color: '#FFD700', icon: 'bolt.circle.fill', emoji: '⚡' },
 };
 
+// Funzione per parsare gli esercizi dalla descrizione
+const parseExercises = (description) => {
+  if (!description) return [];
+  
+  // Separa gli esercizi usando | o newline
+  const exerciseStrings = description.split(/\s*\|\s*|\n/).filter(e => e.trim());
+  
+  return exerciseStrings.map((exerciseStr, index) => {
+    // Cerca pattern come "Nome Esercizio 4×10" o "Nome Esercizio 3×12-15"
+    const match = exerciseStr.match(/^(.+?)\s+(\d+[×x]\d+(?:-\d+)?(?:\/\w+)?(?:\s*\[.*?\])?)(.*)$/);
+    
+    if (match) {
+      return {
+        id: index,
+        name: match[1].trim(),
+        sets: match[2].trim(),
+        notes: match[3].trim()
+      };
+    }
+    
+    // Se non trova il pattern, restituisce l'esercizio completo come nome
+    return {
+      id: index,
+      name: exerciseStr.trim(),
+      sets: '',
+      notes: ''
+    };
+  });
+};
+
 export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -43,7 +73,7 @@ export default function CalendarScreen() {
         morning: { 
           time: '06:00-06:12', 
           type: 'MOBILITA', 
-          description: 'Cat-Cow 2×15, Child\'s Pose 2×45", Glute Bridge 2×12, Psoas Stretch 2×40"/lato',
+          description: 'Cat-Cow 2×15 | Child\'s Pose 2×45" | Glute Bridge 2×12 | Psoas Stretch 2×40"/lato',
           reps: '2×15, 2×45", 2×12, 2×40"',
           execution: 'Movimenti controllati, respirazione profonda',
           focus: 'Mobilità colonna e anche',
@@ -761,6 +791,9 @@ export default function CalendarScreen() {
                   </ScrollView>
 
                   <Text style={styles.inputLabel}>📋 Descrizione</Text>
+                  <Text style={styles.inputHint}>
+                    Separa gli esercizi con | (es: Squat 4×10 | Panca 3×12)
+                  </Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
                     value={editingSession.data.description}
@@ -768,7 +801,7 @@ export default function CalendarScreen() {
                       ...editingSession,
                       data: { ...editingSession.data, description: text }
                     })}
-                    placeholder="Dettagli allenamento..."
+                    placeholder="Esercizio 1 4×10 | Esercizio 2 3×12 | Esercizio 3 5×8"
                     multiline
                     placeholderTextColor={colors.textSecondary}
                   />
@@ -870,6 +903,7 @@ export default function CalendarScreen() {
 
 function SessionCard({ session, title, icon, compact }) {
   const type = TRAINING_TYPES[session.type] || TRAINING_TYPES.FORZA_MAX;
+  const exercises = parseExercises(session.description);
   
   if (compact) {
     return (
@@ -884,9 +918,22 @@ function SessionCard({ session, title, icon, compact }) {
           </View>
           <Text style={styles.sessionTimeCompact}>{session.time}</Text>
         </View>
-        <Text style={styles.sessionDescriptionCompact} numberOfLines={2}>
-          {session.description}
-        </Text>
+        
+        {/* Esercizi in formato compatto */}
+        <View style={styles.exercisesListCompact}>
+          {exercises.map((exercise, index) => (
+            <View key={exercise.id} style={styles.exerciseRowCompact}>
+              <Text style={styles.exerciseNumberCompact}>{index + 1}.</Text>
+              <Text style={styles.exerciseNameCompact} numberOfLines={1}>
+                {exercise.name}
+              </Text>
+              {exercise.sets && (
+                <Text style={styles.exerciseSetsCompact}>{exercise.sets}</Text>
+              )}
+            </View>
+          ))}
+        </View>
+        
         {session.rpe && (
           <View style={styles.rpeRowCompact}>
             <Text style={styles.rpeTextCompact}>RPE {session.rpe}/10</Text>
@@ -912,19 +959,38 @@ function SessionCard({ session, title, icon, compact }) {
         </View>
       </View>
       <Text style={styles.sessionTime}>⏰ {session.time}</Text>
-      <Text style={styles.sessionDescription}>{session.description}</Text>
+      
+      {/* Lista esercizi - uno per riga */}
+      <View style={styles.exercisesList}>
+        <View style={styles.exercisesHeader}>
+          <IconSymbol name="list.bullet" size={16} color={colors.primary} />
+          <Text style={styles.exercisesHeaderText}>Esercizi ({exercises.length})</Text>
+        </View>
+        {exercises.map((exercise, index) => (
+          <View key={exercise.id} style={styles.exerciseRow}>
+            <View style={styles.exerciseNumber}>
+              <Text style={styles.exerciseNumberText}>{index + 1}</Text>
+            </View>
+            <View style={styles.exerciseContent}>
+              <Text style={styles.exerciseName}>{exercise.name}</Text>
+              {exercise.sets && (
+                <View style={styles.exerciseSetsContainer}>
+                  <IconSymbol name="number" size={12} color={type.color} />
+                  <Text style={[styles.exerciseSets, { color: type.color }]}>
+                    {exercise.sets}
+                  </Text>
+                </View>
+              )}
+              {exercise.notes && (
+                <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
       
       {/* Dettagli allenamento */}
       <View style={styles.detailsContainer}>
-        {session.reps && (
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconLabel}>
-              <IconSymbol name="number" size={14} color={colors.primary} />
-              <Text style={styles.detailLabel}>Reps</Text>
-            </View>
-            <Text style={styles.detailValue}>{session.reps}</Text>
-          </View>
-        )}
         {session.execution && (
           <View style={styles.detailRow}>
             <View style={styles.detailIconLabel}>
@@ -1244,13 +1310,75 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primary,
     fontWeight: '600',
-    marginBottom: 8,
-  },
-  sessionDescription: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
     marginBottom: 12,
+  },
+  exercisesList: {
+    backgroundColor: colors.highlight,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  exercisesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  exercisesHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border + '30',
+  },
+  exerciseNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  exerciseNumberText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  exerciseContent: {
+    flex: 1,
+  },
+  exerciseName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  exerciseSetsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  exerciseSets: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  exerciseNotes: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   detailsContainer: {
     backgroundColor: colors.highlight,
@@ -1320,7 +1448,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   sessionTitleRow: {
     flexDirection: 'row',
@@ -1348,11 +1476,35 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
   },
-  sessionDescriptionCompact: {
+  exercisesListCompact: {
+    marginBottom: 8,
+  },
+  exerciseRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    paddingVertical: 4,
+  },
+  exerciseNumberCompact: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    width: 20,
+  },
+  exerciseNameCompact: {
     fontSize: 12,
     color: colors.text,
-    lineHeight: 16,
-    marginBottom: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  exerciseSetsCompact: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   rpeRowCompact: {
     flexDirection: 'row',
@@ -1482,6 +1634,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
     marginTop: 12,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 6,
+    fontStyle: 'italic',
   },
   input: {
     backgroundColor: colors.background,
