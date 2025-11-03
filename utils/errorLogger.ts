@@ -112,13 +112,19 @@ class ErrorLogger {
 // Export singleton instance
 export const errorLogger = new ErrorLogger();
 
-// Global error handler
-if (typeof global !== 'undefined') {
-  const originalConsoleError = console.error;
-  console.error = (...args: any[]) => {
-    if (args[0] instanceof Error) {
-      errorLogger.log(args[0], 'Global Error', 'high');
-    }
-    originalConsoleError.apply(console, args);
-  };
+/**
+ * Setup global error logging
+ */
+export function setupErrorLogging(): void {
+  if (typeof global !== 'undefined') {
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      if (args[0] instanceof Error) {
+        errorLogger.log(args[0], 'Global Error', 'high');
+      }
+      originalConsoleError.apply(console, args);
+    };
+  }
+  
+  console.log('[ErrorLogger] Error logging initialized');
 }

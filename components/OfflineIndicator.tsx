@@ -3,7 +3,7 @@
  * Offline mode indicator component
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useNetworkState } from 'expo-network';
 import { IconSymbol } from './IconSymbol';
@@ -11,7 +11,7 @@ import { colors, shadows } from '@/styles/commonStyles';
 
 export function OfflineIndicator() {
   const networkState = useNetworkState();
-  const [slideAnim] = useState(new Animated.Value(-100));
+  const slideAnim = useRef(new Animated.Value(-100)).current;
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {

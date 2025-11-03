@@ -1,105 +1,81 @@
 
 /**
- * Performance monitoring and optimization utilities
+ * Performance optimization utilities
  */
 
-import { InteractionManager } from 'react-native';
-
 /**
- * Debounce function to limit execution rate
- */
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-
-  return function executedFunction(...args: Parameters<T>) {
-    const later = () => {
-      timeout = null;
-      func(...args);
-    };
-
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(later, wait);
-  };
-}
-
-/**
- * Throttle function to limit execution frequency
- */
-export function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-
-  return function executedFunction(...args: Parameters<T>) {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-}
-
-/**
- * Run task after interactions complete (for better performance)
- */
-export function runAfterInteractions<T>(
-  task: () => T | Promise<T>
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    InteractionManager.runAfterInteractions(() => {
-      try {
-        const result = task();
-        if (result instanceof Promise) {
-          result.then(resolve).catch(reject);
-        } else {
-          resolve(result);
-        }
-      } catch (error) {
-        reject(error);
-      }
-    });
-  });
-}
-
-/**
- * Measure execution time of a function
+ * Measure performance of a function
  */
 export async function measurePerformance<T>(
   name: string,
-  task: () => T | Promise<T>
+  fn: () => T | Promise<T>
 ): Promise<T> {
-  const start = Date.now();
-  
+  const start = performance.now();
   try {
-    const result = await task();
-    const duration = Date.now() - start;
-    console.log(`⚡ Performance [${name}]: ${duration}ms`);
+    const result = await fn();
+    const end = performance.now();
+    console.log(`[Performance] ${name}: ${(end - start).toFixed(2)}ms`);
     return result;
   } catch (error) {
-    const duration = Date.now() - start;
-    console.error(`❌ Performance [${name}] failed after ${duration}ms:`, error);
+    const end = performance.now();
+    console.error(`[Performance] ${name} failed after ${(end - start).toFixed(2)}ms:`, error);
     throw error;
   }
 }
 
 /**
- * Batch multiple async operations
+ * Debounce function calls
  */
-export async function batchAsync<T>(
-  operations: Array<() => Promise<T>>,
-  batchSize: number = 5
-): Promise<T[]> {
-  const results: T[] = [];
+export function debounce<T extends unknown[]>(
+  func: (...args: T) => void,
+  wait: number
+): (...args: T) => void {
+  let timeout: NodeJS.Timeout | null = null;
   
-  for (let i = 0; i < operations.length; i += batchSize) {
-    const batch = operations.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(op => op()));
+  return (...args: T) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    
+    timeout = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+}
+
+/**
+ * Throttle function calls
+ */
+export function throttle<T extends unknown[]>(
+  func: (...args: T) => void,
+  limit: number
+): (...args: T) => void {
+  let inThrottle: boolean = false;
+  
+  return (...args: T) => {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
+    }
+  };
+}
+
+/**
+ * Batch operations for better performance
+ */
+export async function batchOperations<T, R>(
+  items: T[],
+  operation: (item: T) => Promise<R>,
+  batchSize: number = 10
+): Promise<R[]> {
+  const results: R[] = [];
+  
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(operation));
     results.push(...batchResults);
   }
   
@@ -109,56 +85,53 @@ export async function batchAsync<T>(
 /**
  * Memoize function results
  */
-export function memoize<T extends (...args: any[]) => any>(
-  func: T,
-  resolver?: (...args: Parameters<T>) => string
-): T {
-  const cache = new Map<string, ReturnType<T>>();
-
-  return ((...args: Parameters<T>) => {
-    const key = resolver ? resolver(...args) : JSON.stringify(args);
+export function memoize<T extends unknown[], R>(
+  fn: (...args: T) => R,
+  keyGenerator?: (...args: T) => string
+): (...args: T) => R {
+  const cache = new Map<string, R>();
+  
+  return (...args: T): R => {
+    const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
     
     if (cache.has(key)) {
-      return cache.get(key);
+      return cache.get(key)!;
     }
-
-    const result = func(...args);
+    
+    const result = fn(...args);
     cache.set(key, result);
     return result;
-  }) as T;
+  };
 }
 
 /**
- * Lazy load component or data
+ * Lazy load data with caching
  */
-export function lazyLoad<T>(
+export function createLazyLoader<T>(
   loader: () => Promise<T>,
-  fallback?: T
+  ttl: number = 5 * 60 * 1000 // 5 minutes default
 ): () => Promise<T> {
-  let cached: T | null = null;
+  let cache: { data: T; timestamp: number } | null = null;
   let loading: Promise<T> | null = null;
-
-  return async () => {
-    if (cached !== null) {
-      return cached;
+  
+  return async (): Promise<T> => {
+    // Return cached data if still valid
+    if (cache && Date.now() - cache.timestamp < ttl) {
+      return cache.data;
     }
-
-    if (loading !== null) {
+    
+    // Return existing loading promise if already loading
+    if (loading) {
       return loading;
     }
-
+    
+    // Start loading
     loading = loader();
     
     try {
-      cached = await loading;
-      return cached;
-    } catch (error) {
-      console.error('Lazy load failed:', error);
-      if (fallback !== undefined) {
-        cached = fallback;
-        return fallback;
-      }
-      throw error;
+      const data = await loading;
+      cache = { data, timestamp: Date.now() };
+      return data;
     } finally {
       loading = null;
     }
@@ -166,21 +139,29 @@ export function lazyLoad<T>(
 }
 
 /**
- * Request animation frame wrapper
+ * Rate limiter
  */
-export function requestAnimationFrameAsync(): Promise<number> {
-  return new Promise(resolve => {
-    requestAnimationFrame(resolve);
-  });
-}
-
-/**
- * Chunk array for batch processing
- */
-export function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
+export class RateLimiter {
+  private queue: (() => void)[] = [];
+  private running: number = 0;
+  
+  constructor(private maxConcurrent: number = 5) {}
+  
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    while (this.running >= this.maxConcurrent) {
+      await new Promise<void>(resolve => this.queue.push(resolve));
+    }
+    
+    this.running++;
+    
+    try {
+      return await fn();
+    } finally {
+      this.running--;
+      const next = this.queue.shift();
+      if (next) {
+        next();
+      }
+    }
   }
-  return chunks;
 }

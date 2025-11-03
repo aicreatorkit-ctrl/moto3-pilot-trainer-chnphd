@@ -1,224 +1,238 @@
 
 /**
- * Enhanced storage utility with offline support and data synchronization
+ * Enhanced storage utilities with caching and performance optimizations
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { cache } from './cache';
+import { errorLogger } from './errorLogger';
 
-interface StorageOptions {
-  useCache?: boolean;
-  cacheTTL?: number;
+/**
+ * Storage operation result
+ */
+interface StorageResult<T> {
+  success: boolean;
+  data?: T;
+  error?: Error;
 }
 
-class StorageManager {
-  private pendingWrites: Map<string, any>;
-  private syncQueue: Array<{ key: string; value: any }>;
-  private isSyncing: boolean;
+/**
+ * Storage cache entry
+ */
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
 
-  constructor() {
-    this.pendingWrites = new Map();
-    this.syncQueue = [];
-    this.isSyncing = false;
-  }
+/**
+ * In-memory cache for frequently accessed data
+ */
+class StorageCache {
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
+  private maxSize: number = 100;
 
-  /**
-   * Get data from storage with optional caching
-   */
-  async get<T>(key: string, options: StorageOptions = {}): Promise<T | null> {
-    const { useCache = true, cacheTTL } = options;
-
-    // Check cache first
-    if (useCache) {
-      const cached = cache.get<T>(key);
-      if (cached !== null) {
-        console.log(`Cache hit for key: ${key}`);
-        return cached;
+  set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
+    // Enforce max size
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) {
+        this.cache.delete(firstKey);
       }
     }
 
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key) as CacheEntry<T> | undefined;
+    
+    if (!entry) {
+      return null;
+    }
+
+    // Check if expired
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data;
+  }
+
+  invalidate(key: string): void {
+    this.cache.delete(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const cache = new StorageCache();
+
+/**
+ * Enhanced storage class
+ */
+export const storage = {
+  /**
+   * Get item from storage with caching
+   */
+  async getItem<T>(key: string, useCache: boolean = true): Promise<StorageResult<T>> {
     try {
-      const value = await AsyncStorage.getItem(key);
-      if (value !== null) {
-        const parsed = JSON.parse(value) as T;
-        
-        // Store in cache
-        if (useCache) {
-          cache.set(key, parsed, cacheTTL);
+      // Check cache first
+      if (useCache) {
+        const cached = cache.get<T>(key);
+        if (cached !== null) {
+          return { success: true, data: cached };
         }
-        
-        return parsed;
       }
-      return null;
-    } catch (error) {
-      console.error(`Error getting data for key ${key}:`, error);
-      return null;
-    }
-  }
 
-  /**
-   * Set data in storage with automatic cache update
-   */
-  async set<T>(key: string, value: T, options: StorageOptions = {}): Promise<boolean> {
-    const { useCache = true, cacheTTL } = options;
+      const value = await AsyncStorage.getItem(key);
+      
+      if (value === null) {
+        return { success: true, data: undefined };
+      }
 
-    try {
-      const stringValue = JSON.stringify(value);
-      await AsyncStorage.setItem(key, stringValue);
+      const data = JSON.parse(value) as T;
       
       // Update cache
       if (useCache) {
-        cache.set(key, value, cacheTTL);
+        cache.set(key, data);
       }
-      
-      return true;
+
+      return { success: true, data };
     } catch (error) {
-      console.error(`Error setting data for key ${key}:`, error);
-      
-      // Queue for later sync if offline
-      this.syncQueue.push({ key, value });
-      return false;
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, `Storage getItem: ${key}`, 'medium');
+      return { success: false, error: err };
     }
-  }
+  },
 
   /**
-   * Remove data from storage and cache
+   * Set item in storage and update cache
    */
-  async remove(key: string): Promise<boolean> {
+  async setItem<T>(key: string, value: T): Promise<StorageResult<T>> {
+    try {
+      const jsonValue = JSON.stringify(value);
+      await AsyncStorage.setItem(key, jsonValue);
+      
+      // Update cache
+      cache.set(key, value);
+
+      return { success: true, data: value };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, `Storage setItem: ${key}`, 'medium');
+      return { success: false, error: err };
+    }
+  },
+
+  /**
+   * Remove item from storage and cache
+   */
+  async removeItem(key: string): Promise<StorageResult<void>> {
     try {
       await AsyncStorage.removeItem(key);
-      cache.delete(key);
-      return true;
+      cache.invalidate(key);
+      return { success: true };
     } catch (error) {
-      console.error(`Error removing data for key ${key}:`, error);
-      return false;
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, `Storage removeItem: ${key}`, 'medium');
+      return { success: false, error: err };
     }
-  }
+  },
 
   /**
-   * Get multiple keys at once
+   * Get multiple items at once
    */
-  async getMultiple<T>(keys: string[]): Promise<Record<string, T | null>> {
-    const result: Record<string, T | null> = {};
-    
+  async multiGet<T>(keys: string[]): Promise<StorageResult<Record<string, T>>> {
     try {
-      const values = await AsyncStorage.multiGet(keys);
-      
-      values.forEach(([key, value]) => {
+      const pairs = await AsyncStorage.multiGet(keys);
+      const result: Record<string, T> = {};
+
+      for (const [key, value] of pairs) {
         if (value !== null) {
-          try {
-            result[key] = JSON.parse(value) as T;
-            cache.set(key, result[key]);
-          } catch (error) {
-            console.error(`Error parsing value for key ${key}:`, error);
-            result[key] = null;
-          }
-        } else {
-          result[key] = null;
+          result[key] = JSON.parse(value) as T;
         }
-      });
-      
-      return result;
+      }
+
+      return { success: true, data: result };
     } catch (error) {
-      console.error('Error getting multiple keys:', error);
-      return result;
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, 'Storage multiGet', 'medium');
+      return { success: false, error: err };
     }
-  }
+  },
 
   /**
-   * Set multiple keys at once
+   * Set multiple items at once
    */
-  async setMultiple(items: Array<[string, any]>): Promise<boolean> {
+  async multiSet(keyValuePairs: [string, unknown][]): Promise<StorageResult<void>> {
     try {
-      const stringItems = items.map(([key, value]) => [
+      const pairs: [string, string][] = keyValuePairs.map(([key, value]) => [
         key,
         JSON.stringify(value),
       ]);
-      
-      await AsyncStorage.multiSet(stringItems as [string, string][]);
-      
+
+      await AsyncStorage.multiSet(pairs);
+
       // Update cache
-      items.forEach(([key, value]) => {
+      for (const [key, value] of keyValuePairs) {
         cache.set(key, value);
-      });
-      
-      return true;
+      }
+
+      return { success: true };
     } catch (error) {
-      console.error('Error setting multiple keys:', error);
-      return false;
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, 'Storage multiSet', 'medium');
+      return { success: false, error: err };
     }
-  }
+  },
 
   /**
-   * Clear all storage and cache
+   * Clear all storage
    */
-  async clear(): Promise<boolean> {
+  async clear(): Promise<StorageResult<void>> {
     try {
       await AsyncStorage.clear();
       cache.clear();
-      return true;
+      return { success: true };
     } catch (error) {
-      console.error('Error clearing storage:', error);
-      return false;
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, 'Storage clear', 'high');
+      return { success: false, error: err };
     }
-  }
+  },
 
   /**
-   * Get all keys in storage
+   * Get all keys
    */
-  async getAllKeys(): Promise<string[]> {
+  async getAllKeys(): Promise<StorageResult<string[]>> {
     try {
-      return await AsyncStorage.getAllKeys();
+      const keys = await AsyncStorage.getAllKeys();
+      return { success: true, data: keys };
     } catch (error) {
-      console.error('Error getting all keys:', error);
-      return [];
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, 'Storage getAllKeys', 'medium');
+      return { success: false, error: err };
     }
-  }
+  },
 
   /**
-   * Sync pending writes (for offline support)
+   * Invalidate cache for a key
    */
-  async syncPendingWrites(): Promise<void> {
-    if (this.isSyncing || this.syncQueue.length === 0) {
-      return;
-    }
-
-    this.isSyncing = true;
-    console.log(`Syncing ${this.syncQueue.length} pending writes...`);
-
-    const itemsToSync = [...this.syncQueue];
-    this.syncQueue = [];
-
-    for (const { key, value } of itemsToSync) {
-      try {
-        await this.set(key, value);
-        console.log(`Synced key: ${key}`);
-      } catch (error) {
-        console.error(`Failed to sync key ${key}:`, error);
-        // Re-add to queue
-        this.syncQueue.push({ key, value });
-      }
-    }
-
-    this.isSyncing = false;
-  }
+  invalidateCache(key: string): void {
+    cache.invalidate(key);
+  },
 
   /**
-   * Get storage usage statistics
+   * Clear all cache
    */
-  async getStorageStats(): Promise<{
-    totalKeys: number;
-    cacheStats: any;
-    pendingWrites: number;
-  }> {
-    const keys = await this.getAllKeys();
-    return {
-      totalKeys: keys.length,
-      cacheStats: cache.getStats(),
-      pendingWrites: this.syncQueue.length,
-    };
-  }
-}
-
-// Export singleton instance
-export const storage = new StorageManager();
+  clearCache(): void {
+    cache.clear();
+  },
+};

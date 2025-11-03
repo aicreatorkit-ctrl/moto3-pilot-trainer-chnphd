@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { storage } from '@/utils/storage';
-import { cache } from '@/utils/cache';
 import { dataSync } from '@/utils/dataSync';
 import { measurePerformance, debounce } from '@/utils/performance';
 import { 
@@ -45,20 +44,20 @@ export function useOptimizedTrainingData() {
       await measurePerformance('loadAllData', async () => {
         // Use parallel loading with caching
         const [routine, workoutsData, readiness, flags, progress, plans] = await Promise.all([
-          storage.get<MorningRoutineItem[]>(STORAGE_KEYS.MORNING_ROUTINE, { useCache: true }),
-          storage.get<WorkoutSession[]>(STORAGE_KEYS.WORKOUTS, { useCache: true }),
-          storage.get<DailyReadiness[]>(STORAGE_KEYS.READINESS, { useCache: true }),
-          storage.get<RedFlag[]>(STORAGE_KEYS.RED_FLAGS, { useCache: true }),
-          storage.get<ProgressData[]>(STORAGE_KEYS.PROGRESS, { useCache: true }),
-          storage.get<WeekPlan[]>(STORAGE_KEYS.WEEK_PLANS, { useCache: true }),
+          storage.getItem<MorningRoutineItem[]>(STORAGE_KEYS.MORNING_ROUTINE, true),
+          storage.getItem<WorkoutSession[]>(STORAGE_KEYS.WORKOUTS, true),
+          storage.getItem<DailyReadiness[]>(STORAGE_KEYS.READINESS, true),
+          storage.getItem<RedFlag[]>(STORAGE_KEYS.RED_FLAGS, true),
+          storage.getItem<ProgressData[]>(STORAGE_KEYS.PROGRESS, true),
+          storage.getItem<WeekPlan[]>(STORAGE_KEYS.WEEK_PLANS, true),
         ]);
 
-        if (routine) setMorningRoutine(routine);
-        if (workoutsData) setWorkouts(workoutsData);
-        if (readiness) setReadinessData(readiness);
-        if (flags) setRedFlags(flags);
-        if (progress) setProgressData(progress);
-        if (plans) setWeekPlans(plans);
+        if (routine.success && routine.data) setMorningRoutine(routine.data);
+        if (workoutsData.success && workoutsData.data) setWorkouts(workoutsData.data);
+        if (readiness.success && readiness.data) setReadinessData(readiness.data);
+        if (flags.success && flags.data) setRedFlags(flags.data);
+        if (progress.success && progress.data) setProgressData(progress.data);
+        if (plans.success && plans.data) setWeekPlans(plans.data);
       });
     } catch (err) {
       console.error('Error loading training data:', err);
@@ -77,7 +76,7 @@ export function useOptimizedTrainingData() {
     (routine: MorningRoutineItem[]) => {
       const debouncedSave = debounce(async (data: MorningRoutineItem[]) => {
         try {
-          await storage.set(STORAGE_KEYS.MORNING_ROUTINE, data);
+          await storage.setItem(STORAGE_KEYS.MORNING_ROUTINE, data);
           setMorningRoutine(data);
           await dataSync.addToQueue('update', 'morning_routine', data);
         } catch (err) {
@@ -94,7 +93,7 @@ export function useOptimizedTrainingData() {
   const saveWorkout = useCallback(async (workout: WorkoutSession) => {
     try {
       const updated = [...workouts, workout];
-      await storage.set(STORAGE_KEYS.WORKOUTS, updated);
+      await storage.setItem(STORAGE_KEYS.WORKOUTS, updated);
       setWorkouts(updated);
       await dataSync.addToQueue('create', 'workouts', workout);
     } catch (err) {
@@ -106,7 +105,7 @@ export function useOptimizedTrainingData() {
   const saveReadiness = useCallback(async (readiness: DailyReadiness) => {
     try {
       const updated = [...readinessData, readiness];
-      await storage.set(STORAGE_KEYS.READINESS, updated);
+      await storage.setItem(STORAGE_KEYS.READINESS, updated);
       setReadinessData(updated);
       await dataSync.addToQueue('create', 'readiness', readiness);
     } catch (err) {
@@ -118,7 +117,7 @@ export function useOptimizedTrainingData() {
   const saveRedFlag = useCallback(async (flag: RedFlag) => {
     try {
       const updated = [...redFlags, flag];
-      await storage.set(STORAGE_KEYS.RED_FLAGS, updated);
+      await storage.setItem(STORAGE_KEYS.RED_FLAGS, updated);
       setRedFlags(updated);
       await dataSync.addToQueue('create', 'red_flags', flag);
     } catch (err) {
@@ -130,7 +129,7 @@ export function useOptimizedTrainingData() {
   const saveProgress = useCallback(async (progress: ProgressData) => {
     try {
       const updated = [...progressData, progress];
-      await storage.set(STORAGE_KEYS.PROGRESS, updated);
+      await storage.setItem(STORAGE_KEYS.PROGRESS, updated);
       setProgressData(updated);
       await dataSync.addToQueue('create', 'progress', progress);
     } catch (err) {
@@ -149,7 +148,7 @@ export function useOptimizedTrainingData() {
       } else {
         updated = [...weekPlans, plan];
       }
-      await storage.set(STORAGE_KEYS.WEEK_PLANS, updated);
+      await storage.setItem(STORAGE_KEYS.WEEK_PLANS, updated);
       setWeekPlans(updated);
       await dataSync.addToQueue('update', 'week_plans', plan);
     } catch (err) {
