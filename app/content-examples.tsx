@@ -7,6 +7,37 @@ import { colors, commonStyles } from '@/styles/commonStyles';
 
 const exampleDocuments = [
   {
+    title: 'Routine Mattutina - Formato File',
+    content: `Controllo peso corporeo
+Misurazione HRV
+Valutazione rigidità muscolare
+Idratazione (500ml acqua)
+Colazione bilanciata
+Mobilità articolare (10 min)
+Stretching dinamico`,
+    description: 'Un elemento per riga. Opzionale: durata tra parentesi.',
+  },
+  {
+    title: 'Esercizi Riscaldamento - Formato File',
+    content: `Jogging leggero | 300 sec | 5 minuti
+Rotazioni cervicali | 2 serie 10 rep
+Rotazioni spalle | 2 serie 15 rep
+Rotazioni bacino | 2 serie 10 rep
+Affondi dinamici | 2 serie 10 rep
+Squat a corpo libero | 2 serie 15 rep
+Plank dinamico | 60 sec | 2 serie da 30 secondi`,
+    description: 'Nome | Durata/Serie | Note (separati da |)',
+  },
+  {
+    title: 'Mobilità - Formato File',
+    content: `Idratazione: Bere almeno 3L di acqua al giorno. Aumentare durante allenamenti intensi.
+Nutrizione: Carboidrati: 6-8g/kg, Proteine: 1.6-2g/kg, Grassi: 1g/kg
+Sonno: Minimo 8 ore per notte. Mantenere orari regolari.
+Recupero: Almeno 1 giorno di riposo completo a settimana.
+Bandiere Rosse: Dolore persistente, affaticamento estremo, calo prestazioni, disturbi del sonno.`,
+    description: 'Chiave: Valore (una per riga)',
+  },
+  {
     title: 'Routine Mattutina - Esempio',
     content: `ROUTINE MATTUTINA
 
@@ -25,6 +56,7 @@ Mobilità Articolare
 - Rotazioni spalle: 2x15
 - Mobilità anche: 10 minuti
 - Stretching dinamico: 5 minuti`,
+    description: 'Esempio completo per Content Manager',
   },
   {
     title: 'Obiettivi Settimanali - Esempio',
@@ -110,7 +142,12 @@ export default function ContentExamplesScreen() {
           <View key={index} style={[commonStyles.card, styles.exampleCard]}>
             <View style={styles.exampleHeader}>
               <IconSymbol name="doc.text" size={24} color={colors.primary} />
-              <Text style={styles.exampleTitle}>{doc.title}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.exampleTitle}>{doc.title}</Text>
+                {doc.description && (
+                  <Text style={styles.exampleDescription}>{doc.description}</Text>
+                )}
+              </View>
             </View>
             
             <View style={styles.contentPreview}>
@@ -128,11 +165,11 @@ export default function ContentExamplesScreen() {
               
               <Pressable
                 style={[styles.actionButton, styles.actionButtonSecondary]}
-                onPress={() => router.push('/content-manager' as any)}
+                onPress={() => router.push('/edit-data' as any)}
               >
                 <IconSymbol name="arrow.right.circle" size={18} color={colors.accent} />
                 <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>
-                  Vai al Manager
+                  Modifica Dati
                 </Text>
               </Pressable>
             </View>
@@ -233,7 +270,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    flex: 1,
+  },
+  exampleDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   contentPreview: {
     backgroundColor: colors.background,

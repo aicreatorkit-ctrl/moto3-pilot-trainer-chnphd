@@ -154,6 +154,25 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Gestione Contenuti</Text>
           <Pressable
             style={[styles.settingCard, styles.featureCard]}
+            onPress={() => router.push('/edit-data' as any)}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+                <IconSymbol name="arrow.up.doc.fill" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingTitle, styles.featureText]}>
+                  Modifica Dati da File
+                </Text>
+                <Text style={styles.settingDescription}>
+                  Aggiorna sezioni caricando file .txt
+                </Text>
+              </View>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            style={[styles.settingCard, styles.featureCard]}
             onPress={() => router.push('/content-manager' as any)}
           >
             <View style={styles.settingLeft}>

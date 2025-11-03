@@ -28,6 +28,23 @@ export default function ContentAIGuideScreen() {
           </Text>
         </View>
 
+        {/* Quick Access to Edit Data */}
+        <Pressable
+          style={[commonStyles.card, styles.quickAccessCard]}
+          onPress={() => router.push('/edit-data' as any)}
+        >
+          <View style={styles.quickAccessIcon}>
+            <IconSymbol name="arrow.up.doc.fill" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.quickAccessInfo}>
+            <Text style={styles.quickAccessTitle}>Modifica Dati da File</Text>
+            <Text style={styles.quickAccessDescription}>
+              Aggiorna rapidamente le sezioni caricando file .txt
+            </Text>
+          </View>
+          <IconSymbol name="chevron.right" size={20} color={colors.primary} />
+        </Pressable>
+
         {/* Current Features */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>✅ Funzionalità Attuali</Text>
@@ -405,5 +422,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  quickAccessCard: {
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  quickAccessIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  quickAccessInfo: {
+    flex: 1,
+  },
+  quickAccessTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  quickAccessDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });
