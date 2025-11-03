@@ -27,7 +27,7 @@ export function OfflineIndicator() {
         friction: 8,
       }).start();
     }
-  }, [networkState.isConnected, networkState.isInternetReachable, isOffline, slideAnim]);
+  }, [networkState.isConnected, networkState.isInternetReachable]);
 
   return (
     <Animated.View 

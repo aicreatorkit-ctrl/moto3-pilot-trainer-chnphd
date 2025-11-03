@@ -207,6 +207,9 @@ export function getDateRange(period: '7d' | '30d' | '90d' | 'all'): { start: Dat
     case 'all':
       start.setFullYear(2000);
       break;
+    default:
+      start.setDate(end.getDate() - 7);
+      break;
   }
   
   return { start, end };

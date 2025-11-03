@@ -69,7 +69,7 @@ export function throttle<T extends unknown[]>(
 export async function batchOperations<T, R>(
   items: T[],
   operation: (item: T) => Promise<R>,
-  batchSize: number = 10
+  batchSize = 10
 ): Promise<R[]> {
   const results: R[] = [];
   

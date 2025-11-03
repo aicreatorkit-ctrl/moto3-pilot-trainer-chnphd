@@ -213,13 +213,13 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     initializeData();
-  }, [initializeData]);
+  }, []);
 
   // Use focus effect to reload data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       checkForUpdates();
-    }, [checkForUpdates])
+    }, [])
   );
 
   const getFilteredData = useCallback(() => {
@@ -244,10 +244,10 @@ export default function ProgressScreen() {
   }, []);
 
   // Memoize expensive calculations
-  const filteredData = useMemo(() => getFilteredData(), [getFilteredData]);
+  const filteredData = useMemo(() => getFilteredData(), [progressData, selectedPeriod]);
   const currentMetricData = useMemo(() => filteredData.map(d => d[selectedMetric]), [filteredData, selectedMetric]);
-  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData, calculateStats]);
-  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric, metrics]);
+  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData]);
+  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric]);
 
   const renderLineChart = (data: number[], metric: string) => {
     if (data.length < 2) return null;
