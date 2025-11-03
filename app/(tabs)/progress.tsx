@@ -1,34 +1,112 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, Modal, Alert } from 'react-native';
 import { Stack } from 'expo-router';
-import { colors, commonStyles } from '@/styles/commonStyles';
+import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Circle, Line, Text as SvgText, Path, Rect } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
+interface ProgressData {
+  date: string;
+  weight: number;
+  hrv: number;
+  load: number;
+  stiffness: number;
+}
+
+interface ExerciseProgress {
+  name: string;
+  current: number;
+  target: number;
+  unit: string;
+}
+
+const STORAGE_KEY = '@progress_data';
+
 export default function ProgressScreen() {
   const [selectedMetric, setSelectedMetric] = useState<'weight' | 'hrv' | 'load' | 'stiffness'>('weight');
+  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d'>('7d');
+  const [progressData, setProgressData] = useState<ProgressData[]>([]);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showExercises, setShowExercises] = useState(false);
 
   const metrics = [
-    { key: 'weight', label: 'Peso', icon: 'scalemass.fill', color: colors.primary },
-    { key: 'hrv', label: 'HRV', icon: 'waveform.path.ecg', color: colors.accent },
-    { key: 'load', label: 'Carico', icon: 'chart.bar.fill', color: colors.warning },
-    { key: 'stiffness', label: 'Rigidità', icon: 'figure.flexibility', color: colors.secondary },
+    { key: 'weight', label: 'Peso', icon: 'scalemass.fill', color: colors.primary, unit: 'kg' },
+    { key: 'hrv', label: 'HRV', icon: 'waveform.path.ecg', color: colors.accent, unit: 'ms' },
+    { key: 'load', label: 'Carico', icon: 'chart.bar.fill', color: colors.warning, unit: 'AU' },
+    { key: 'stiffness', label: 'Rigidità', icon: 'figure.flexibility', color: colors.secondary, unit: '/10' },
   ];
 
-  const mockData = {
-    weight: [72, 71.8, 71.5, 71.3, 71.2, 71.0, 70.8],
-    hrv: [55, 58, 60, 62, 65, 63, 67],
-    load: [450, 480, 520, 500, 550, 530, 580],
-    stiffness: [7, 6, 6, 5, 5, 4, 4],
+  const periods = [
+    { key: '7d', label: '7 giorni' },
+    { key: '30d', label: '30 giorni' },
+    { key: '90d', label: '90 giorni' },
+  ];
+
+  const exerciseProgress: ExerciseProgress[] = [
+    { name: 'Squat', current: 85, target: 100, unit: 'kg' },
+    { name: 'Plank', current: 120, target: 180, unit: 'sec' },
+    { name: 'Sprint 100m', current: 13.2, target: 12.5, unit: 'sec' },
+    { name: 'Flessioni', current: 45, target: 60, unit: 'reps' },
+    { name: 'Trazioni', current: 12, target: 20, unit: 'reps' },
+  ];
+
+  useEffect(() => {
+    loadProgressData();
+  }, []);
+
+  const loadProgressData = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setProgressData(JSON.parse(stored));
+      } else {
+        // Generate mock data
+        const mockData = generateMockData();
+        setProgressData(mockData);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockData));
+      }
+    } catch (error) {
+      console.log('Error loading progress data:', error);
+    }
   };
 
-  const renderLineChart = (data: number[]) => {
+  const generateMockData = (): ProgressData[] => {
+    const data: ProgressData[] = [];
+    const now = new Date();
+    
+    for (let i = 90; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      data.push({
+        date: date.toISOString(),
+        weight: 72 - (i / 90) * 2 + Math.random() * 0.5,
+        hrv: 55 + (i / 90) * 12 + Math.random() * 5,
+        load: 450 + Math.random() * 150,
+        stiffness: 7 - (i / 90) * 3 + Math.random() * 1,
+      });
+    }
+    
+    return data;
+  };
+
+  const getFilteredData = () => {
+    const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90;
+    return progressData.slice(-days);
+  };
+
+  const renderLineChart = (data: number[], metric: string) => {
+    if (data.length < 2) return null;
+
     const chartWidth = width - 64;
-    const chartHeight = 150;
-    const padding = 20;
+    const chartHeight = 200;
+    const padding = 30;
     
     const maxValue = Math.max(...data);
     const minValue = Math.min(...data);
@@ -40,32 +118,71 @@ export default function ProgressScreen() {
       return { x, y, value };
     });
 
+    let pathData = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      pathData += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    const metricColor = metrics.find(m => m.key === metric)?.color || colors.primary;
+
     return (
       <Svg width={chartWidth} height={chartHeight}>
-        {points.map((point, index) => {
-          if (index < points.length - 1) {
-            const nextPoint = points[index + 1];
-            return (
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          const y = chartHeight - padding - (ratio * (chartHeight - 2 * padding));
+          const value = minValue + (ratio * range);
+          return (
+            <React.Fragment key={ratio}>
               <Line
-                key={`line-${index}`}
-                x1={point.x}
-                y1={point.y}
-                x2={nextPoint.x}
-                y2={nextPoint.y}
-                stroke={colors.primary}
-                strokeWidth={2}
+                x1={padding}
+                y1={y}
+                x2={chartWidth - padding}
+                y2={y}
+                stroke={colors.border}
+                strokeWidth={1}
+                strokeDasharray="4,4"
               />
-            );
-          }
-          return null;
+              <SvgText
+                x={padding - 8}
+                y={y}
+                textAnchor="end"
+                fontSize="10"
+                fill={colors.textSecondary}
+                dy="3"
+              >
+                {value.toFixed(1)}
+              </SvgText>
+            </React.Fragment>
+          );
         })}
+        
+        {/* Area under line */}
+        <Path
+          d={`${pathData} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`}
+          fill={metricColor}
+          opacity={0.1}
+        />
+        
+        {/* Line */}
+        <Path
+          d={pathData}
+          stroke={metricColor}
+          strokeWidth={3}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Points */}
         {points.map((point, index) => (
           <Circle
-            key={`point-${index}`}
+            key={index}
             cx={point.x}
             cy={point.y}
             r={4}
-            fill={colors.primary}
+            fill={metricColor}
+            stroke="#FFFFFF"
+            strokeWidth={2}
           />
         ))}
       </Svg>
@@ -73,8 +190,8 @@ export default function ProgressScreen() {
   };
 
   const renderDoughnutChart = (percentage: number) => {
-    const size = 120;
-    const strokeWidth = 12;
+    const size = 140;
+    const strokeWidth = 14;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const progress = (percentage / 100) * circumference;
@@ -85,7 +202,7 @@ export default function ProgressScreen() {
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={colors.background}
+          stroke={colors.surface}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -103,18 +220,49 @@ export default function ProgressScreen() {
         />
         <SvgText
           x={size / 2}
-          y={size / 2}
+          y={size / 2 - 10}
           textAnchor="middle"
-          dy=".3em"
-          fontSize="24"
-          fontWeight="700"
+          fontSize="32"
+          fontWeight="800"
           fill={colors.text}
         >
           {percentage}%
         </SvgText>
+        <SvgText
+          x={size / 2}
+          y={size / 2 + 15}
+          textAnchor="middle"
+          fontSize="12"
+          fill={colors.textSecondary}
+        >
+          Completato
+        </SvgText>
       </Svg>
     );
   };
+
+  const calculateStats = (data: number[]) => {
+    if (data.length === 0) return { avg: 0, min: 0, max: 0, trend: 0 };
+    
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    
+    // Calculate trend (difference between first half and second half)
+    const midPoint = Math.floor(data.length / 2);
+    const firstHalf = data.slice(0, midPoint).reduce((a, b) => a + b, 0) / midPoint;
+    const secondHalf = data.slice(midPoint).reduce((a, b) => a + b, 0) / (data.length - midPoint);
+    const trend = ((secondHalf - firstHalf) / firstHalf) * 100;
+    
+    return { avg, min, max, trend };
+  };
+
+  const filteredData = getFilteredData();
+  const currentMetricData = filteredData.map(d => d[selectedMetric]);
+  const stats = calculateStats(currentMetricData);
+  const currentMetric = metrics.find(m => m.key === selectedMetric);
+
+  const weekProgress = 44; // Week 8 of 18
 
   return (
     <>
@@ -122,6 +270,16 @@ export default function ProgressScreen() {
         <Stack.Screen
           options={{
             title: 'Progressi & Analisi',
+            headerRight: () => (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable onPress={() => setShowExercises(true)}>
+                  <IconSymbol name="figure.strengthtraining.traditional" size={22} color={colors.primary} />
+                </Pressable>
+                <Pressable onPress={() => setShowAnalysis(true)}>
+                  <IconSymbol name="chart.bar.doc.horizontal" size={22} color={colors.primary} />
+                </Pressable>
+              </View>
+            ),
           }}
         />
       )}
@@ -133,16 +291,77 @@ export default function ProgressScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[commonStyles.card, styles.overviewCard]}>
-            <Text style={styles.sectionTitle}>Progressione Obiettivi</Text>
+          {/* Overview Card */}
+          <LinearGradient
+            colors={gradients.racing}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.overviewCard}
+          >
+            <Text style={styles.overviewTitle}>Programma 18 Settimane</Text>
             <View style={styles.doughnutContainer}>
-              {renderDoughnutChart(73)}
+              {renderDoughnutChart(weekProgress)}
             </View>
             <Text style={styles.overviewText}>
               Settimana 8 di 18 completata
             </Text>
+            <View style={styles.weekProgressBar}>
+              <View style={[styles.weekProgressFill, { width: `${weekProgress}%` }]} />
+            </View>
+          </LinearGradient>
+
+          {/* Quick Stats */}
+          <View style={styles.quickStatsGrid}>
+            <View style={styles.quickStatCard}>
+              <IconSymbol name="flame.fill" size={24} color={colors.error} />
+              <Text style={styles.quickStatValue}>12</Text>
+              <Text style={styles.quickStatLabel}>Sessioni</Text>
+              <Text style={styles.quickStatSubLabel}>Questa settimana</Text>
+            </View>
+            <View style={styles.quickStatCard}>
+              <IconSymbol name="clock.fill" size={24} color={colors.accent} />
+              <Text style={styles.quickStatValue}>8.5h</Text>
+              <Text style={styles.quickStatLabel}>Allenamento</Text>
+              <Text style={styles.quickStatSubLabel}>Totale settimanale</Text>
+            </View>
+            <View style={styles.quickStatCard}>
+              <IconSymbol name="bolt.fill" size={24} color={colors.warning} />
+              <Text style={styles.quickStatValue}>2850</Text>
+              <Text style={styles.quickStatLabel}>Carico</Text>
+              <Text style={styles.quickStatSubLabel}>AU settimanale</Text>
+            </View>
           </View>
 
+          {/* Period Selector */}
+          <View style={commonStyles.card}>
+            <Text style={styles.sectionTitle}>Periodo</Text>
+            <View style={styles.periodSelector}>
+              {periods.map((period) => (
+                <Pressable
+                  key={period.key}
+                  style={[
+                    styles.periodButton,
+                    selectedPeriod === period.key && styles.periodButtonActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedPeriod(period.key as any);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.periodButtonText,
+                      selectedPeriod === period.key && styles.periodButtonTextActive,
+                    ]}
+                  >
+                    {period.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Metrics Selector */}
           <View style={commonStyles.card}>
             <Text style={styles.sectionTitle}>Metriche</Text>
             <View style={styles.metricsGrid}>
@@ -151,9 +370,15 @@ export default function ProgressScreen() {
                   key={metric.key}
                   style={[
                     styles.metricButton,
-                    selectedMetric === metric.key && styles.metricButtonActive,
+                    selectedMetric === metric.key && [
+                      styles.metricButtonActive,
+                      { backgroundColor: metric.color }
+                    ],
                   ]}
-                  onPress={() => setSelectedMetric(metric.key as any)}
+                  onPress={() => {
+                    setSelectedMetric(metric.key as any);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
                 >
                   <IconSymbol 
                     name={metric.icon as any} 
@@ -173,57 +398,265 @@ export default function ProgressScreen() {
             </View>
           </View>
 
+          {/* Chart */}
           <View style={commonStyles.card}>
             <View style={styles.chartHeader}>
-              <Text style={styles.sectionTitle}>
-                {metrics.find(m => m.key === selectedMetric)?.label}
-              </Text>
-              <Text style={styles.chartPeriod}>Ultimi 7 giorni</Text>
+              <View>
+                <Text style={styles.chartTitle}>{currentMetric?.label}</Text>
+                <Text style={styles.chartSubtitle}>
+                  {selectedPeriod === '7d' ? 'Ultimi 7 giorni' : selectedPeriod === '30d' ? 'Ultimi 30 giorni' : 'Ultimi 90 giorni'}
+                </Text>
+              </View>
+              <View style={[styles.trendBadge, { backgroundColor: stats.trend >= 0 ? colors.success + '20' : colors.error + '20' }]}>
+                <IconSymbol 
+                  name={stats.trend >= 0 ? 'arrow.up.right' : 'arrow.down.right'} 
+                  size={16} 
+                  color={stats.trend >= 0 ? colors.success : colors.error} 
+                />
+                <Text style={[styles.trendText, { color: stats.trend >= 0 ? colors.success : colors.error }]}>
+                  {Math.abs(stats.trend).toFixed(1)}%
+                </Text>
+              </View>
             </View>
             <View style={styles.chartContainer}>
-              {renderLineChart(mockData[selectedMetric])}
+              {renderLineChart(currentMetricData, selectedMetric)}
             </View>
             <View style={styles.chartStats}>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Media</Text>
                 <Text style={styles.statValue}>
-                  {(mockData[selectedMetric].reduce((a, b) => a + b, 0) / mockData[selectedMetric].length).toFixed(1)}
+                  {stats.avg.toFixed(1)} {currentMetric?.unit}
                 </Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Min</Text>
                 <Text style={styles.statValue}>
-                  {Math.min(...mockData[selectedMetric]).toFixed(1)}
+                  {stats.min.toFixed(1)} {currentMetric?.unit}
                 </Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Max</Text>
                 <Text style={styles.statValue}>
-                  {Math.max(...mockData[selectedMetric]).toFixed(1)}
+                  {stats.max.toFixed(1)} {currentMetric?.unit}
                 </Text>
               </View>
             </View>
           </View>
 
+          {/* Exercise Progress Preview */}
           <View style={commonStyles.card}>
-            <Text style={styles.sectionTitle}>Esercizi Principali</Text>
-            {['Squat', 'Plank', 'Sprint 100m'].map((exercise, index) => (
-              <View key={index} style={styles.exerciseItem}>
-                <Text style={styles.exerciseName}>{exercise}</Text>
-                <View style={styles.exerciseProgress}>
-                  <View style={[styles.exerciseProgressBar, { width: `${60 + index * 10}%` }]} />
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Progressi Esercizi</Text>
+              <Pressable onPress={() => setShowExercises(true)}>
+                <Text style={styles.seeAllText}>Vedi tutti</Text>
+              </Pressable>
+            </View>
+            {exerciseProgress.slice(0, 3).map((exercise, index) => {
+              const progress = (exercise.current / exercise.target) * 100;
+              return (
+                <View key={index} style={styles.exerciseItem}>
+                  <View style={styles.exerciseHeader}>
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <Text style={styles.exerciseValue}>
+                      {exercise.current} / {exercise.target} {exercise.unit}
+                    </Text>
+                  </View>
+                  <View style={styles.exerciseProgressBar}>
+                    <View style={[styles.exerciseProgressFill, { width: `${Math.min(progress, 100)}%` }]} />
+                  </View>
+                  <Text style={styles.exercisePercentage}>{Math.round(progress)}%</Text>
                 </View>
-                <Text style={styles.exercisePercentage}>{60 + index * 10}%</Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
-          <Pressable style={styles.exportButton}>
-            <IconSymbol name="square.and.arrow.up" size={20} color="#FFFFFF" />
-            <Text style={styles.exportButtonText}>Esporta Report PDF</Text>
+          {/* Export Button */}
+          <Pressable 
+            style={styles.exportButton}
+            onPress={() => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('📊 Export', 'Report PDF generato con successo');
+            }}
+          >
+            <LinearGradient
+              colors={gradients.racing}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.exportButtonGradient}
+            >
+              <IconSymbol name="square.and.arrow.up" size={20} color="#FFFFFF" />
+              <Text style={styles.exportButtonText}>Esporta Report PDF</Text>
+            </LinearGradient>
           </Pressable>
         </ScrollView>
       </View>
+
+      {/* Exercise Progress Modal */}
+      <Modal
+        visible={showExercises}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowExercises(false)}
+      >
+        <View style={commonStyles.container}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Progressi Esercizi</Text>
+            <Pressable onPress={() => setShowExercises(false)}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {exerciseProgress.map((exercise, index) => {
+              const progress = (exercise.current / exercise.target) * 100;
+              const isCompleted = progress >= 100;
+              
+              return (
+                <View key={index} style={styles.exerciseCard}>
+                  <View style={styles.exerciseCardHeader}>
+                    <View style={styles.exerciseIconContainer}>
+                      <IconSymbol 
+                        name={isCompleted ? 'checkmark.circle.fill' : 'figure.strengthtraining.traditional'} 
+                        size={28} 
+                        color={isCompleted ? colors.success : colors.primary} 
+                      />
+                    </View>
+                    <View style={styles.exerciseCardInfo}>
+                      <Text style={styles.exerciseCardName}>{exercise.name}</Text>
+                      <Text style={styles.exerciseCardValue}>
+                        {exercise.current} / {exercise.target} {exercise.unit}
+                      </Text>
+                    </View>
+                    <View style={[styles.exerciseCardBadge, { backgroundColor: isCompleted ? colors.success : colors.primary }]}>
+                      <Text style={styles.exerciseCardBadgeText}>{Math.round(progress)}%</Text>
+                    </View>
+                  </View>
+                  <View style={styles.exerciseCardProgressBar}>
+                    <View 
+                      style={[
+                        styles.exerciseCardProgressFill, 
+                        { 
+                          width: `${Math.min(progress, 100)}%`,
+                          backgroundColor: isCompleted ? colors.success : colors.primary
+                        }
+                      ]} 
+                    />
+                  </View>
+                  {isCompleted && (
+                    <View style={styles.completedBadge}>
+                      <IconSymbol name="star.fill" size={14} color={colors.warning} />
+                      <Text style={styles.completedText}>Obiettivo raggiunto!</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Analysis Modal */}
+      <Modal
+        visible={showAnalysis}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAnalysis(false)}
+      >
+        <View style={commonStyles.container}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Analisi Dettagliata</Text>
+            <Pressable onPress={() => setShowAnalysis(false)}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <View style={commonStyles.card}>
+              <Text style={styles.sectionTitle}>Riepilogo Prestazioni</Text>
+              <View style={styles.analysisGrid}>
+                <View style={styles.analysisCard}>
+                  <IconSymbol name="chart.line.uptrend.xyaxis" size={32} color={colors.success} />
+                  <Text style={styles.analysisValue}>+15%</Text>
+                  <Text style={styles.analysisLabel}>Miglioramento</Text>
+                  <Text style={styles.analysisSubLabel}>vs mese scorso</Text>
+                </View>
+                <View style={styles.analysisCard}>
+                  <IconSymbol name="target" size={32} color={colors.primary} />
+                  <Text style={styles.analysisValue}>87%</Text>
+                  <Text style={styles.analysisLabel}>Obiettivi</Text>
+                  <Text style={styles.analysisSubLabel}>Raggiunti</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={commonStyles.card}>
+              <Text style={styles.sectionTitle}>Insights Chiave</Text>
+              <View style={styles.insightItem}>
+                <IconSymbol name="checkmark.circle.fill" size={24} color={colors.success} />
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightTitle}>Eccellente Consistenza</Text>
+                  <Text style={styles.insightText}>
+                    Hai completato il 95% delle sessioni programmate nelle ultime 4 settimane
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.insightItem}>
+                <IconSymbol name="arrow.up.circle.fill" size={24} color={colors.accent} />
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightTitle}>HRV in Miglioramento</Text>
+                  <Text style={styles.insightText}>
+                    Il tuo HRV è aumentato del 12% indicando un miglior recupero
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.insightItem}>
+                <IconSymbol name="exclamationmark.triangle.fill" size={24} color={colors.warning} />
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightTitle}>Attenzione al Carico</Text>
+                  <Text style={styles.insightText}>
+                    Il carico di allenamento è aumentato del 20% nell&apos;ultima settimana. Monitora il recupero
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={commonStyles.card}>
+              <Text style={styles.sectionTitle}>Raccomandazioni</Text>
+              <View style={styles.recommendationItem}>
+                <View style={styles.recommendationNumber}>
+                  <Text style={styles.recommendationNumberText}>1</Text>
+                </View>
+                <View style={styles.recommendationContent}>
+                  <Text style={styles.recommendationTitle}>Mantieni la Consistenza</Text>
+                  <Text style={styles.recommendationText}>
+                    La tua aderenza al programma è ottima. Continua così per massimizzare i risultati
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.recommendationItem}>
+                <View style={styles.recommendationNumber}>
+                  <Text style={styles.recommendationNumberText}>2</Text>
+                </View>
+                <View style={styles.recommendationContent}>
+                  <Text style={styles.recommendationTitle}>Focus sul Recupero</Text>
+                  <Text style={styles.recommendationText}>
+                    Considera una settimana di scarico per ottimizzare l&apos;adattamento
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.recommendationItem}>
+                <View style={styles.recommendationNumber}>
+                  <Text style={styles.recommendationNumberText}>3</Text>
+                </View>
+                <View style={styles.recommendationContent}>
+                  <Text style={styles.recommendationTitle}>Progressione Graduale</Text>
+                  <Text style={styles.recommendationText}>
+                    Aumenta il carico del 5-10% a settimana per evitare sovrallenamento
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -237,45 +670,133 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   overviewCard: {
+    borderRadius: 24,
+    padding: 28,
     alignItems: 'center',
     marginBottom: 16,
+    ...shadows.large,
   },
-  sectionTitle: {
+  overviewTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 20,
   },
   doughnutContainer: {
     marginVertical: 16,
   },
   overviewText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 16,
+    fontWeight: '600',
+  },
+  weekProgressBar: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 3,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  weekProgressFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 3,
+  },
+  quickStatsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  quickStatValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
     marginTop: 8,
+  },
+  quickStatLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  quickStatSubLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  periodButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  periodButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  periodButtonTextActive: {
+    color: '#FFFFFF',
   },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   metricButton: {
     width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
   },
   metricButtonActive: {
-    backgroundColor: colors.primary,
+    ...shadows.small,
   },
   metricButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginLeft: 8,
   },
   metricButtonTextActive: {
     color: '#FFFFFF',
@@ -283,21 +804,39 @@ const styles = StyleSheet.create({
   chartHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: 20,
   },
-  chartPeriod: {
-    fontSize: 12,
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  chartSubtitle: {
+    fontSize: 13,
     color: colors.textSecondary,
+    marginTop: 4,
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+  },
+  trendText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   chartContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   chartStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 16,
+    paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -307,57 +846,236 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
+    fontWeight: '600',
   },
   statValue: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
   },
   exerciseItem: {
+    marginBottom: 20,
+  },
+  exerciseHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   exerciseName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
-    width: 100,
   },
-  exerciseProgress: {
-    flex: 1,
-    height: 8,
-    backgroundColor: colors.background,
-    borderRadius: 4,
-    marginHorizontal: 12,
-    overflow: 'hidden',
+  exerciseValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   exerciseProgressBar: {
+    height: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  exerciseProgressFill: {
     height: '100%',
     backgroundColor: colors.accent,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   exercisePercentage: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.text,
-    width: 40,
     textAlign: 'right',
   },
   exportButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  exportButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    padding: 18,
+    gap: 10,
   },
   exportButtonText: {
     color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  modalContent: {
+    padding: 16,
+  },
+  exerciseCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    ...shadows.small,
+  },
+  exerciseCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  exerciseIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exerciseCardInfo: {
+    flex: 1,
+  },
+  exerciseCardName: {
     fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  exerciseCardValue: {
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: 8,
+    color: colors.textSecondary,
+  },
+  exerciseCardBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  exerciseCardBadgeText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  exerciseCardProgressBar: {
+    height: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  exerciseCardProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  completedText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  analysisGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  analysisCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  analysisValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 12,
+  },
+  analysisLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 6,
+  },
+  analysisSubLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  insightItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  insightText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  recommendationNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recommendationNumberText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  recommendationContent: {
+    flex: 1,
+  },
+  recommendationTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  recommendationText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });

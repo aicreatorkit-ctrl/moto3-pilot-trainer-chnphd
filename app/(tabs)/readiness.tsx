@@ -1,11 +1,30 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput, Modal, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
+
+interface ReadinessEntry {
+  id: string;
+  date: string;
+  sleepQuality: number;
+  muscleSoreness: number;
+  mood: number;
+  energy: number;
+  motivation: number;
+  weight: string;
+  hrv: string;
+  restingHR: string;
+  notes: string;
+  score: number;
+}
+
+const STORAGE_KEY = '@readiness_history';
 
 export default function ReadinessScreen() {
   const [sleepQuality, setSleepQuality] = useState(8);
@@ -17,6 +36,33 @@ export default function ReadinessScreen() {
   const [hrv, setHrv] = useState('');
   const [restingHR, setRestingHR] = useState('');
   const [notes, setNotes] = useState('');
+  const [history, setHistory] = useState<ReadinessEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showTrends, setShowTrends] = useState(false);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading history:', error);
+    }
+  };
+
+  const saveHistory = async (newHistory: ReadinessEntry[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
+      setHistory(newHistory);
+    } catch (error) {
+      console.log('Error saving history:', error);
+    }
+  };
 
   const handleRatingPress = (value: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -124,7 +170,113 @@ export default function ReadinessScreen() {
     };
   };
 
+  const saveReadinessEntry = async () => {
+    const newEntry: ReadinessEntry = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      sleepQuality,
+      muscleSoreness,
+      mood,
+      energy,
+      motivation,
+      weight,
+      hrv,
+      restingHR,
+      notes,
+      score: readinessScore,
+    };
+
+    const newHistory = [newEntry, ...history].slice(0, 30); // Keep last 30 entries
+    await saveHistory(newHistory);
+    
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert('✅ Salvato', 'Valutazione prontezza salvata con successo');
+  };
+
+  const getWeeklyAverage = () => {
+    if (history.length === 0) return 0;
+    const lastWeek = history.slice(0, 7);
+    const sum = lastWeek.reduce((acc, entry) => acc + entry.score, 0);
+    return Math.round(sum / lastWeek.length);
+  };
+
+  const getTrend = () => {
+    if (history.length < 2) return 'stable';
+    const recent = history.slice(0, 3).reduce((acc, e) => acc + e.score, 0) / 3;
+    const older = history.slice(3, 6).reduce((acc, e) => acc + e.score, 0) / 3;
+    if (recent > older + 5) return 'up';
+    if (recent < older - 5) return 'down';
+    return 'stable';
+  };
+
+  const renderTrendChart = () => {
+    if (history.length < 2) return null;
+
+    const chartData = history.slice(0, 14).reverse();
+    const maxScore = 100;
+    const chartWidth = 320;
+    const chartHeight = 150;
+    const padding = 20;
+
+    const points = chartData.map((entry, index) => {
+      const x = padding + (index * (chartWidth - 2 * padding)) / (chartData.length - 1);
+      const y = chartHeight - padding - ((entry.score / maxScore) * (chartHeight - 2 * padding));
+      return { x, y, score: entry.score };
+    });
+
+    let pathData = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      pathData += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    return (
+      <Svg width={chartWidth} height={chartHeight}>
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map((value) => {
+          const y = chartHeight - padding - ((value / maxScore) * (chartHeight - 2 * padding));
+          return (
+            <Line
+              key={value}
+              x1={padding}
+              y1={y}
+              x2={chartWidth - padding}
+              y2={y}
+              stroke={colors.border}
+              strokeWidth={1}
+              strokeDasharray="4,4"
+            />
+          );
+        })}
+        
+        {/* Line */}
+        <Path
+          d={pathData}
+          stroke={colors.primary}
+          strokeWidth={3}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Points */}
+        {points.map((point, index) => (
+          <Circle
+            key={index}
+            cx={point.x}
+            cy={point.y}
+            r={5}
+            fill={colors.primary}
+            stroke="#FFFFFF"
+            strokeWidth={2}
+          />
+        ))}
+      </Svg>
+    );
+  };
+
   const recommendation = getRecommendation();
+  const weeklyAvg = getWeeklyAverage();
+  const trend = getTrend();
 
   return (
     <>
@@ -132,6 +284,16 @@ export default function ReadinessScreen() {
         <Stack.Screen
           options={{
             title: 'Controllo Prontezza',
+            headerRight: () => (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable onPress={() => setShowTrends(true)}>
+                  <IconSymbol name="chart.line.uptrend.xyaxis" size={22} color={colors.primary} />
+                </Pressable>
+                <Pressable onPress={() => setShowHistory(true)}>
+                  <IconSymbol name="clock.fill" size={22} color={colors.primary} />
+                </Pressable>
+              </View>
+            ),
           }}
         />
       )}
@@ -143,6 +305,33 @@ export default function ReadinessScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
+          {/* Quick Stats */}
+          {history.length > 0 && (
+            <View style={styles.quickStatsContainer}>
+              <View style={styles.quickStatCard}>
+                <IconSymbol name="calendar" size={20} color={colors.primary} />
+                <Text style={styles.quickStatValue}>{weeklyAvg}%</Text>
+                <Text style={styles.quickStatLabel}>Media 7gg</Text>
+              </View>
+              <View style={styles.quickStatCard}>
+                <IconSymbol 
+                  name={trend === 'up' ? 'arrow.up.right' : trend === 'down' ? 'arrow.down.right' : 'arrow.right'} 
+                  size={20} 
+                  color={trend === 'up' ? colors.success : trend === 'down' ? colors.error : colors.textSecondary} 
+                />
+                <Text style={styles.quickStatValue}>
+                  {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
+                </Text>
+                <Text style={styles.quickStatLabel}>Tendenza</Text>
+              </View>
+              <View style={styles.quickStatCard}>
+                <IconSymbol name="chart.bar.fill" size={20} color={colors.accent} />
+                <Text style={styles.quickStatValue}>{history.length}</Text>
+                <Text style={styles.quickStatLabel}>Valutazioni</Text>
+              </View>
+            </View>
+          )}
+
           {/* Enhanced Score Card */}
           <LinearGradient
             colors={getScoreGradient()}
@@ -160,6 +349,9 @@ export default function ReadinessScreen() {
             <View style={styles.scoreBar}>
               <View style={[styles.scoreBarFill, { width: `${readinessScore}%` }]} />
             </View>
+            <Text style={styles.scoreDate}>
+              {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Text>
           </LinearGradient>
 
           {/* Recommendation Card */}
@@ -300,10 +492,7 @@ export default function ReadinessScreen() {
           {/* Save Button */}
           <Pressable 
             style={styles.saveButton}
-            onPress={() => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              console.log('Valutazione salvata');
-            }}
+            onPress={saveReadinessEntry}
           >
             <LinearGradient
               colors={gradients.racing}
@@ -317,6 +506,147 @@ export default function ReadinessScreen() {
           </Pressable>
         </ScrollView>
       </View>
+
+      {/* History Modal */}
+      <Modal
+        visible={showHistory}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowHistory(false)}
+      >
+        <View style={commonStyles.container}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Storico Valutazioni</Text>
+            <Pressable onPress={() => setShowHistory(false)}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.historyContent}>
+            {history.length === 0 ? (
+              <View style={styles.emptyState}>
+                <IconSymbol name="clock" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyStateText}>Nessuna valutazione salvata</Text>
+              </View>
+            ) : (
+              history.map((entry) => (
+                <View key={entry.id} style={styles.historyCard}>
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.historyDate}>
+                      {new Date(entry.date).toLocaleDateString('it-IT', { 
+                        weekday: 'short', 
+                        day: 'numeric', 
+                        month: 'short' 
+                      })}
+                    </Text>
+                    <View style={[styles.historyScore, { backgroundColor: entry.score >= 85 ? colors.success : entry.score >= 70 ? colors.accent : entry.score >= 60 ? colors.warning : colors.error }]}>
+                      <Text style={styles.historyScoreText}>{entry.score}%</Text>
+                    </View>
+                  </View>
+                  <View style={styles.historyMetrics}>
+                    <View style={styles.historyMetric}>
+                      <IconSymbol name="bed.double.fill" size={16} color={colors.textSecondary} />
+                      <Text style={styles.historyMetricText}>{entry.sleepQuality}/10</Text>
+                    </View>
+                    <View style={styles.historyMetric}>
+                      <IconSymbol name="bolt.fill" size={16} color={colors.textSecondary} />
+                      <Text style={styles.historyMetricText}>{entry.energy}/10</Text>
+                    </View>
+                    <View style={styles.historyMetric}>
+                      <IconSymbol name="face.smiling.fill" size={16} color={colors.textSecondary} />
+                      <Text style={styles.historyMetricText}>{entry.mood}/10</Text>
+                    </View>
+                  </View>
+                  {entry.notes && (
+                    <Text style={styles.historyNotes} numberOfLines={2}>{entry.notes}</Text>
+                  )}
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Trends Modal */}
+      <Modal
+        visible={showTrends}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTrends(false)}
+      >
+        <View style={commonStyles.container}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Analisi Tendenze</Text>
+            <Pressable onPress={() => setShowTrends(false)}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.trendsContent}>
+            {history.length < 2 ? (
+              <View style={styles.emptyState}>
+                <IconSymbol name="chart.line.uptrend.xyaxis" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyStateText}>Servono almeno 2 valutazioni per vedere le tendenze</Text>
+              </View>
+            ) : (
+              <>
+                <View style={commonStyles.card}>
+                  <Text style={styles.sectionTitle}>Andamento Prontezza (14 giorni)</Text>
+                  <View style={styles.chartContainer}>
+                    {renderTrendChart()}
+                  </View>
+                </View>
+
+                <View style={commonStyles.card}>
+                  <Text style={styles.sectionTitle}>Statistiche</Text>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statCard}>
+                      <IconSymbol name="chart.bar.fill" size={24} color={colors.primary} />
+                      <Text style={styles.statValue}>{weeklyAvg}%</Text>
+                      <Text style={styles.statLabel}>Media 7gg</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <IconSymbol name="arrow.up.circle.fill" size={24} color={colors.success} />
+                      <Text style={styles.statValue}>
+                        {Math.max(...history.slice(0, 7).map(e => e.score))}%
+                      </Text>
+                      <Text style={styles.statLabel}>Massimo</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <IconSymbol name="arrow.down.circle.fill" size={24} color={colors.error} />
+                      <Text style={styles.statValue}>
+                        {Math.min(...history.slice(0, 7).map(e => e.score))}%
+                      </Text>
+                      <Text style={styles.statLabel}>Minimo</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={commonStyles.card}>
+                  <Text style={styles.sectionTitle}>Insights</Text>
+                  <View style={styles.insightCard}>
+                    <IconSymbol 
+                      name={trend === 'up' ? 'arrow.up.right.circle.fill' : trend === 'down' ? 'arrow.down.right.circle.fill' : 'arrow.right.circle.fill'} 
+                      size={32} 
+                      color={trend === 'up' ? colors.success : trend === 'down' ? colors.error : colors.textSecondary} 
+                    />
+                    <View style={styles.insightContent}>
+                      <Text style={styles.insightTitle}>
+                        {trend === 'up' ? 'Tendenza Positiva' : trend === 'down' ? 'Tendenza Negativa' : 'Tendenza Stabile'}
+                      </Text>
+                      <Text style={styles.insightText}>
+                        {trend === 'up' 
+                          ? 'La tua prontezza sta migliorando. Continua così!' 
+                          : trend === 'down' 
+                          ? 'La prontezza sta calando. Considera più recupero.' 
+                          : 'La prontezza è stabile. Mantieni la routine.'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -328,6 +658,31 @@ const styles = StyleSheet.create({
   },
   scrollContentWithTabBar: {
     paddingBottom: 100,
+  },
+  quickStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  quickStatValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 8,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   scoreCard: {
     borderRadius: 24,
@@ -373,11 +728,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 4,
     overflow: 'hidden',
+    marginBottom: 12,
   },
   scoreBarFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 4,
+  },
+  scoreDate: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
   },
   recommendationCard: {
     marginBottom: 16,
@@ -547,5 +908,135 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  historyContent: {
+    padding: 16,
+  },
+  historyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    ...shadows.small,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyDate: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  historyScore: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  historyScoreText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  historyMetrics: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 8,
+  },
+  historyMetric: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  historyMetricText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  historyNotes: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  trendsContent: {
+    padding: 16,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  insightCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    gap: 16,
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  insightText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
 });
