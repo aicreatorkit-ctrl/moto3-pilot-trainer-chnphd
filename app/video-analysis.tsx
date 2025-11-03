@@ -62,7 +62,7 @@ export default function VideoAnalysisScreen() {
         return;
       }
 
-      const result = await ImagePicker.launchImagePickerAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
         allowsEditing: true,
         quality: 1,

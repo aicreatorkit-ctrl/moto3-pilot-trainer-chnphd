@@ -29,7 +29,7 @@ export default function HomeScreen() {
         }),
       ])
     ).start();
-  }, []);
+  }, [pulseAnim]);
 
   const handlePress = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
