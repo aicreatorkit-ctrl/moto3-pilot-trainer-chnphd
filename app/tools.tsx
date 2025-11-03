@@ -7,6 +7,17 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
+interface Tool {
+  title: string;
+  description: string;
+  icon: string;
+  gradient: string[];
+  info: string;
+  route: string;
+  badge: string;
+  category: string;
+}
+
 export default function ToolsScreen() {
   const router = useRouter();
 
@@ -15,70 +26,164 @@ export default function ToolsScreen() {
     router.push(route as any);
   };
 
-  const tools = [
+  const tools: Tool[] = [
+    // Essential Tools
     {
       title: 'Calcolatore ACR',
       description: 'Acute:Chronic Workload Ratio',
       icon: 'function',
       gradient: gradients.racing,
-      info: 'Monitora il rapporto tra carico acuto e cronico per prevenire infortuni e ottimizzare le prestazioni',
+      info: 'Monitora il rapporto tra carico acuto e cronico per prevenire infortuni',
       route: '/acr-calculator',
       badge: 'ESSENZIALE',
+      category: 'essential',
+    },
+    {
+      title: 'Timer Multi-Intervallo',
+      description: 'Gestione sessioni allenamento',
+      icon: 'timer',
+      gradient: gradients.blue,
+      info: 'Timer avanzato per gestire intervalli e sessioni di allenamento',
+      route: '/timer',
+      badge: 'ESSENZIALE',
+      category: 'essential',
     },
     {
       title: 'Tracker del Carico',
       description: 'Monitoraggio carico allenamento',
       icon: 'chart.line.uptrend.xyaxis',
       gradient: gradients.success,
-      info: 'Registra e analizza il carico di allenamento settimanale con grafici avanzati',
+      info: 'Registra e analizza il carico di allenamento settimanale',
       route: '/load-tracker',
       badge: 'PRO',
+      category: 'essential',
     },
+
+    // Performance Analysis
     {
       title: 'Monitor HRV',
       description: 'Heart Rate Variability',
       icon: 'waveform.path.ecg',
       gradient: gradients.error,
-      info: 'Traccia la variabilità della frequenza cardiaca per valutare il recupero e lo stress',
+      info: 'Traccia la variabilità della frequenza cardiaca per valutare il recupero',
       route: '/hrv-monitor',
       badge: 'AVANZATO',
+      category: 'performance',
     },
     {
       title: 'Valutazione Postura',
       description: 'Analisi posturale pilota',
       icon: 'figure.stand',
       gradient: gradients.warning,
-      info: 'Valuta e migliora la postura specifica per la guida ad alte prestazioni',
+      info: 'Valuta e migliora la postura specifica per la guida',
       route: '/posture-assessment',
       badge: 'SPECIFICO',
+      category: 'performance',
     },
     {
       title: 'Test Tempo di Reazione',
       description: 'Simulazione partenza gara',
       icon: 'bolt.fill',
       gradient: ['#FF8C00', '#FF6B00'],
-      info: 'Allena e misura il tempo di reazione ai semafori di partenza con precisione millimetrica',
+      info: 'Allena e misura il tempo di reazione ai semafori di partenza',
       route: '/reaction-time',
       badge: 'GARA',
+      category: 'performance',
     },
+
+    // Racing Tools
     {
       title: 'Simulatore Giro',
       description: 'Analisi tempi e settori',
       icon: 'flag.checkered',
       gradient: gradients.blue,
-      info: 'Analizza i tempi sul giro e confronta i settori per identificare aree di miglioramento',
+      info: 'Analizza i tempi sul giro e confronta i settori',
       route: '/lap-simulator',
       badge: 'PERFORMANCE',
+      category: 'racing',
     },
     {
       title: 'Setup Moto',
       description: 'Configurazione e telemetria',
       icon: 'wrench.and.screwdriver.fill',
       gradient: gradients.purple,
-      info: 'Registra e ottimizza il setup della moto per ogni circuito e condizione',
+      info: 'Registra e ottimizza il setup della moto per ogni circuito',
       route: '/bike-setup',
       badge: 'TECNICO',
+      category: 'racing',
     },
+    {
+      title: 'Telemetria Avanzata',
+      description: 'Comparazione dati telemetrici',
+      icon: 'chart.xyaxis.line',
+      gradient: gradients.cyan,
+      info: 'Confronta velocità, gas, freno e RPM tra diverse sessioni',
+      route: '/telemetry-comparison',
+      badge: 'PRO',
+      category: 'racing',
+    },
+
+    // AI & Advanced
+    {
+      title: 'Analisi Video AI',
+      description: 'Analisi tecnica con intelligenza artificiale',
+      icon: 'camera.fill',
+      gradient: gradients.racing,
+      info: 'Carica video e ricevi feedback dettagliato su postura e tecnica',
+      route: '/video-analysis',
+      badge: 'AI',
+      category: 'ai',
+    },
+    {
+      title: 'Biomeccanica 3D',
+      description: 'Analisi movimento avanzata',
+      icon: 'figure.walk.motion',
+      gradient: gradients.warning,
+      info: 'Analisi tridimensionale di angoli articolari e distribuzione forze',
+      route: '/biomechanics-3d',
+      badge: '3D',
+      category: 'ai',
+    },
+    {
+      title: 'Coach Virtuale',
+      description: 'Feedback real-time durante sessione',
+      icon: 'person.badge.shield.checkmark.fill',
+      gradient: gradients.blue,
+      info: 'Assistente AI che monitora le tue prestazioni in tempo reale',
+      route: '/virtual-coach',
+      badge: 'LIVE',
+      category: 'ai',
+    },
+
+    // Wellness
+    {
+      title: 'Allenamento Mentale',
+      description: 'Meditazione e visualizzazione',
+      icon: 'brain.head.profile',
+      gradient: gradients.purple,
+      info: 'Esercizi guidati per migliorare concentrazione e gestire la pressione',
+      route: '/mental-training',
+      badge: 'MENTAL',
+      category: 'wellness',
+    },
+    {
+      title: 'Diario Alimentare',
+      description: 'Tracking macro e nutrizione',
+      icon: 'fork.knife',
+      gradient: gradients.success,
+      info: 'Monitora calorie e macronutrienti per ottimizzare le prestazioni',
+      route: '/nutrition-diary',
+      badge: 'NUTRITION',
+      category: 'wellness',
+    },
+  ];
+
+  const categories = [
+    { id: 'essential', title: 'Strumenti Essenziali', icon: 'star.fill', color: colors.racingGold },
+    { id: 'performance', title: 'Analisi Performance', icon: 'chart.bar.fill', color: colors.primary },
+    { id: 'racing', title: 'Strumenti Gara', icon: 'flag.checkered', color: colors.info },
+    { id: 'ai', title: 'Tecnologie AI', icon: 'sparkles', color: colors.accent },
+    { id: 'wellness', title: 'Benessere', icon: 'heart.fill', color: colors.success },
   ];
 
   return (
@@ -106,145 +211,66 @@ export default function ToolsScreen() {
             </View>
             <Text style={styles.headerTitle}>Suite Professionale</Text>
             <Text style={styles.headerDescription}>
-              Strumenti avanzati per piloti professionisti: analisi dati, ottimizzazione prestazioni e monitoraggio completo
+              {tools.length} strumenti avanzati per piloti professionisti
             </Text>
           </LinearGradient>
 
-          {/* Tools Grid */}
-          {tools.map((tool, index) => (
-            <Pressable
-              key={index}
-              style={styles.toolCard}
-              onPress={() => handleToolPress(tool.route)}
-            >
-              <LinearGradient
-                colors={tool.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.toolGradient}
-              >
-                <View style={styles.toolIconContainer}>
-                  <IconSymbol name={tool.icon as any} size={36} color="#FFFFFF" />
-                </View>
-              </LinearGradient>
-              
-              <View style={styles.toolContent}>
-                <View style={styles.toolHeader}>
-                  <Text style={styles.toolTitle}>{tool.title}</Text>
-                  <View style={styles.toolBadge}>
-                    <Text style={styles.toolBadgeText}>{tool.badge}</Text>
+          {/* Organized by Category */}
+          {categories.map((category) => {
+            const categoryTools = tools.filter(tool => tool.category === category.id);
+            if (categoryTools.length === 0) return null;
+
+            return (
+              <View key={category.id} style={styles.categorySection}>
+                <View style={styles.categoryHeader}>
+                  <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}>
+                    <IconSymbol name={category.icon as any} size={20} color={category.color} />
+                  </View>
+                  <Text style={styles.categoryTitle}>{category.title}</Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{categoryTools.length}</Text>
                   </View>
                 </View>
-                <Text style={styles.toolDescription}>{tool.description}</Text>
-                <Text style={styles.toolInfo}>{tool.info}</Text>
-              </View>
-              
-              <View style={styles.toolArrow}>
-                <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
-              </View>
-            </Pressable>
-          ))}
 
-          {/* Advanced Features Section */}
-          <View style={[commonStyles.card, styles.advancedCard]}>
-            <View style={styles.advancedHeader}>
-              <IconSymbol name="sparkles" size={28} color={colors.racingGold} />
-              <Text style={styles.advancedTitle}>Funzionalità Avanzate</Text>
-            </View>
-            <Text style={styles.advancedDescription}>
-              Strumenti professionali per portare il tuo allenamento al livello successivo
-            </Text>
-          </View>
+                {categoryTools.map((tool, index) => (
+                  <Pressable
+                    key={index}
+                    style={styles.toolCard}
+                    onPress={() => handleToolPress(tool.route)}
+                  >
+                    <LinearGradient
+                      colors={tool.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.toolGradient}
+                    >
+                      <View style={styles.toolIconContainer}>
+                        <IconSymbol name={tool.icon as any} size={32} color="#FFFFFF" />
+                      </View>
+                    </LinearGradient>
+                    
+                    <View style={styles.toolContent}>
+                      <View style={styles.toolHeader}>
+                        <Text style={styles.toolTitle}>{tool.title}</Text>
+                        <View style={[styles.toolBadge, { backgroundColor: category.color + '15' }]}>
+                          <Text style={[styles.toolBadgeText, { color: category.color }]}>{tool.badge}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.toolDescription}>{tool.description}</Text>
+                      <Text style={styles.toolInfo}>{tool.info}</Text>
+                    </View>
+                    
+                    <View style={styles.toolArrow}>
+                      <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            );
+          })}
 
-          {/* New Advanced Tools */}
-          {[
-            {
-              title: 'Analisi Video AI',
-              description: 'Analisi tecnica con intelligenza artificiale',
-              icon: 'camera.fill',
-              gradient: gradients.racing,
-              info: 'Carica video delle tue sessioni e ricevi feedback dettagliato su postura, tecnica di curva e punti di miglioramento',
-              route: '/video-analysis',
-              badge: 'AI',
-            },
-            {
-              title: 'Telemetria Avanzata',
-              description: 'Comparazione dati telemetrici',
-              icon: 'chart.xyaxis.line',
-              gradient: gradients.cyan,
-              info: 'Confronta velocità, gas, freno e RPM tra diverse sessioni per identificare aree di ottimizzazione',
-              route: '/telemetry-comparison',
-              badge: 'PRO',
-            },
-            {
-              title: 'Allenamento Mentale',
-              description: 'Meditazione e visualizzazione',
-              icon: 'brain.head.profile',
-              gradient: gradients.purple,
-              info: 'Esercizi guidati di meditazione, visualizzazione e focus per migliorare concentrazione e gestire la pressione',
-              route: '/mental-training',
-              badge: 'MENTAL',
-            },
-            {
-              title: 'Diario Alimentare',
-              description: 'Tracking macro e nutrizione',
-              icon: 'fork.knife',
-              gradient: gradients.success,
-              info: 'Monitora calorie e macronutrienti per ottimizzare energia, recupero e prestazioni',
-              route: '/nutrition-diary',
-              badge: 'NUTRITION',
-            },
-            {
-              title: 'Biomeccanica 3D',
-              description: 'Analisi movimento avanzata',
-              icon: 'figure.walk.motion',
-              gradient: gradients.warning,
-              info: 'Analisi tridimensionale di angoli articolari, simmetria e distribuzione forze per prevenire infortuni',
-              route: '/biomechanics-3d',
-              badge: '3D',
-            },
-            {
-              title: 'Coach Virtuale',
-              description: 'Feedback real-time durante sessione',
-              icon: 'person.badge.shield.checkmark.fill',
-              gradient: gradients.blue,
-              info: 'Assistente AI che monitora le tue prestazioni e fornisce suggerimenti in tempo reale',
-              route: '/virtual-coach',
-              badge: 'LIVE',
-            },
-          ].map((tool, index) => (
-            <Pressable
-              key={index}
-              style={styles.toolCard}
-              onPress={() => handleToolPress(tool.route)}
-            >
-              <LinearGradient
-                colors={tool.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.toolGradient}
-              >
-                <View style={styles.toolIconContainer}>
-                  <IconSymbol name={tool.icon as any} size={36} color="#FFFFFF" />
-                </View>
-              </LinearGradient>
-              
-              <View style={styles.toolContent}>
-                <View style={styles.toolHeader}>
-                  <Text style={styles.toolTitle}>{tool.title}</Text>
-                  <View style={styles.toolBadge}>
-                    <Text style={styles.toolBadgeText}>{tool.badge}</Text>
-                  </View>
-                </View>
-                <Text style={styles.toolDescription}>{tool.description}</Text>
-                <Text style={styles.toolInfo}>{tool.info}</Text>
-              </View>
-              
-              <View style={styles.toolArrow}>
-                <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
-              </View>
-            </Pressable>
-          ))}
+          {/* Bottom Spacing */}
+          <View style={{ height: 32 }} />
         </ScrollView>
       </View>
     </>
@@ -254,7 +280,6 @@ export default function ToolsScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
   },
   headerCard: {
     borderRadius: 24,
@@ -276,7 +301,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: 12,
+    marginBottom: 8,
     letterSpacing: -0.5,
     textAlign: 'center',
   },
@@ -287,22 +312,57 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
+  categorySection: {
+    marginBottom: 28,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 4,
+  },
+  categoryIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.3,
+    flex: 1,
+  },
+  categoryBadge: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categoryBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
   toolCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     ...shadows.medium,
   },
   toolGradient: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   toolIconContainer: {
     justifyContent: 'center',
@@ -318,14 +378,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   toolTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.3,
     flex: 1,
   },
   toolBadge: {
-    backgroundColor: colors.primary + '15',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -334,14 +393,13 @@ const styles = StyleSheet.create({
   toolBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: colors.primary,
     letterSpacing: 0.5,
   },
   toolDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   toolInfo: {
     fontSize: 13,
@@ -350,29 +408,5 @@ const styles = StyleSheet.create({
   },
   toolArrow: {
     marginLeft: 12,
-  },
-  advancedCard: {
-    marginTop: 8,
-    backgroundColor: colors.highlightGold,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.racingGold,
-  },
-  advancedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  advancedTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
-  advancedDescription: {
-    fontSize: 15,
-    color: colors.text,
-    lineHeight: 22,
-    fontWeight: '500',
   },
 });

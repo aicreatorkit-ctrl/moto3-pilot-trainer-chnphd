@@ -1,20 +1,35 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Animated } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { IconSymbol } from '@/components/IconSymbol';
-import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
-import { useTheme } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState, useEffect } from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
+import { useTheme } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Animated } from 'react-native';
+import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
+import { Stack, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+interface QuickActionCard {
+  title: string;
+  subtitle: string;
+  icon: string;
+  gradient: string[];
+  route: string;
+  badge?: string;
+}
+
+interface FeatureSection {
+  title: string;
+  description: string;
+  icon: string;
+  items: QuickActionCard[];
+}
+
 export default function HomeScreen() {
-  const router = useRouter();
   const theme = useTheme();
+  const router = useRouter();
   const [pulseAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
-    // Pulse animation for championship feel
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -36,311 +51,412 @@ export default function HomeScreen() {
     router.push(route as any);
   };
 
-  const mainFeatures = [
-    {
-      title: 'Mattutina',
-      subtitle: 'Routine',
-      description: 'Checklist giornaliera professionale',
-      icon: 'sunrise.fill',
-      gradient: gradients.racing,
-      route: '/morning-routine',
-    },
-    {
-      title: 'Preparazione',
-      subtitle: 'Recupero',
-      description: 'Protocolli pre e post sessione',
-      icon: 'figure.strengthtraining.traditional',
-      gradient: gradients.blue,
-      route: '/preparation',
-    },
-    {
-      title: 'Controllo',
-      subtitle: 'Prontezza',
-      description: 'Valutazione condizione fisica',
-      icon: 'heart.text.square.fill',
-      gradient: gradients.error,
-      route: '/(tabs)/readiness',
-    },
-    {
-      title: 'Timer',
-      subtitle: 'Intervalli',
-      description: 'Timer professionali multi-fase',
-      icon: 'timer',
-      gradient: gradients.success,
-      route: '/timer',
-    },
-    {
-      title: 'Bandiera',
-      subtitle: 'Rossa',
-      description: 'Sistema allerta prestazioni',
-      icon: 'flag.fill',
-      gradient: ['#FF3B30', '#D32F2F'],
-      route: '/red-flags',
-    },
-    {
-      title: 'Strumenti',
-      subtitle: 'Pro',
-      description: 'Suite completa analisi dati',
-      icon: 'wrench.and.screwdriver.fill',
-      gradient: gradients.purple,
-      route: '/tools',
-    },
-    {
-      title: 'Gestione',
-      subtitle: 'Contenuti',
-      description: 'Sistema aggiornamento intelligente',
-      icon: 'doc.text.fill',
-      gradient: gradients.cyan,
-      route: '/content-manager',
-    },
-  ];
-
-  const quickAccessItems = [
-    {
-      title: 'Calendario 18 Settimane',
-      icon: 'calendar',
-      color: colors.primary,
-      route: '/(tabs)/calendar',
-    },
-    {
-      title: 'Progressi & Analisi',
-      icon: 'chart.line.uptrend.xyaxis',
-      color: colors.accent,
-      route: '/(tabs)/progress',
-    },
-    {
-      title: 'Riferimento Rapido',
-      icon: 'book.fill',
-      color: colors.purple,
-      route: '/quick-reference',
-    },
-  ];
-
   const renderHeaderRight = () => (
     <Pressable
       onPress={() => handlePress('/settings')}
-      style={styles.headerButton}
+      style={({ pressed }) => [
+        styles.headerButton,
+        pressed && styles.headerButtonPressed,
+      ]}
     >
-      <IconSymbol name="gear" color={colors.primary} size={24} />
+      <IconSymbol name="gearshape.fill" size={24} color={colors.text} />
     </Pressable>
   );
 
+  // Organized feature sections
+  const sections: FeatureSection[] = [
+    {
+      title: 'Allenamento Quotidiano',
+      description: 'Routine e sessioni giornaliere',
+      icon: 'figure.run',
+      items: [
+        {
+          title: 'Routine Mattutina',
+          subtitle: 'Inizia la giornata',
+          icon: 'sunrise.fill',
+          gradient: gradients.warning,
+          route: '/morning-routine',
+          badge: 'OGGI',
+        },
+        {
+          title: 'Calendario 18 Settimane',
+          subtitle: 'Programma completo',
+          icon: 'calendar',
+          gradient: gradients.blue,
+          route: '/(tabs)/calendar',
+        },
+      ],
+    },
+    {
+      title: 'Preparazione & Recupero',
+      description: 'Protocolli pre e post allenamento',
+      icon: 'heart.circle.fill',
+      items: [
+        {
+          title: 'Riscaldamento',
+          subtitle: 'Pre-allenamento',
+          icon: 'flame.fill',
+          gradient: gradients.error,
+          route: '/warmup',
+        },
+        {
+          title: 'Raffreddamento',
+          subtitle: 'Post-allenamento',
+          icon: 'figure.cooldown',
+          gradient: gradients.cyan,
+          route: '/cooldown',
+        },
+        {
+          title: 'Stretching',
+          subtitle: 'Flessibilità',
+          icon: 'figure.flexibility',
+          gradient: gradients.success,
+          route: '/stretching',
+        },
+        {
+          title: 'Foam Rolling',
+          subtitle: 'Rilascio miofasciale',
+          icon: 'cylinder.fill',
+          gradient: gradients.purple,
+          route: '/foam-rolling',
+        },
+      ],
+    },
+    {
+      title: 'Monitoraggio & Analisi',
+      description: 'Traccia le tue prestazioni',
+      icon: 'chart.line.uptrend.xyaxis',
+      items: [
+        {
+          title: 'Controllo Prontezza',
+          subtitle: 'Valutazione giornaliera',
+          icon: 'heart.text.square.fill',
+          gradient: gradients.racing,
+          route: '/(tabs)/readiness',
+          badge: 'LIVE',
+        },
+        {
+          title: 'Progressi & Analisi',
+          subtitle: 'Grafici e statistiche',
+          icon: 'chart.bar.fill',
+          gradient: gradients.championship,
+          route: '/(tabs)/progress',
+        },
+        {
+          title: 'Sistema Bandiera Rossa',
+          subtitle: 'Prevenzione infortuni',
+          icon: 'exclamationmark.triangle.fill',
+          gradient: ['#FF3B30', '#D32F2F'],
+          route: '/red-flags',
+          badge: 'ALERT',
+        },
+      ],
+    },
+    {
+      title: 'Strumenti Professionali',
+      description: 'Suite avanzata per piloti',
+      icon: 'wrench.and.screwdriver.fill',
+      items: [
+        {
+          title: 'Timer Multi-Intervallo',
+          subtitle: 'Gestione sessioni',
+          icon: 'timer',
+          gradient: gradients.blue,
+          route: '/timer',
+        },
+        {
+          title: 'Calcolatore ACR',
+          subtitle: 'Workload ratio',
+          icon: 'function',
+          gradient: gradients.racing,
+          route: '/acr-calculator',
+        },
+        {
+          title: 'Tracker del Carico',
+          subtitle: 'Monitoraggio settimanale',
+          icon: 'chart.line.uptrend.xyaxis',
+          gradient: gradients.success,
+          route: '/load-tracker',
+        },
+        {
+          title: 'Monitor HRV',
+          subtitle: 'Variabilità cardiaca',
+          icon: 'waveform.path.ecg',
+          gradient: gradients.error,
+          route: '/hrv-monitor',
+        },
+        {
+          title: 'Tutti gli Strumenti',
+          subtitle: 'Suite completa',
+          icon: 'square.grid.2x2.fill',
+          gradient: gradients.carbon,
+          route: '/tools',
+          badge: 'PRO',
+        },
+      ],
+    },
+    {
+      title: 'Tecnologie Avanzate',
+      description: 'AI e analisi biomeccanica',
+      icon: 'sparkles',
+      items: [
+        {
+          title: 'Analisi Video AI',
+          subtitle: 'Feedback intelligente',
+          icon: 'camera.fill',
+          gradient: gradients.racing,
+          route: '/video-analysis',
+          badge: 'AI',
+        },
+        {
+          title: 'Telemetria',
+          subtitle: 'Comparazione dati',
+          icon: 'chart.xyaxis.line',
+          gradient: gradients.cyan,
+          route: '/telemetry-comparison',
+        },
+        {
+          title: 'Biomeccanica 3D',
+          subtitle: 'Analisi movimento',
+          icon: 'figure.walk.motion',
+          gradient: gradients.warning,
+          route: '/biomechanics-3d',
+          badge: '3D',
+        },
+        {
+          title: 'Coach Virtuale',
+          subtitle: 'Assistente AI',
+          icon: 'person.badge.shield.checkmark.fill',
+          gradient: gradients.blue,
+          route: '/virtual-coach',
+          badge: 'LIVE',
+        },
+      ],
+    },
+    {
+      title: 'Benessere & Performance',
+      description: 'Mente e corpo al massimo',
+      icon: 'brain.head.profile',
+      items: [
+        {
+          title: 'Allenamento Mentale',
+          subtitle: 'Focus e concentrazione',
+          icon: 'brain.head.profile',
+          gradient: gradients.purple,
+          route: '/mental-training',
+        },
+        {
+          title: 'Diario Alimentare',
+          subtitle: 'Nutrizione ottimale',
+          icon: 'fork.knife',
+          gradient: gradients.success,
+          route: '/nutrition-diary',
+        },
+        {
+          title: 'Valutazione Postura',
+          subtitle: 'Analisi posturale',
+          icon: 'figure.stand',
+          gradient: gradients.warning,
+          route: '/posture-assessment',
+        },
+      ],
+    },
+  ];
+
   return (
     <>
-      {Platform.OS === 'ios' && (
-        <Stack.Screen
-          options={{
-            title: 'World Championship',
-            headerRight: renderHeaderRight,
-          }}
-        />
-      )}
-      <View style={[commonStyles.container]}>
+      <Stack.Screen
+        options={{
+          title: 'Moto3 Training',
+          headerLargeTitle: true,
+          headerRight: renderHeaderRight,
+        }}
+      />
+      <View style={commonStyles.container}>
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            Platform.OS !== 'ios' && styles.scrollContentWithTabBar
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Championship Hero Header */}
+          {/* Hero Card */}
           <LinearGradient
-            colors={['#E10600', '#FF6B00']}
+            colors={gradients.racing}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.heroContainer}
+            style={styles.heroCard}
           >
-            <View style={styles.heroContent}>
-              <View style={styles.championshipBadge}>
-                <IconSymbol name="trophy.fill" size={16} color={colors.racingGold} />
-                <Text style={styles.championshipText}>WORLD CHAMPIONSHIP</Text>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <View style={styles.heroIconContainer}>
+                <IconSymbol name="flag.checkered" size={48} color="#FFFFFF" />
               </View>
-              <Text style={styles.welcomeText}>Benvenuto</Text>
-              <Text style={styles.pilotText}>Pilota Mondiale</Text>
-              <Text style={styles.dateText}>
-                {new Date().toLocaleDateString('it-IT', { 
-                  weekday: 'long', 
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                })}
-              </Text>
-            </View>
-            
-            {/* Enhanced Quick Stats */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <IconSymbol name="calendar" size={18} color={colors.primary} />
-                <Text style={styles.statValue}>12</Text>
-                <Text style={styles.statLabel}>Settimana</Text>
+            </Animated.View>
+            <Text style={styles.heroTitle}>Allenamento Pilota Moto3</Text>
+            <Text style={styles.heroSubtitle}>
+              Sistema completo di preparazione fisica e mentale per piloti professionisti
+            </Text>
+            <View style={styles.heroStats}>
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>18</Text>
+                <Text style={styles.heroStatLabel}>Settimane</Text>
               </View>
-              <Animated.View style={[styles.statCard, styles.statCardHighlight, { transform: [{ scale: pulseAnim }] }]}>
-                <IconSymbol name="bolt.fill" size={18} color={colors.racingGold} />
-                <Text style={[styles.statValue, styles.statValueHighlight]}>92%</Text>
-                <Text style={styles.statLabel}>Prontezza</Text>
-              </Animated.View>
-              <View style={styles.statCard}>
-                <IconSymbol name="figure.run" size={18} color={colors.primary} />
-                <Text style={styles.statValue}>48</Text>
-                <Text style={styles.statLabel}>Sessioni</Text>
+              <View style={styles.heroStatDivider} />
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>50+</Text>
+                <Text style={styles.heroStatLabel}>Strumenti</Text>
+              </View>
+              <View style={styles.heroStatDivider} />
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>PRO</Text>
+                <Text style={styles.heroStatLabel}>Livello</Text>
               </View>
             </View>
           </LinearGradient>
 
-          {/* Performance Insights */}
-          <View style={[commonStyles.cardRacing, styles.insightCard]}>
-            <View style={styles.insightHeader}>
-              <IconSymbol name="chart.line.uptrend.xyaxis" size={24} color={colors.primary} />
-              <Text style={styles.insightTitle}>Performance Insight</Text>
-            </View>
-            <Text style={styles.insightText}>
-              Condizione fisica ottimale. HRV in zona verde (+8% vs media). 
-              Pronto per sessione ad alta intensità.
-            </Text>
-            <View style={styles.insightMetrics}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>HRV</Text>
-                <Text style={[styles.metricValue, { color: colors.success }]}>↑ 8%</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Carico</Text>
-                <Text style={[styles.metricValue, { color: colors.success }]}>Ottimale</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Recupero</Text>
-                <Text style={[styles.metricValue, { color: colors.success }]}>100%</Text>
+          {/* Quick Access - Most Used */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <IconSymbol name="bolt.fill" size={24} color={colors.racingGold} />
+                <Text style={styles.sectionTitle}>Accesso Rapido</Text>
               </View>
             </View>
-          </View>
-
-          {/* Main Features Grid */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Funzioni Principali</Text>
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>PRO</Text>
-            </View>
-          </View>
-          
-          <View style={styles.featuresGrid}>
-            {mainFeatures.map((feature, index) => (
+            <View style={styles.quickAccessGrid}>
               <Pressable
-                key={index}
-                style={styles.featureCardContainer}
-                onPress={() => handlePress(feature.route)}
+                style={styles.quickAccessCard}
+                onPress={() => handlePress('/morning-routine')}
               >
                 <LinearGradient
-                  colors={feature.gradient}
+                  colors={gradients.warning}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.featureCard}
+                  style={styles.quickAccessGradient}
                 >
-                  <View style={styles.featureIconContainer}>
-                    <IconSymbol name={feature.icon as any} size={32} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.featureTextContainer}>
-                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                    <Text style={styles.featureSubtitle}>{feature.subtitle}</Text>
-                    <Text style={styles.featureDescription}>{feature.description}</Text>
-                  </View>
-                  <View style={styles.featureArrow}>
-                    <IconSymbol name="chevron.right" size={18} color="rgba(255,255,255,0.9)" />
-                  </View>
+                  <IconSymbol name="sunrise.fill" size={32} color="#FFFFFF" />
                 </LinearGradient>
+                <Text style={styles.quickAccessTitle}>Routine</Text>
+                <Text style={styles.quickAccessSubtitle}>Mattutina</Text>
               </Pressable>
-            ))}
-          </View>
 
-          {/* Quick Access */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Accesso Rapido</Text>
-          </View>
-          
-          <View style={[commonStyles.card, styles.quickAccessCard]}>
-            {quickAccessItems.map((item, index) => (
-              <Pressable 
-                key={index}
-                style={[
-                  styles.quickAccessButton,
-                  index < quickAccessItems.length - 1 && styles.quickAccessButtonBorder
-                ]}
-                onPress={() => handlePress(item.route)}
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => handlePress('/(tabs)/readiness')}
               >
-                <View style={[styles.quickAccessIcon, { backgroundColor: item.color + '15' }]}>
-                  <IconSymbol name={item.icon as any} size={24} color={item.color} />
-                </View>
-                <Text style={styles.quickAccessText}>{item.title}</Text>
-                <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
+                <LinearGradient
+                  colors={gradients.racing}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.quickAccessGradient}
+                >
+                  <IconSymbol name="heart.text.square.fill" size={32} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.quickAccessTitle}>Prontezza</Text>
+                <Text style={styles.quickAccessSubtitle}>Controllo</Text>
               </Pressable>
-            ))}
-          </View>
 
-          {/* Today's Focus - Enhanced */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Focus di Oggi</Text>
-            <View style={[styles.sectionBadge, { backgroundColor: colors.success + '20' }]}>
-              <Text style={[styles.sectionBadgeText, { color: colors.success }]}>ATTIVO</Text>
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => handlePress('/(tabs)/calendar')}
+              >
+                <LinearGradient
+                  colors={gradients.blue}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.quickAccessGradient}
+                >
+                  <IconSymbol name="calendar" size={32} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.quickAccessTitle}>Calendario</Text>
+                <Text style={styles.quickAccessSubtitle}>18 Settimane</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => handlePress('/tools')}
+              >
+                <LinearGradient
+                  colors={gradients.carbon}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.quickAccessGradient}
+                >
+                  <IconSymbol name="wrench.and.screwdriver.fill" size={32} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.quickAccessTitle}>Strumenti</Text>
+                <Text style={styles.quickAccessSubtitle}>Professionali</Text>
+              </Pressable>
             </View>
           </View>
-          
-          <LinearGradient
-            colors={['#E10600', '#FF6B00']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.focusCard}
-          >
-            <View style={styles.focusHeader}>
-              <View style={styles.focusIconContainer}>
-                <IconSymbol name="figure.strengthtraining.traditional" size={40} color="#FFFFFF" />
-              </View>
-              <View style={styles.focusTextContainer}>
-                <Text style={styles.focusTitle}>Allenamento Forza Esplosiva</Text>
-                <Text style={styles.focusDescription}>
-                  Sessione potenziamento muscolare specifico
-                </Text>
-                <View style={styles.focusMetaRow}>
-                  <View style={styles.focusMeta}>
-                    <IconSymbol name="clock.fill" size={14} color="rgba(255,255,255,0.9)" />
-                    <Text style={styles.focusMetaText}>45 min</Text>
-                  </View>
-                  <View style={styles.focusMeta}>
-                    <IconSymbol name="flame.fill" size={14} color="rgba(255,255,255,0.9)" />
-                    <Text style={styles.focusMetaText}>Alta intensità</Text>
+
+          {/* Organized Sections */}
+          {sections.map((section, sectionIndex) => (
+            <View key={sectionIndex} style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderLeft}>
+                  <IconSymbol name={section.icon as any} size={24} color={colors.primary} />
+                  <View>
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                    <Text style={styles.sectionDescription}>{section.description}</Text>
                   </View>
                 </View>
               </View>
-            </View>
-            <Pressable style={styles.focusButton} onPress={() => handlePress('/preparation')}>
-              <Text style={styles.focusButtonText}>Inizia Sessione</Text>
-              <IconSymbol name="arrow.right" size={18} color="#FFFFFF" />
-            </Pressable>
-          </LinearGradient>
 
-          {/* Championship Stats */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Statistiche Campionato</Text>
-          </View>
-          
-          <View style={[commonStyles.card, styles.championshipCard]}>
-            <View style={styles.championshipRow}>
-              <View style={styles.championshipStat}>
-                <IconSymbol name="trophy.fill" size={20} color={colors.racingGold} />
-                <Text style={styles.championshipStatValue}>3</Text>
-                <Text style={styles.championshipStatLabel}>Podi</Text>
-              </View>
-              <View style={styles.championshipDivider} />
-              <View style={styles.championshipStat}>
-                <IconSymbol name="flag.checkered" size={20} color={colors.primary} />
-                <Text style={styles.championshipStatValue}>12</Text>
-                <Text style={styles.championshipStatLabel}>Gare</Text>
-              </View>
-              <View style={styles.championshipDivider} />
-              <View style={styles.championshipStat}>
-                <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color={colors.accent} />
-                <Text style={styles.championshipStatValue}>5°</Text>
-                <Text style={styles.championshipStatLabel}>Posizione</Text>
+              <View style={styles.cardsGrid}>
+                {section.items.map((item, itemIndex) => (
+                  <Pressable
+                    key={itemIndex}
+                    style={styles.featureCard}
+                    onPress={() => handlePress(item.route)}
+                  >
+                    <LinearGradient
+                      colors={item.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.featureGradient}
+                    >
+                      <IconSymbol name={item.icon as any} size={28} color="#FFFFFF" />
+                      {item.badge && (
+                        <View style={styles.featureBadge}>
+                          <Text style={styles.featureBadgeText}>{item.badge}</Text>
+                        </View>
+                      )}
+                    </LinearGradient>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>{item.title}</Text>
+                      <Text style={styles.featureSubtitle}>{item.subtitle}</Text>
+                    </View>
+                    <IconSymbol name="chevron.right" size={16} color={colors.textLight} />
+                  </Pressable>
+                ))}
               </View>
             </View>
+          ))}
+
+          {/* Reference Section */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <IconSymbol name="book.fill" size={24} color={colors.info} />
+                <Text style={styles.sectionTitle}>Riferimenti</Text>
+              </View>
+            </View>
+            <Pressable
+              style={[commonStyles.card, styles.referenceCard]}
+              onPress={() => handlePress('/quick-reference')}
+            >
+              <View style={styles.referenceIconContainer}>
+                <IconSymbol name="book.fill" size={32} color={colors.info} />
+              </View>
+              <View style={styles.referenceContent}>
+                <Text style={styles.referenceTitle}>Riferimento Rapido</Text>
+                <Text style={styles.referenceDescription}>
+                  Linee guida, protocolli e informazioni essenziali sempre a portata di mano
+                </Text>
+              </View>
+              <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
+            </Pressable>
           </View>
+
+          {/* Bottom Spacing for Tab Bar */}
+          <View style={{ height: 100 }} />
         </ScrollView>
       </View>
     </>
@@ -349,146 +465,82 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: 32,
+    padding: 16,
   },
-  scrollContentWithTabBar: {
-    paddingBottom: 100,
-  },
-  heroContainer: {
-    borderRadius: 24,
-    padding: 24,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 20,
+  heroCard: {
+    borderRadius: 28,
+    padding: 32,
+    marginBottom: 24,
+    alignItems: 'center',
     ...shadows.large,
   },
-  heroContent: {
-    marginBottom: 24,
-  },
-  championshipBadge: {
-    flexDirection: 'row',
+  heroIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-    gap: 6,
-  },
-  championshipText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.racingGold,
-    letterSpacing: 1,
-  },
-  welcomeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  pilotText: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: -1.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  dateText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textTransform: 'capitalize',
-    fontWeight: '500',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    ...shadows.medium,
-  },
-  statCardHighlight: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: colors.racingGold,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 8,
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  statValueHighlight: {
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  insightCard: {
-    marginHorizontal: 16,
     marginBottom: 20,
   },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FFFFFF',
     marginBottom: 12,
-    gap: 10,
+    letterSpacing: -0.5,
+    textAlign: 'center',
   },
-  insightTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
-  insightText: {
+  heroSubtitle: {
     fontSize: 15,
-    color: colors.text,
+    color: 'rgba(255, 255, 255, 0.95)',
     lineHeight: 22,
-    marginBottom: 16,
+    textAlign: 'center',
+    fontWeight: '500',
+    marginBottom: 24,
   },
-  insightMetrics: {
+  heroStats: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-  },
-  metricItem: {
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    padding: 16,
+    width: '100%',
+    justifyContent: 'space-around',
   },
-  metricLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
+  heroStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  heroStatValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+  heroStatLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+  },
+  heroStatDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  sectionContainer: {
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
-    marginHorizontal: 16,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   sectionTitle: {
     fontSize: 22,
@@ -496,193 +548,137 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.5,
   },
-  sectionBadge: {
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  sectionDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+    fontWeight: '500',
   },
-  sectionBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
-  featuresGrid: {
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  featureCardContainer: {
-    marginBottom: 12,
-  },
-  featureCard: {
-    borderRadius: 20,
-    padding: 20,
+  quickAccessGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    ...shadows.large,
-    overflow: 'hidden',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  featureIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  quickAccessCard: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    ...shadows.medium,
+  },
+  quickAccessGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 12,
   },
-  featureTextContainer: {
+  quickAccessTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  quickAccessSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  cardsGrid: {
+    gap: 12,
+  },
+  featureCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...shadows.medium,
+  },
+  featureGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    position: 'relative',
+  },
+  featureBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: colors.racingGold,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.card,
+  },
+  featureBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.racingBlack,
+    letterSpacing: 0.5,
+  },
+  featureContent: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 2,
-    letterSpacing: -0.3,
-  },
-  featureSubtitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.95)',
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontWeight: '500',
-  },
-  featureArrow: {
-    marginLeft: 8,
-  },
-  quickAccessCard: {
-    padding: 0,
-    marginBottom: 32,
-    marginHorizontal: 16,
-  },
-  quickAccessButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 18,
-  },
-  quickAccessButtonBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  quickAccessIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  quickAccessText: {
-    flex: 1,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 3,
     letterSpacing: -0.2,
   },
-  focusCard: {
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-    marginHorizontal: 16,
-    ...shadows.racing,
+  featureSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
-  focusHeader: {
+  referenceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: colors.highlightBlue,
   },
-  focusIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  referenceIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.info + '20',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  focusTextContainer: {
+  referenceContent: {
     flex: 1,
   },
-  focusTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  focusDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  focusMetaRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  focusMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  focusMetaText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
-  },
-  focusButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 16,
-    padding: 16,
-    gap: 10,
-  },
-  focusButtonText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  championshipCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  championshipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  championshipStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  championshipStatValue: {
-    fontSize: 28,
-    fontWeight: '800',
+  referenceTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
-    marginTop: 8,
-    marginBottom: 4,
-    letterSpacing: -0.5,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
-  championshipStatLabel: {
-    fontSize: 12,
+  referenceDescription: {
+    fontSize: 14,
     color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  championshipDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.divider,
+    lineHeight: 20,
   },
   headerButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  headerButtonPressed: {
+    opacity: 0.6,
   },
 });
