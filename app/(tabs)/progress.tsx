@@ -103,14 +103,14 @@ export default function ProgressScreen() {
   const loadProgressData = useCallback(async () => {
     try {
       // Use optimized storage with caching
-      const stored = await storage.get<ProgressData[]>(STORAGE_KEY, { useCache: true });
-      if (stored) {
-        setProgressData(stored);
+      const result = await storage.getItem<ProgressData[]>(STORAGE_KEY, true);
+      if (result.success && result.data) {
+        setProgressData(result.data);
       } else {
         // Generate mock data
         const mockData = generateMockData();
         setProgressData(mockData);
-        await storage.set(STORAGE_KEY, mockData);
+        await storage.setItem(STORAGE_KEY, mockData);
       }
     } catch (error) {
       console.error('Error loading progress data:', error);
@@ -118,7 +118,7 @@ export default function ProgressScreen() {
     }
   }, [generateMockData]);
 
-  const updateProgressFromReadiness = useCallback(async () => {
+  const updateProgressFromReadiness = useCallback(async (currentProgressData: ProgressData[]) => {
     try {
       // Load readiness history
       const readinessData = await AsyncStorage.getItem(READINESS_STORAGE_KEY);
@@ -131,7 +131,7 @@ export default function ProgressScreen() {
       console.log(`Updating progress from ${readinessHistory.length} readiness entries`);
 
       // Load existing progress data
-      let existingProgress = progressData;
+      let existingProgress = currentProgressData;
       if (existingProgress.length === 0) {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -180,20 +180,20 @@ export default function ProgressScreen() {
     } catch (error) {
       console.log('Error updating progress from readiness:', error);
     }
-  }, [progressData, generateMockData]);
+  }, [generateMockData]);
 
-  const checkForUpdates = useCallback(async () => {
+  const checkForUpdates = useCallback(async (currentProgressData: ProgressData[], currentLastUpdate: string) => {
     try {
       const updateTrigger = await AsyncStorage.getItem(UPDATE_TRIGGER_KEY);
-      if (updateTrigger && updateTrigger !== lastUpdate) {
+      if (updateTrigger && updateTrigger !== currentLastUpdate) {
         console.log('Progress data update detected, reloading...');
         setLastUpdate(updateTrigger);
-        await updateProgressFromReadiness();
+        await updateProgressFromReadiness(currentProgressData);
       }
     } catch (error) {
       console.log('Error checking for updates:', error);
     }
-  }, [lastUpdate, updateProgressFromReadiness]);
+  }, [updateProgressFromReadiness]);
 
   const initializeData = useCallback(async () => {
     try {
@@ -201,7 +201,11 @@ export default function ProgressScreen() {
       setError(null);
       await measurePerformance('initializeProgressData', async () => {
         await loadProgressData();
-        await checkForUpdates();
+        // Check for updates after loading initial data
+        const updateTrigger = await AsyncStorage.getItem(UPDATE_TRIGGER_KEY);
+        if (updateTrigger) {
+          setLastUpdate(updateTrigger);
+        }
       });
     } catch (err) {
       console.error('Error initializing progress data:', err);
@@ -209,17 +213,17 @@ export default function ProgressScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loadProgressData, checkForUpdates]);
+  }, [loadProgressData]);
 
   useEffect(() => {
     initializeData();
-  }, []);
+  }, [initializeData]);
 
   // Use focus effect to reload data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      checkForUpdates();
-    }, [])
+      checkForUpdates(progressData, lastUpdate);
+    }, [progressData, lastUpdate, checkForUpdates])
   );
 
   const getFilteredData = useCallback(() => {
@@ -244,10 +248,10 @@ export default function ProgressScreen() {
   }, []);
 
   // Memoize expensive calculations
-  const filteredData = useMemo(() => getFilteredData(), [progressData, selectedPeriod]);
+  const filteredData = useMemo(() => getFilteredData(), [getFilteredData]);
   const currentMetricData = useMemo(() => filteredData.map(d => d[selectedMetric]), [filteredData, selectedMetric]);
-  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData]);
-  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric]);
+  const stats = useMemo(() => calculateStats(currentMetricData), [currentMetricData, calculateStats]);
+  const currentMetric = useMemo(() => metrics.find(m => m.key === selectedMetric), [selectedMetric, metrics]);
 
   const renderLineChart = (data: number[], metric: string) => {
     if (data.length < 2) return null;
@@ -440,7 +444,7 @@ export default function ProgressScreen() {
             headerRight: () => (
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <Pressable onPress={() => {
-                  checkForUpdates();
+                  checkForUpdates(progressData, lastUpdate);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}>
                   <IconSymbol name="arrow.clockwise" size={22} color={colors.primary} />
