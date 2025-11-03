@@ -28,7 +28,7 @@ export default function PreparationScreen() {
   const sections: Section[] = [
     {
       title: 'Riscaldamento Pre-Allenamento',
-      description: 'Preparazione muscolare e cardiovascolare',
+      description: 'Preparazione muscolare e cardiovascolare completa',
       icon: 'flame.fill',
       gradient: gradients.error,
       route: '/warmup',
@@ -36,8 +36,17 @@ export default function PreparationScreen() {
       category: 'pre',
     },
     {
+      title: 'Mobilità Articolare',
+      description: 'Esercizi di mobilità per prestazioni ottimali',
+      icon: 'figure.flexibility',
+      gradient: ['#667eea', '#764ba2'],
+      route: '/mobility',
+      duration: '15-20 min',
+      category: 'pre',
+    },
+    {
       title: 'Raffreddamento Post-Allenamento',
-      description: 'Defaticamento e recupero immediato',
+      description: 'Defaticamento e recupero cardiovascolare',
       icon: 'figure.cooldown',
       gradient: gradients.cyan,
       route: '/cooldown',
@@ -46,7 +55,7 @@ export default function PreparationScreen() {
     },
     {
       title: 'Stretching Dedicato',
-      description: 'Allungamento muscolare completo',
+      description: 'Allungamento muscolare completo e profondo',
       icon: 'figure.flexibility',
       gradient: gradients.success,
       route: '/stretching',
@@ -55,7 +64,7 @@ export default function PreparationScreen() {
     },
     {
       title: 'Protocollo Foam Rolling',
-      description: 'Rilascio miofasciale e recupero',
+      description: 'Rilascio miofasciale per recupero muscolare',
       icon: 'cylinder.fill',
       gradient: gradients.purple,
       route: '/foam-rolling',
@@ -104,7 +113,7 @@ export default function PreparationScreen() {
             </View>
             <Text style={styles.headerTitle}>Preparazione & Recupero</Text>
             <Text style={styles.headerDescription}>
-              Protocolli professionali per ottimizzare prestazioni e prevenire infortuni
+              Protocolli professionali per piloti Moto3: ottimizza prestazioni e previeni infortuni
             </Text>
           </LinearGradient>
 
@@ -114,7 +123,8 @@ export default function PreparationScreen() {
               <IconSymbol name="info.circle.fill" size={28} color={colors.info} />
             </View>
             <Text style={styles.infoText}>
-              Segui i protocolli specifici per piloti Moto3 per massimizzare le prestazioni e accelerare il recupero
+              Ogni protocollo è stato sviluppato specificamente per le esigenze fisiche dei piloti Moto3, 
+              con focus su mobilità, resistenza e recupero rapido.
             </Text>
           </View>
 
@@ -171,24 +181,28 @@ export default function PreparationScreen() {
           <View style={[commonStyles.card, styles.tipsCard]}>
             <View style={styles.tipsHeader}>
               <IconSymbol name="lightbulb.fill" size={24} color={colors.racingGold} />
-              <Text style={styles.tipsTitle}>Suggerimenti Rapidi</Text>
+              <Text style={styles.tipsTitle}>Suggerimenti Professionali</Text>
             </View>
             <View style={styles.tipsList}>
               <View style={styles.tipItem}>
                 <View style={styles.tipBullet} />
-                <Text style={styles.tipText}>Riscaldati sempre prima di ogni sessione</Text>
+                <Text style={styles.tipText}>Riscaldamento: sempre prima di ogni sessione, anche breve</Text>
               </View>
               <View style={styles.tipItem}>
                 <View style={styles.tipBullet} />
-                <Text style={styles.tipText}>Dedica tempo al raffreddamento post-allenamento</Text>
+                <Text style={styles.tipText}>Mobilità: quotidiana al mattino per risultati ottimali</Text>
               </View>
               <View style={styles.tipItem}>
                 <View style={styles.tipBullet} />
-                <Text style={styles.tipText}>Usa il foam rolling nei giorni di recupero</Text>
+                <Text style={styles.tipText}>Raffreddamento: mai saltare, accelera il recupero</Text>
               </View>
               <View style={styles.tipItem}>
                 <View style={styles.tipBullet} />
-                <Text style={styles.tipText}>Mantieni una routine costante</Text>
+                <Text style={styles.tipText}>Foam rolling: 3-4 volte a settimana per prevenzione</Text>
+              </View>
+              <View style={styles.tipItem}>
+                <View style={styles.tipBullet} />
+                <Text style={styles.tipText}>Stretching: nei giorni di riposo per flessibilità</Text>
               </View>
             </View>
           </View>
