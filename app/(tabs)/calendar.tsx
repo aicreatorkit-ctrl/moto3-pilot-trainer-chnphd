@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput, Modal, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput, Modal, Alert, Animated } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -8,27 +8,31 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 const TRAINING_TYPES = {
-  FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: 'dumbbell.fill' },
-  POTENZA: { label: 'Potenza', color: '#FF8C00', icon: 'bolt.fill' },
-  RESISTENZA: { label: 'Resistenza', color: '#4CAF50', icon: 'figure.run' },
-  TECNICO: { label: 'Tecnico Specifico', color: '#2196F3', icon: 'figure.motorcycle' },
-  MOBILITA: { label: 'Mobilità/Correttivo', color: '#9C27B0', icon: 'figure.flexibility' },
-  RECUPERO: { label: 'Recupero Attivo', color: '#00BCD4', icon: 'wind' },
-  RIPOSO: { label: 'Riposo Completo', color: '#757575', icon: 'bed.double.fill' },
-  DELOAD: { label: 'Deload', color: '#FFB300', icon: 'arrow.down.circle.fill' },
-  GARA: { label: 'Gara', color: '#FFD700', icon: 'flag.checkered' },
+  FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: 'dumbbell.fill', shortLabel: 'Forza' },
+  POTENZA: { label: 'Potenza', color: '#FF8C00', icon: 'bolt.fill', shortLabel: 'Potenza' },
+  RESISTENZA: { label: 'Resistenza', color: '#4CAF50', icon: 'figure.run', shortLabel: 'Resist.' },
+  TECNICO: { label: 'Tecnico Specifico', color: '#2196F3', icon: 'figure.motorcycle', shortLabel: 'Tecnico' },
+  MOBILITA: { label: 'Mobilità/Correttivo', color: '#9C27B0', icon: 'figure.flexibility', shortLabel: 'Mobilità' },
+  RECUPERO: { label: 'Recupero Attivo', color: '#00BCD4', icon: 'wind', shortLabel: 'Recupero' },
+  RIPOSO: { label: 'Riposo Completo', color: '#757575', icon: 'bed.double.fill', shortLabel: 'Riposo' },
+  DELOAD: { label: 'Deload', color: '#FFB300', icon: 'arrow.down.circle.fill', shortLabel: 'Deload' },
+  GARA: { label: 'Gara', color: '#FFD700', icon: 'flag.checkered', shortLabel: 'Gara' },
 };
 
 const STORAGE_KEY = '@calendar_data';
 const NOTES_KEY = '@calendar_notes';
+const COMPLETION_KEY = '@calendar_completion';
 
 interface DayData {
   morning?: any;
   main?: any;
   recovery?: any;
   notes?: string;
+  completed?: boolean;
+  completedAt?: string;
 }
 
 interface WeekData {
@@ -39,21 +43,48 @@ interface CalendarData {
   [week: number]: WeekData;
 }
 
+interface CompletionData {
+  [key: string]: boolean;
+}
+
 export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [selectedDay, setSelectedDay] = useState(0);
   const [calendarData, setCalendarData] = useState<CalendarData>({});
+  const [completionData, setCompletionData] = useState<CompletionData>({});
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
   const [showUpload, setShowUpload] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [showStats, setShowStats] = useState(false);
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
 
   const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  const weekDaysFull = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
   const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     loadCalendarData();
     loadNotes();
+    loadCompletionData();
+    
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const loadCalendarData = async () => {
@@ -78,12 +109,43 @@ export default function CalendarScreen() {
     }
   };
 
+  const loadCompletionData = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(COMPLETION_KEY);
+      if (stored) {
+        setCompletionData(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Error loading completion data:', error);
+    }
+  };
+
   const saveNotes = async (notes: Record<string, string>) => {
     try {
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
       setDayNotes(notes);
     } catch (error) {
       console.error('Error saving notes:', error);
+    }
+  };
+
+  const toggleCompletion = async (week: number, day: number) => {
+    const key = `${week}-${day}`;
+    const newCompletionData = {
+      ...completionData,
+      [key]: !completionData[key],
+    };
+    
+    try {
+      await AsyncStorage.setItem(COMPLETION_KEY, JSON.stringify(newCompletionData));
+      setCompletionData(newCompletionData);
+      Haptics.notificationAsync(
+        newCompletionData[key] 
+          ? Haptics.NotificationFeedbackType.Success 
+          : Haptics.NotificationFeedbackType.Warning
+      );
+    } catch (error) {
+      console.error('Error saving completion data:', error);
     }
   };
 
@@ -111,7 +173,6 @@ export default function CalendarScreen() {
 
       setUploadStatus('Elaborazione file...');
       
-      // Simulate file processing
       setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setUploadStatus('✅ File caricato con successo!');
@@ -141,52 +202,221 @@ export default function CalendarScreen() {
     return 'RIPOSO';
   };
 
-  const renderWeekSelector = () => (
-    <View style={styles.weekSelectorContainer}>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.weekSelector}
-      >
-        {weeks.map((week) => {
-          const isSelected = selectedWeek === week;
-          const isCompleted = week < selectedWeek;
-          const isCurrent = week === Math.ceil(new Date().getDate() / 7);
+  const isCompleted = (week: number, day: number): boolean => {
+    return completionData[`${week}-${day}`] || false;
+  };
+
+  const getWeekStats = (week: number) => {
+    let totalSessions = 0;
+    let completedSessions = 0;
+    let totalLoad = 0;
+    const typeCount: Record<string, number> = {};
+
+    for (let day = 0; day < 7; day++) {
+      const data = getDayData(week, day);
+      if (data && (data.main || data.morning)) {
+        totalSessions++;
+        if (isCompleted(week, day)) {
+          completedSessions++;
+        }
+        
+        const type = getDayType(week, day);
+        typeCount[type] = (typeCount[type] || 0) + 1;
+        
+        if (data.main?.rpe) {
+          totalLoad += data.main.rpe;
+        }
+      }
+    }
+
+    return {
+      totalSessions,
+      completedSessions,
+      completionRate: totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0,
+      totalLoad,
+      typeCount,
+    };
+  };
+
+  const getCurrentWeek = () => {
+    const startDate = new Date(2025, 10, 16);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.min(Math.ceil(diffDays / 7), 18);
+  };
+
+  const jumpToCurrentWeek = () => {
+    const currentWeek = getCurrentWeek();
+    setSelectedWeek(currentWeek);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const renderWeekSelector = () => {
+    const currentWeek = getCurrentWeek();
+    
+    return (
+      <View style={styles.weekSelectorContainer}>
+        <View style={styles.weekSelectorHeader}>
+          <Pressable 
+            style={styles.jumpButton}
+            onPress={jumpToCurrentWeek}
+          >
+            <IconSymbol name="calendar.badge.clock" size={18} color={colors.primary} />
+            <Text style={styles.jumpButtonText}>Oggi</Text>
+          </Pressable>
           
-          return (
+          <View style={styles.viewModeToggle}>
             <Pressable
-              key={week}
-              style={[
-                styles.weekButton,
-                isSelected && styles.weekButtonActive,
-                isCompleted && styles.weekButtonCompleted,
-              ]}
+              style={[styles.viewModeButton, viewMode === 'week' && styles.viewModeButtonActive]}
               onPress={() => {
-                setSelectedWeek(week);
+                setViewMode('week');
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
             >
-              {isCompleted && (
-                <View style={styles.weekCompletedBadge}>
-                  <IconSymbol name="checkmark" size={12} color="#FFFFFF" />
-                </View>
-              )}
-              <Text style={[
-                styles.weekButtonText,
-                isSelected && styles.weekButtonTextActive,
-                isCompleted && styles.weekButtonTextCompleted,
-              ]}>
-                S{week}
+              <Text style={[styles.viewModeText, viewMode === 'week' && styles.viewModeTextActive]}>
+                Settimana
               </Text>
-              {isCurrent && (
-                <View style={styles.currentWeekDot} />
-              )}
             </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
+            <Pressable
+              style={[styles.viewModeButton, viewMode === 'month' && styles.viewModeButtonActive]}
+              onPress={() => {
+                setViewMode('month');
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Text style={[styles.viewModeText, viewMode === 'month' && styles.viewModeTextActive]}>
+                Mese
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.weekSelector}
+        >
+          {weeks.map((week) => {
+            const isSelected = selectedWeek === week;
+            const stats = getWeekStats(week);
+            const isCompleted = stats.completionRate === 100 && stats.totalSessions > 0;
+            const isCurrent = week === currentWeek;
+            
+            return (
+              <Pressable
+                key={week}
+                style={[
+                  styles.weekButton,
+                  isSelected && styles.weekButtonActive,
+                  isCompleted && styles.weekButtonCompleted,
+                ]}
+                onPress={() => {
+                  setSelectedWeek(week);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                {isCompleted && (
+                  <View style={styles.weekCompletedBadge}>
+                    <IconSymbol name="checkmark" size={10} color="#FFFFFF" />
+                  </View>
+                )}
+                <Text style={[
+                  styles.weekButtonText,
+                  isSelected && styles.weekButtonTextActive,
+                  isCompleted && styles.weekButtonTextCompleted,
+                ]}>
+                  S{week}
+                </Text>
+                {stats.totalSessions > 0 && (
+                  <View style={styles.weekProgressBar}>
+                    <View 
+                      style={[
+                        styles.weekProgressFill, 
+                        { 
+                          width: `${stats.completionRate}%`,
+                          backgroundColor: isSelected ? '#FFFFFF' : colors.primary,
+                        }
+                      ]} 
+                    />
+                  </View>
+                )}
+                {isCurrent && (
+                  <View style={styles.currentWeekDot} />
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderWeekStats = () => {
+    const stats = getWeekStats(selectedWeek);
+    
+    return (
+      <Animated.View 
+        style={[
+          styles.statsCard,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          }
+        ]}
+      >
+        <LinearGradient
+          colors={gradients.racing}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.statsGradient}
+        >
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <IconSymbol name="figure.run" size={24} color="#FFFFFF" />
+              <Text style={styles.statValue}>{stats.totalSessions}</Text>
+              <Text style={styles.statLabel}>Sessioni</Text>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
+              <Text style={styles.statValue}>{stats.completedSessions}</Text>
+              <Text style={styles.statLabel}>Completate</Text>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <IconSymbol name="chart.bar.fill" size={24} color="#FFFFFF" />
+              <Text style={styles.statValue}>{Math.round(stats.completionRate)}%</Text>
+              <Text style={styles.statLabel}>Progresso</Text>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <IconSymbol name="bolt.fill" size={24} color="#FFFFFF" />
+              <Text style={styles.statValue}>{stats.totalLoad}</Text>
+              <Text style={styles.statLabel}>Carico</Text>
+            </View>
+          </View>
+          
+          <Pressable 
+            style={styles.statsDetailButton}
+            onPress={() => {
+              setShowStats(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Text style={styles.statsDetailText}>Dettagli</Text>
+            <IconSymbol name="chevron.right" size={14} color="#FFFFFF" />
+          </Pressable>
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
 
   const renderDayGrid = () => (
     <View style={styles.dayGrid}>
@@ -194,28 +424,66 @@ export default function CalendarScreen() {
         const dayType = getDayType(selectedWeek, index);
         const typeInfo = TRAINING_TYPES[dayType as keyof typeof TRAINING_TYPES] || TRAINING_TYPES.RIPOSO;
         const hasNotes = dayNotes[`${selectedWeek}-${index}`];
+        const completed = isCompleted(selectedWeek, index);
+        const dayData = getDayData(selectedWeek, index);
         
         return (
           <Pressable
             key={index}
             style={[
               styles.dayCard,
-              { borderLeftColor: typeInfo.color, borderLeftWidth: 4 }
+              { borderLeftColor: typeInfo.color, borderLeftWidth: 4 },
+              completed && styles.dayCardCompleted,
             ]}
             onPress={() => handleDayPress(selectedWeek, index)}
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              toggleCompletion(selectedWeek, index);
+            }}
           >
             <View style={styles.dayHeader}>
-              <Text style={styles.dayName}>{dayName}</Text>
-              {hasNotes && (
-                <IconSymbol name="note.text" size={14} color={colors.primary} />
-              )}
+              <View style={styles.dayHeaderLeft}>
+                <Text style={styles.dayName}>{dayName}</Text>
+                {dayData?.main?.rpe && (
+                  <View style={[styles.rpeMiniBadge, { backgroundColor: typeInfo.color + '20' }]}>
+                    <Text style={[styles.rpeMiniBadgeText, { color: typeInfo.color }]}>
+                      RPE {dayData.main.rpe}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.dayHeaderRight}>
+                {hasNotes && (
+                  <IconSymbol name="note.text" size={14} color={colors.textSecondary} />
+                )}
+                {completed && (
+                  <View style={styles.completedBadge}>
+                    <IconSymbol name="checkmark.circle.fill" size={18} color={colors.success} />
+                  </View>
+                )}
+              </View>
             </View>
+            
             <View style={[styles.dayTypeIcon, { backgroundColor: typeInfo.color + '20' }]}>
-              <IconSymbol name={typeInfo.icon as any} size={24} color={typeInfo.color} />
+              <IconSymbol name={typeInfo.icon as any} size={28} color={typeInfo.color} />
             </View>
+            
             <Text style={styles.dayTypeLabel} numberOfLines={2}>
               {typeInfo.label}
             </Text>
+            
+            {dayData?.main?.time && (
+              <View style={styles.dayTimeContainer}>
+                <IconSymbol name="clock.fill" size={12} color={colors.textSecondary} />
+                <Text style={styles.dayTime}>{dayData.main.time}</Text>
+              </View>
+            )}
+            
+            {dayData?.main?.exercises && (
+              <Text style={styles.dayExerciseCount}>
+                {dayData.main.exercises.length} esercizi
+              </Text>
+            )}
           </Pressable>
         );
       })}
@@ -224,9 +492,10 @@ export default function CalendarScreen() {
 
   const renderDayDetailModal = () => {
     const dayData = getDayData(selectedWeek, selectedDay);
-    const dayName = weekDays[selectedDay];
+    const dayName = weekDaysFull[selectedDay];
     const noteKey = `${selectedWeek}-${selectedDay}`;
     const currentNote = dayNotes[noteKey] || '';
+    const completed = isCompleted(selectedWeek, selectedDay);
 
     return (
       <Modal
@@ -237,12 +506,12 @@ export default function CalendarScreen() {
       >
         <View style={commonStyles.container}>
           <View style={styles.modalHeader}>
-            <View>
+            <View style={styles.modalHeaderLeft}>
               <Text style={styles.modalTitle}>
-                Settimana {selectedWeek} - {dayName}
+                {dayName}
               </Text>
               <Text style={styles.modalSubtitle}>
-                {new Date(2025, 10, 16 + (selectedWeek - 1) * 7 + selectedDay).toLocaleDateString('it-IT', {
+                Settimana {selectedWeek} • {new Date(2025, 10, 16 + (selectedWeek - 1) * 7 + selectedDay).toLocaleDateString('it-IT', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
@@ -255,6 +524,28 @@ export default function CalendarScreen() {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContent}>
+            {/* Completion Toggle */}
+            <Pressable
+              style={[styles.completionCard, completed && styles.completionCardActive]}
+              onPress={() => toggleCompletion(selectedWeek, selectedDay)}
+            >
+              <View style={styles.completionIcon}>
+                <IconSymbol 
+                  name={completed ? "checkmark.circle.fill" : "circle"} 
+                  size={32} 
+                  color={completed ? colors.success : colors.textSecondary} 
+                />
+              </View>
+              <View style={styles.completionInfo}>
+                <Text style={styles.completionTitle}>
+                  {completed ? 'Allenamento Completato' : 'Segna come Completato'}
+                </Text>
+                <Text style={styles.completionSubtitle}>
+                  {completed ? 'Ottimo lavoro! 💪' : 'Premi per confermare il completamento'}
+                </Text>
+              </View>
+            </Pressable>
+
             {!dayData ? (
               <View style={styles.emptyState}>
                 <IconSymbol name="calendar.badge.exclamationmark" size={64} color={colors.textSecondary} />
@@ -434,6 +725,157 @@ export default function CalendarScreen() {
     );
   };
 
+  const renderStatsModal = () => {
+    const stats = getWeekStats(selectedWeek);
+    const typeEntries = Object.entries(stats.typeCount);
+    
+    return (
+      <Modal
+        visible={showStats}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowStats(false)}
+      >
+        <View style={commonStyles.container}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>Statistiche Settimana {selectedWeek}</Text>
+              <Text style={styles.modalSubtitle}>Analisi dettagliata del tuo allenamento</Text>
+            </View>
+            <Pressable onPress={() => setShowStats(false)}>
+              <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {/* Overall Progress */}
+            <View style={commonStyles.card}>
+              <Text style={styles.cardTitle}>Progresso Generale</Text>
+              <View style={styles.progressCircleContainer}>
+                <Svg width={160} height={160}>
+                  <Circle
+                    cx={80}
+                    cy={80}
+                    r={70}
+                    stroke={colors.surface}
+                    strokeWidth={12}
+                    fill="none"
+                  />
+                  <Circle
+                    cx={80}
+                    cy={80}
+                    r={70}
+                    stroke={colors.success}
+                    strokeWidth={12}
+                    fill="none"
+                    strokeDasharray={`${(stats.completionRate / 100) * 440} 440`}
+                    strokeLinecap="round"
+                    rotation="-90"
+                    origin="80, 80"
+                  />
+                </Svg>
+                <View style={styles.progressCircleCenter}>
+                  <Text style={styles.progressCircleValue}>{Math.round(stats.completionRate)}%</Text>
+                  <Text style={styles.progressCircleLabel}>Completato</Text>
+                </View>
+              </View>
+              
+              <View style={styles.statsGrid}>
+                <View style={styles.statsGridItem}>
+                  <Text style={styles.statsGridValue}>{stats.completedSessions}/{stats.totalSessions}</Text>
+                  <Text style={styles.statsGridLabel}>Sessioni</Text>
+                </View>
+                <View style={styles.statsGridItem}>
+                  <Text style={styles.statsGridValue}>{stats.totalLoad}</Text>
+                  <Text style={styles.statsGridLabel}>Carico Totale</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Training Type Distribution */}
+            {typeEntries.length > 0 && (
+              <View style={commonStyles.card}>
+                <Text style={styles.cardTitle}>Distribuzione Allenamenti</Text>
+                <View style={styles.typeDistribution}>
+                  {typeEntries.map(([type, count]) => {
+                    const typeInfo = TRAINING_TYPES[type as keyof typeof TRAINING_TYPES];
+                    if (!typeInfo) return null;
+                    
+                    const percentage = (count / stats.totalSessions) * 100;
+                    
+                    return (
+                      <View key={type} style={styles.typeDistributionItem}>
+                        <View style={styles.typeDistributionHeader}>
+                          <View style={styles.typeDistributionLeft}>
+                            <View style={[styles.typeDistributionIcon, { backgroundColor: typeInfo.color + '20' }]}>
+                              <IconSymbol name={typeInfo.icon as any} size={20} color={typeInfo.color} />
+                            </View>
+                            <Text style={styles.typeDistributionLabel}>{typeInfo.shortLabel}</Text>
+                          </View>
+                          <Text style={styles.typeDistributionValue}>{count}</Text>
+                        </View>
+                        <View style={styles.typeDistributionBar}>
+                          <View 
+                            style={[
+                              styles.typeDistributionBarFill, 
+                              { width: `${percentage}%`, backgroundColor: typeInfo.color }
+                            ]} 
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Weekly Insights */}
+            <View style={commonStyles.card}>
+              <View style={styles.insightHeader}>
+                <IconSymbol name="lightbulb.fill" size={24} color={colors.warning} />
+                <Text style={styles.cardTitle}>Insights</Text>
+              </View>
+              <View style={styles.insightList}>
+                {stats.completionRate === 100 && (
+                  <View style={styles.insightItem}>
+                    <IconSymbol name="star.fill" size={20} color={colors.warning} />
+                    <Text style={styles.insightText}>
+                      Settimana perfetta! Hai completato tutti gli allenamenti 🎉
+                    </Text>
+                  </View>
+                )}
+                {stats.completionRate >= 80 && stats.completionRate < 100 && (
+                  <View style={styles.insightItem}>
+                    <IconSymbol name="checkmark.seal.fill" size={20} color={colors.success} />
+                    <Text style={styles.insightText}>
+                      Ottimo lavoro! Hai completato la maggior parte degli allenamenti
+                    </Text>
+                  </View>
+                )}
+                {stats.totalLoad > 40 && (
+                  <View style={styles.insightItem}>
+                    <IconSymbol name="bolt.fill" size={20} color={colors.warning} />
+                    <Text style={styles.insightText}>
+                      Settimana ad alta intensità. Assicurati di recuperare adeguatamente
+                    </Text>
+                  </View>
+                )}
+                {stats.totalLoad < 20 && stats.totalSessions > 0 && (
+                  <View style={styles.insightItem}>
+                    <IconSymbol name="wind" size={20} color={colors.info} />
+                    <Text style={styles.insightText}>
+                      Settimana di recupero. Perfetto per rigenerarti
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderUploadModal = () => (
     <Modal
       visible={showUpload}
@@ -568,6 +1010,10 @@ export default function CalendarScreen() {
             </Text>
           </View>
 
+          {/* Week Stats */}
+          {renderWeekStats()}
+
+          {/* Day Grid */}
           {renderDayGrid()}
 
           {/* Upload Button */}
@@ -592,6 +1038,7 @@ export default function CalendarScreen() {
       </View>
 
       {renderDayDetailModal()}
+      {renderStatsModal()}
       {renderUploadModal()}
     </>
   );
@@ -610,6 +1057,52 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     ...shadows.small,
+  },
+  weekSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  jumpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '10',
+  },
+  jumpButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  viewModeToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 2,
+  },
+  viewModeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  viewModeButtonActive: {
+    backgroundColor: colors.card,
+    ...shadows.small,
+  },
+  viewModeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  viewModeTextActive: {
+    color: colors.text,
+    fontWeight: '700',
   },
   weekSelector: {
     paddingHorizontal: 16,
@@ -637,9 +1130,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: colors.success,
     justifyContent: 'center',
     alignItems: 'center',
@@ -648,12 +1141,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 4,
   },
   weekButtonTextActive: {
     color: '#FFFFFF',
   },
   weekButtonTextCompleted: {
     color: colors.success,
+  },
+  weekProgressBar: {
+    width: '100%',
+    height: 3,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  weekProgressFill: {
+    height: '100%',
+    borderRadius: 2,
   },
   currentWeekDot: {
     position: 'absolute',
@@ -664,7 +1169,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   weekInfo: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   weekInfoTitle: {
     fontSize: 28,
@@ -677,6 +1182,52 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
   },
+  statsCard: {
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
+    ...shadows.large,
+  },
+  statsGradient: {
+    padding: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.3,
+  },
+  statsDetailButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  statsDetailText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   dayGrid: {
     gap: 12,
   },
@@ -686,16 +1237,43 @@ const styles = StyleSheet.create({
     padding: 16,
     ...shadows.small,
   },
+  dayCardCompleted: {
+    opacity: 0.8,
+  },
   dayHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+  dayHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   dayName: {
     fontSize: 16,
     fontWeight: '800',
     color: colors.text,
+  },
+  rpeMiniBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  rpeMiniBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  completedBadge: {
+    width: 18,
+    height: 18,
   },
   dayTypeIcon: {
     width: 56,
@@ -710,6 +1288,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     lineHeight: 18,
+    marginBottom: 8,
+  },
+  dayTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  dayTime: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  dayExerciseCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   floatingUploadButton: {
     marginTop: 16,
@@ -738,6 +1333,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  modalHeaderLeft: {
+    flex: 1,
+  },
   modalTitle: {
     fontSize: 24,
     fontWeight: '800',
@@ -751,6 +1349,38 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     padding: 16,
+  },
+  completionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  completionCardActive: {
+    borderColor: colors.success,
+    backgroundColor: colors.success + '10',
+  },
+  completionIcon: {
+    marginRight: 16,
+  },
+  completionInfo: {
+    flex: 1,
+  },
+  completionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  completionSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
@@ -894,6 +1524,121 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     minHeight: 120,
     textAlignVertical: 'top',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  progressCircleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  progressCircleCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  progressCircleValue: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  progressCircleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statsGridItem: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statsGridValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  statsGridLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  typeDistribution: {
+    gap: 16,
+  },
+  typeDistributionItem: {
+    gap: 8,
+  },
+  typeDistributionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  typeDistributionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  typeDistributionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  typeDistributionLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  typeDistributionValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  typeDistributionBar: {
+    height: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  typeDistributionBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  insightList: {
+    gap: 12,
+  },
+  insightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+  },
+  insightText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    lineHeight: 20,
   },
   uploadContent: {
     padding: 16,
