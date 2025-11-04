@@ -1,728 +1,409 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import { Stack } from 'expo-router';
-import { colors, commonStyles } from '@/styles/commonStyles';
+import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import PropTypes from 'prop-types';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = '@moto3_calendar_data';
 
 const TRAINING_TYPES = {
-  FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: 'dumbbell.fill', emoji: '💪' },
-  POTENZA: { label: 'Potenza', color: '#FF8C00', icon: 'bolt.fill', emoji: '⚡' },
-  RESISTENZA: { label: 'Resistenza', color: '#4CAF50', icon: 'figure.run', emoji: '🏃' },
-  TECNICO: { label: 'Tecnico Specifico', color: '#2196F3', icon: 'figure.motorcycle', emoji: '🏍️' },
-  MOBILITA: { label: 'Mobilità/Correttivo', color: '#9C27B0', icon: 'figure.flexibility', emoji: '🧘' },
-  RECUPERO: { label: 'Recupero Attivo', color: '#00BCD4', icon: 'wind', emoji: '💆' },
-  RIPOSO: { label: 'Riposo Completo', color: '#757575', icon: 'bed.double.fill', emoji: '😴' },
-  GARA: { label: 'Gara', color: '#FFD700', icon: 'flag.checkered', emoji: '🏁' },
-  DELOAD: { label: 'Deload', color: '#00BCD4', icon: 'leaf.fill', emoji: '🍃' },
-  TAPER: { label: 'Taper', color: '#FFD700', icon: 'bolt.circle.fill', emoji: '⚡' },
+  FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: 'dumbbell.fill' },
+  POTENZA: { label: 'Potenza', color: '#FF8C00', icon: 'bolt.fill' },
+  RESISTENZA: { label: 'Resistenza', color: '#4CAF50', icon: 'figure.run' },
+  TECNICO: { label: 'Tecnico Specifico', color: '#2196F3', icon: 'figure.motorcycle' },
+  MOBILITA: { label: 'Mobilità/Correttivo', color: '#9C27B0', icon: 'figure.flexibility' },
+  RECUPERO: { label: 'Recupero Attivo', color: '#00BCD4', icon: 'wind' },
+  RIPOSO: { label: 'Riposo Completo', color: '#757575', icon: 'bed.double.fill' },
+  DELOAD: { label: 'Deload', color: '#FFB300', icon: 'arrow.down.circle.fill' },
+  GARA: { label: 'Gara', color: '#FFD700', icon: 'flag.checkered' },
 };
 
-// Funzione per parsare gli esercizi dalla descrizione
-const parseExercises = (description) => {
-  if (!description) return [];
-  
-  // Separa gli esercizi usando | o newline
-  const exerciseStrings = description.split(/\s*\|\s*|\n/).filter(e => e.trim());
-  
-  return exerciseStrings.map((exerciseStr, index) => {
-    // Cerca pattern come "Nome Esercizio 4×10" o "Nome Esercizio 3×12-15"
-    const match = exerciseStr.match(/^(.+?)\s+(\d+[×x]\d+(?:-\d+)?(?:\/\w+)?(?:\s*\[.*?\])?)(.*)$/);
-    
-    if (match) {
-      return {
-        id: index,
-        name: match[1].trim(),
-        sets: match[2].trim(),
-        notes: match[3].trim()
-      };
-    }
-    
-    // Se non trova il pattern, restituisce l'esercizio completo come nome
-    return {
-      id: index,
-      name: exerciseStr.trim(),
-      sets: '',
-      notes: ''
-    };
-  });
-};
+const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 
+                'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+
+interface TrainingSession {
+  id: string;
+  date: string;
+  type: keyof typeof TRAINING_TYPES;
+  title: string;
+  description?: string;
+  duration?: string;
+  completed?: boolean;
+  notes?: string;
+}
 
 export default function CalendarScreen() {
-  const [selectedWeek, setSelectedWeek] = useState(1);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingSession, setEditingSession] = useState(null);
-  const [weekData, setWeekData] = useState({});
-  const [compactView, setCompactView] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [sessions, setSessions] = useState<TrainingSession[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
+  const [newSession, setNewSession] = useState<Partial<TrainingSession>>({});
 
   useEffect(() => {
-    const trainingData = getTrainingData();
-    setWeekData(trainingData);
+    loadSessions();
   }, []);
 
-  const getTrainingData = () => {
-    const data = {};
-    
-    // SETTIMANA 1 (16-22 Novembre 2025) - Anatomical Adaptation
-    data[1] = {
-      0: {
-        morning: { 
-          time: '06:00-06:12', 
-          type: 'MOBILITA', 
-          description: 'Cat-Cow 2×15 | Child\'s Pose 2×45" | Glute Bridge 2×12 | Psoas Stretch 2×40"/lato',
-          reps: '2×15, 2×45", 2×12, 2×40"',
-          execution: 'Movimenti controllati, respirazione profonda',
-          focus: 'Mobilità colonna e anche',
-          recovery: 'Nessuno (flusso continuo)',
-          rpe: 3 
-        },
-        main: { 
-          time: '10:00-12:00', 
-          type: 'FORZA_MAX', 
-          description: 'Goblet Squat KB 16kg 4×10 | Trap-Bar Deadlift 40kg 4×8 | Bulgarian Split BW 3×10 | Nordic Curl 3×5-6',
-          reps: '4×10, 4×8, 3×10, 3×5-6',
-          execution: 'Tempo 3-0-1-0, controllo eccentrico',
-          focus: 'Tecnica perfetta, baseline forza',
-          recovery: '90" tra serie, 2\' tra esercizi',
-          rpe: 6 
-        },
-        recovery: { 
-          time: '18:00-18:30', 
-          type: 'RECUPERO', 
-          description: 'Ab Wheel 4×8 | Hollow Hold 4×35" | Dead Bug 3×12 | Pallof Press 3×12/lato',
-          reps: '4×8, 4×35", 3×12, 3×12',
-          execution: 'Core sempre attivo, no compensi lombari',
-          focus: 'Anti-estensione, stabilità',
-          recovery: '60" tra serie',
-          rpe: 7 
-        },
-        notes: 'MESO 1A - Baseline tecnica perfetta. Target: aderenza 85%+'
-      },
-      1: {
-        morning: { 
-          time: '06:00-06:12', 
-          type: 'MOBILITA', 
-          description: 'Routine mattutina completa',
-          reps: 'Vedi routine standard',
-          execution: 'Movimenti fluidi',
-          focus: 'Attivazione generale',
-          recovery: 'Nessuno',
-          rpe: 3 
-        },
-        main: { 
-          time: '10:00-12:00', 
-          type: 'FORZA_MAX', 
-          description: 'Panca Manubri 8kg 4×10 | Lat Pull-Down 35kg 4×10 | Push-Up Piedi Elevati 30cm 3×12-15 | DB Row 12kg 3×10/lato',
-          reps: '4×10, 4×10, 3×12-15, 3×10',
-          execution: 'ROM completo, scapole retratte',
-          focus: 'Upper body baseline',
-          recovery: '90" tra serie',
-          rpe: 6 
-        },
-        recovery: { 
-          time: '18:00-18:30', 
-          type: 'RECUPERO', 
-          description: 'Neck Isometrics 4×30" (4 direzioni) | Dead-Hang 3×max tempo [BASELINE]',
-          reps: '4×30", 3×max',
-          execution: 'Isometria massimale, no movimento',
-          focus: 'Neck strength, grip endurance',
-          recovery: '60" tra serie',
-          rpe: 6 
-        },
-        notes: 'Dead-hang baseline critico per tracking progressione'
-      },
-      2: {
-        morning: { 
-          time: '06:00-06:12', 
-          type: 'MOBILITA', 
-          description: 'Routine mattutina completa',
-          reps: 'Standard',
-          execution: 'Fluido',
-          focus: 'Attivazione',
-          recovery: 'Nessuno',
-          rpe: 3 
-        },
-        main: { 
-          time: '10:00-11:15', 
-          type: 'RESISTENZA', 
-          description: 'Bike Z2 75min @ 130-145bpm steady state',
-          reps: '75min continui',
-          execution: 'Cadenza 80-90rpm, posizione aero',
-          focus: 'Base aerobica, endurance',
-          recovery: 'Nessuno (steady state)',
-          rpe: 5 
-        },
-        recovery: { 
-          time: '11:15-11:30', 
-          type: 'RECUPERO', 
-          description: 'Core Post-Bike (sotto fatica): 3 giri → Plank 45" | Side Plank 30"/lato | Glute Bridge 40"',
-          reps: '3 giri (45", 30", 40")',
-          execution: 'Sotto fatica metabolica',
-          focus: 'Core endurance race simulation',
-          recovery: '30" tra esercizi',
-          rpe: 6 
-        },
-        notes: 'Core sotto fatica metabolica = transfer gara'
-      },
-      3: {
-        morning: { 
-          time: '06:00-06:12', 
-          type: 'MOBILITA', 
-          description: 'Routine mattutina completa',
-          reps: 'Standard',
-          execution: 'Fluido',
-          focus: 'Attivazione',
-          recovery: 'Nessuno',
-          rpe: 3 
-        },
-        main: { 
-          time: '10:00-11:15', 
-          type: 'RESISTENZA', 
-          description: 'Wall Sit 3×45" [BASELINE] | Step-Up BW 3×12/gamba | Calf Raise 4×20 | Hamstring Curl Fitball 3×12',
-          reps: '3×45", 3×12, 4×20, 3×12',
-          execution: 'Isometria 90°, step controllato',
-          focus: 'Lower endurance, baseline wall sit',
-          recovery: '60" tra serie',
-          rpe: 6 
-        },
-        recovery: { 
-          time: '18:00-18:30', 
-          type: 'RECUPERO', 
-          description: 'Pallof Press 3×10/lato | Side Plank Rotation 3×8/lato | Dead Bug Long 3×6/lato | Bird Dog 3×6/lato',
-          reps: '3×10, 3×8, 3×6, 3×6',
-          execution: 'Anti-rotazione massimale',
-          focus: 'Stabilità rotazionale',
-          recovery: '45" tra serie',
-          rpe: 6 
-        },
-        notes: 'Wall sit baseline importante: target 120" finale'
-      },
-      4: {
-        morning: { 
-          time: '06:00-06:12', 
-          type: 'MOBILITA', 
-          description: 'Routine mattutina completa',
-          reps: 'Standard',
-          execution: 'Fluido',
-          focus: 'Attivazione',
-          recovery: 'Nessuno',
-          rpe: 3 
-        },
-        main: { 
-          time: '10:00-11:00', 
-          type: 'RESISTENZA', 
-          description: 'Push-Up Standard 4×15-20 (target 60-80 totali) | Inverted Row 4×12 | Pike Push-Up 3×10-12',
-          reps: '4×15-20, 4×12, 3×10-12',
-          execution: 'ROM completo, corpo rigido',
-          focus: 'Upper endurance',
-          recovery: '60" tra serie',
-          rpe: 6 
-        },
-        recovery: { 
-          time: '18:00-18:30', 
-          type: 'RECUPERO', 
-          description: 'Dead-Hang 4×max | Wrist Roller 5kg 3× | Plate Pinch 5kg 3×max/mano',
-          reps: '4×max, 3×full, 3×max',
-          execution: 'Presa massimale, no swing',
-          focus: 'Grip endurance baseline',
-          recovery: '90" tra serie',
-          rpe: 7 
-        },
-        notes: 'Baseline grip: dead-hang ~40-50" expected'
-      },
-      5: {
-        morning: { 
-          time: '06:00-06:12', 
-          type: 'MOBILITA', 
-          description: 'Routine mattutina completa',
-          reps: 'Standard',
-          execution: 'Fluido',
-          focus: 'Attivazione',
-          recovery: 'Nessuno',
-          rpe: 3 
-        },
-        main: { 
-          time: '10:00-11:30', 
-          type: 'RESISTENZA', 
-          description: 'Bike Z2 90min @ 130-145bpm | Gel min 30+60 | Core Post-Bike 15min',
-          reps: '90min + 15min core',
-          execution: 'Steady state, nutrizione intra',
-          focus: 'Endurance lunga, core fatica',
-          recovery: 'Nessuno (steady)',
-          rpe: 5 
-        },
-        recovery: null,
-        notes: '🍽️ +600 KCAL: PRE +190 (banana+mandorle) | INTRA +200 (2 gel) | POST +85 (shake+banana extra) | CENA +115 (pasta+olio)'
-      },
-      6: {
-        morning: { 
-          time: '08:00-08:30', 
-          type: 'MOBILITA', 
-          description: 'Routine opzionale (6/7 ok)',
-          reps: 'Opzionale',
-          execution: 'Dolce',
-          focus: 'Recovery',
-          recovery: 'Completo',
-          rpe: 2 
-        },
-        main: { 
-          time: '10:00-10:30', 
-          type: 'RECUPERO', 
-          description: 'Walk 30-40min <120bpm O Yoga 30min',
-          reps: '30-40min',
-          execution: 'Molto leggero',
-          focus: 'Recovery attivo',
-          recovery: 'Completo',
-          rpe: 3 
-        },
-        recovery: { 
-          time: '18:00-18:40', 
-          type: 'RECUPERO', 
-          description: 'Core Volume 40min: Ab Wheel 3×8 | Weighted Plank BW 3×50" | L-Sit 3×15-20" | Russian Twist BW 3×20',
-          reps: '3×8, 3×50", 3×15-20", 3×20',
-          execution: 'Volume alto, intensità media',
-          focus: 'Core capacity building',
-          recovery: '45" tra serie',
-          rpe: 6 
-        },
-        notes: 'Riposo attivo + core volume domenicale'
+  const loadSessions = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setSessions(JSON.parse(stored));
       }
-    };
+    } catch (error) {
+      console.log('Error loading calendar data:', error);
+    }
+  };
 
-    // Aggiungi settimane 2-18 con struttura simile
-    for (let week = 2; week <= 18; week++) {
-      data[week] = {};
-      for (let day = 0; day < 7; day++) {
-        const isDeloadWeek = week === 4 || week === 8 || week === 12 || week === 16;
-        const isTaperWeek = week >= 17;
-        const mainType = isDeloadWeek ? 'DELOAD' : 
-                        isTaperWeek ? 'TAPER' : 
-                        week >= 13 ? 'TECNICO' : 
-                        week >= 10 ? 'POTENZA' : 
-                        week >= 5 ? 'FORZA_MAX' : 'FORZA_MAX';
-        
-        data[week][day] = {
-          morning: { 
-            time: '06:00-06:12', 
-            type: 'MOBILITA', 
-            description: `Settimana ${week} - Routine mattutina`,
-            reps: 'Standard',
-            execution: 'Fluido',
-            focus: 'Attivazione',
-            recovery: 'Nessuno',
-            rpe: 3 
-          },
-          main: { 
-            time: '10:00-12:00', 
-            type: mainType,
-            description: `Settimana ${week} - Allenamento principale giorno ${day + 1}`,
-            reps: 'Da definire',
-            execution: 'Controllato',
-            focus: 'Progressione',
-            recovery: '90" tra serie',
-            rpe: isDeloadWeek ? 4 : isTaperWeek ? 5 : 7
-          },
-          recovery: day !== 6 ? { 
-            time: '18:00-18:30', 
-            type: 'RECUPERO', 
-            description: `Core e recupero settimana ${week}`,
-            reps: 'Standard',
-            execution: 'Controllato',
-            focus: 'Recovery',
-            recovery: '60"',
-            rpe: 6 
-          } : null,
-          notes: `Settimana ${week} - Giorno ${day + 1}. Personalizza con i tuoi dati.`
-        };
-      }
+  const saveSessions = async (newSessions: TrainingSession[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSessions));
+      setSessions(newSessions);
+    } catch (error) {
+      console.log('Error saving calendar data:', error);
+    }
+  };
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+    const days: (Date | null)[] = [];
+    
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
     }
     
-    return data;
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(new Date(year, month, i));
+    }
+    
+    return days;
   };
 
-  const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
-  const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-
-  const getWeekDates = (weekNumber) => {
-    const startDate = new Date(2025, 10, 16);
-    startDate.setDate(startDate.getDate() + (weekNumber - 1) * 7);
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      return date;
-    });
+  const getSessionsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return sessions.filter(s => s.date === dateStr);
   };
 
-  const getWeekSummary = (weekNumber) => {
-    const weekInfo = weekData[weekNumber];
-    if (!weekInfo) return { totalSessions: 0, avgRPE: 0, types: {} };
-
-    let totalSessions = 0;
-    let totalRPE = 0;
-    let rpeCount = 0;
-    const types = {};
-
-    Object.values(weekInfo).forEach((day) => {
-      ['morning', 'main', 'recovery'].forEach((sessionType) => {
-        if (day[sessionType]) {
-          totalSessions++;
-          const session = day[sessionType];
-          if (session.rpe) {
-            totalRPE += session.rpe;
-            rpeCount++;
-          }
-          const type = session.type;
-          types[type] = (types[type] || 0) + 1;
-        }
-      });
-    });
-
-    return {
-      totalSessions,
-      avgRPE: rpeCount > 0 ? (totalRPE / rpeCount).toFixed(1) : 0,
-      types
-    };
-  };
-
-  const weekDates = getWeekDates(selectedWeek);
-  const currentDayData = selectedDay !== null ? weekData[selectedWeek]?.[selectedDay] : null;
-  const weekSummary = getWeekSummary(selectedWeek);
-
-  const openEditModal = (sessionType) => {
-    if (!currentDayData) return;
+  const handlePreviousMonth = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEditingSession({
-      type: sessionType,
-      data: currentDayData[sessionType] || { 
-        time: '', 
-        type: 'FORZA_MAX', 
-        description: '',
-        reps: '',
-        execution: '',
-        focus: '',
-        recovery: '',
-        rpe: 5 
-      }
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleDatePress = (date: Date) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedDate(date);
+  };
+
+  const handleAddSession = () => {
+    if (!selectedDate) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNewSession({
+      date: selectedDate.toISOString().split('T')[0],
+      type: 'FORZA_MAX',
+      title: '',
+      description: '',
+      duration: '',
     });
-    setModalVisible(true);
+    setShowAddModal(true);
   };
 
-  const saveSession = () => {
-    if (!editingSession || selectedDay === null) return;
-    
+  const handleSaveSession = () => {
+    if (!newSession.title || !newSession.type) {
+      Alert.alert('Errore', 'Inserisci almeno un titolo e un tipo di allenamento');
+      return;
+    }
+
+    const session: TrainingSession = {
+      id: Date.now().toString(),
+      date: newSession.date!,
+      type: newSession.type as keyof typeof TRAINING_TYPES,
+      title: newSession.title,
+      description: newSession.description,
+      duration: newSession.duration,
+      completed: false,
+    };
+
+    saveSessions([...sessions, session]);
+    setShowAddModal(false);
+    setNewSession({});
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const newWeekData = { ...weekData };
-    if (!newWeekData[selectedWeek]) newWeekData[selectedWeek] = {};
-    if (!newWeekData[selectedWeek][selectedDay]) newWeekData[selectedWeek][selectedDay] = {};
-    
-    newWeekData[selectedWeek][selectedDay][editingSession.type] = editingSession.data;
-    setWeekData(newWeekData);
-    setModalVisible(false);
-    setEditingSession(null);
   };
 
-  const deleteSession = () => {
-    if (!editingSession || selectedDay === null) return;
-    
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    const newWeekData = { ...weekData };
-    newWeekData[selectedWeek][selectedDay][editingSession.type] = null;
-    setWeekData(newWeekData);
-    setModalVisible(false);
-    setEditingSession(null);
+  const handleSessionPress = (session: TrainingSession) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedSession(session);
+    setShowDetailModal(true);
   };
 
-  const updateNotes = (text) => {
-    const newWeekData = { ...weekData };
-    if (!newWeekData[selectedWeek][selectedDay]) newWeekData[selectedWeek][selectedDay] = {};
-    newWeekData[selectedWeek][selectedDay].notes = text;
-    setWeekData(newWeekData);
+  const handleToggleComplete = (session: TrainingSession) => {
+    const updated = sessions.map(s => 
+      s.id === session.id ? { ...s, completed: !s.completed } : s
+    );
+    saveSessions(updated);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  const getWeekPhase = (week) => {
-    if (week === 4 || week === 8 || week === 12 || week === 16) return 'Deload';
-    if (week >= 17) return 'Taper';
-    if (week >= 13) return 'Tecnico';
-    if (week >= 10) return 'Potenza';
-    if (week >= 5) return 'Forza Max';
-    return 'Adattamento';
+  const handleDeleteSession = (sessionId: string) => {
+    Alert.alert(
+      'Elimina Sessione',
+      'Sei sicuro di voler eliminare questa sessione?',
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Elimina',
+          style: 'destructive',
+          onPress: () => {
+            saveSessions(sessions.filter(s => s.id !== sessionId));
+            setShowDetailModal(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ]
+    );
   };
+
+  const days = getDaysInMonth(currentDate);
+  const selectedDateSessions = selectedDate ? getSessionsForDate(selectedDate) : [];
+  const totalSessions = sessions.length;
+  const completedSessions = sessions.filter(s => s.completed).length;
+  const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
   return (
     <>
-      {Platform.OS === 'ios' && (
-        <Stack.Screen
-          options={{
-            title: 'Calendario 18 Settimane',
-            headerRight: () => (
-              <Pressable 
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setCompactView(!compactView);
-                }}
-                style={{ marginRight: 8 }}
-              >
-                <IconSymbol 
-                  name={compactView ? "list.bullet" : "square.grid.2x2"} 
-                  size={22} 
-                  color={colors.primary} 
-                />
-              </Pressable>
-            ),
-          }}
-        />
-      )}
+      <Stack.Screen
+        options={{
+          title: 'Calendario 18 Settimane',
+          headerShown: true,
+        }}
+      />
       <View style={commonStyles.container}>
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            Platform.OS !== 'ios' && styles.scrollContentWithTabBar
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Week Selector with Phase Info */}
+          {/* Stats Header */}
           <LinearGradient
-            colors={[colors.primary + '20', colors.accent + '10']}
-            style={[commonStyles.card, styles.weekSelector]}
+            colors={gradients.racing}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.statsCard}
           >
-            <View style={styles.weekSelectorHeader}>
-              <Text style={styles.sectionTitle}>📅 Seleziona Settimana</Text>
-              <Pressable 
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setCompactView(!compactView);
-                }}
-                style={styles.viewToggle}
-              >
-                <IconSymbol 
-                  name={compactView ? "list.bullet" : "square.grid.2x2"} 
-                  size={18} 
-                  color={colors.primary} 
-                />
-                <Text style={styles.viewToggleText}>
-                  {compactView ? 'Dettagli' : 'Compatto'}
-                </Text>
-              </Pressable>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{totalSessions}</Text>
+                <Text style={styles.statLabel}>Sessioni</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{completedSessions}</Text>
+                <Text style={styles.statLabel}>Completate</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{completionRate}%</Text>
+                <Text style={styles.statLabel}>Aderenza</Text>
+              </View>
             </View>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.weekList}
-            >
-              {weeks.map((week) => {
-                const phase = getWeekPhase(week);
-                let bgColor = colors.primary;
-                if (week === 4 || week === 8 || week === 12 || week === 16) bgColor = '#00BCD4';
-                else if (week >= 17) bgColor = '#FFD700';
-                else if (week >= 13) bgColor = '#2196F3';
-                else if (week >= 10) bgColor = '#FF8C00';
-                else if (week >= 5) bgColor = '#4CAF50';
-                
-                return (
-                  <Pressable
-                    key={week}
-                    style={[
-                      styles.weekButton,
-                      selectedWeek === week && styles.weekButtonActive,
-                      { backgroundColor: selectedWeek === week ? bgColor : colors.background }
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedWeek(week);
-                      setSelectedDay(null);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.weekButtonText,
-                        selectedWeek === week && styles.weekButtonTextActive,
-                      ]}
-                    >
-                      S{week}
-                    </Text>
-                    {selectedWeek === week && (
-                      <Text style={styles.weekPhaseText}>{phase}</Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
           </LinearGradient>
 
-          {/* Week Summary Card */}
-          <LinearGradient
-            colors={[colors.accent + '15', colors.primary + '10']}
-            style={[commonStyles.card, styles.summaryCard]}
-          >
-            <View style={styles.summaryHeader}>
-              <View>
-                <Text style={styles.summaryTitle}>Settimana {selectedWeek}</Text>
-                <Text style={styles.weekDates}>
-                  {weekDates[0].toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} - {' '}
-                  {weekDates[6].toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Text>
-              </View>
-              <View style={styles.summaryStats}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{weekSummary.totalSessions}</Text>
-                  <Text style={styles.statLabel}>Sessioni</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{weekSummary.avgRPE}</Text>
-                  <Text style={styles.statLabel}>RPE Medio</Text>
-                </View>
-              </View>
+          {/* Calendar Navigation */}
+          <View style={styles.calendarHeader}>
+            <Pressable style={styles.navButton} onPress={handlePreviousMonth}>
+              <IconSymbol name="chevron.left" size={24} color={colors.primary} />
+            </Pressable>
+            
+            <View style={styles.monthYearContainer}>
+              <Text style={styles.monthText}>
+                {MONTHS[currentDate.getMonth()]}
+              </Text>
+              <Text style={styles.yearText}>
+                {currentDate.getFullYear()}
+              </Text>
             </View>
             
-            {/* Training Type Distribution */}
-            <View style={styles.typeDistribution}>
-              {Object.entries(weekSummary.types).map(([type, count]) => {
-                const typeInfo = TRAINING_TYPES[type];
-                if (!typeInfo) return null;
-                return (
-                  <View key={type} style={styles.typeChip}>
-                    <View style={[styles.typeChipDot, { backgroundColor: typeInfo.color }]} />
-                    <Text style={styles.typeChipText}>{typeInfo.emoji} {count}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </LinearGradient>
-
-          {/* Days Grid */}
-          <View style={[commonStyles.card]}>
-            <View style={styles.daysGrid}>
-              {daysOfWeek.map((day, index) => {
-                const date = weekDates[index];
-                const isSelected = selectedDay === index;
-                const isToday = date.toDateString() === new Date().toDateString();
-                const dayData = weekData[selectedWeek]?.[index];
-                const mainType = dayData?.main?.type || 'RIPOSO';
-                const typeColor = TRAINING_TYPES[mainType]?.color || '#757575';
-                const sessionCount = [dayData?.morning, dayData?.main, dayData?.recovery].filter(Boolean).length;
-                
-                return (
-                  <Pressable
-                    key={index}
-                    style={[
-                      styles.dayCard,
-                      isSelected && styles.dayCardSelected,
-                      isToday && styles.dayCardToday,
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedDay(index);
-                    }}
-                  >
-                    <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
-                      {day}
-                    </Text>
-                    <Text style={[styles.dayDate, isSelected && styles.dayDateSelected]}>
-                      {date.getDate()}
-                    </Text>
-                    <View style={styles.dayIndicators}>
-                      <View style={[styles.dayIndicator, { backgroundColor: typeColor }]} />
-                      {sessionCount > 1 && (
-                        <Text style={[styles.sessionCount, isSelected && { color: '#FFF' }]}>
-                          {sessionCount}
-                        </Text>
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <Pressable style={styles.navButton} onPress={handleNextMonth}>
+              <IconSymbol name="chevron.right" size={24} color={colors.primary} />
+            </Pressable>
           </View>
 
-          {/* Day Details */}
-          {selectedDay !== null && currentDayData && (
-            <>
-              <View style={[commonStyles.card]}>
-                <View style={styles.dayHeader}>
-                  <Text style={styles.dayTitle}>
-                    {daysOfWeek[selectedDay]} {weekDates[selectedDay].getDate()} {weekDates[selectedDay].toLocaleDateString('it-IT', { month: 'long' })}
+          {/* Day Headers */}
+          <View style={styles.dayHeadersContainer}>
+            {DAYS.map((day, index) => (
+              <View key={index} style={styles.dayHeader}>
+                <Text style={styles.dayHeaderText}>{day}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Calendar Grid */}
+          <View style={styles.calendarGrid}>
+            {days.map((day, index) => {
+              if (!day) {
+                return <View key={`empty-${index}`} style={styles.emptyDay} />;
+              }
+
+              const daySessions = getSessionsForDate(day);
+              const isSelected = selectedDate?.toDateString() === day.toDateString();
+              const isToday = new Date().toDateString() === day.toDateString();
+              const hasCompleted = daySessions.some(s => s.completed);
+              const hasSessions = daySessions.length > 0;
+
+              return (
+                <Pressable
+                  key={index}
+                  style={[
+                    styles.dayCell,
+                    isSelected && styles.dayCellSelected,
+                    isToday && styles.dayCellToday,
+                  ]}
+                  onPress={() => handleDatePress(day)}
+                >
+                  <Text style={[
+                    styles.dayNumber,
+                    isSelected && styles.dayNumberSelected,
+                    isToday && styles.dayNumberToday,
+                  ]}>
+                    {day.getDate()}
                   </Text>
-                  <Text style={styles.daySubtitle}>
-                    {[currentDayData.morning, currentDayData.main, currentDayData.recovery].filter(Boolean).length} sessioni programmate
+                  
+                  {hasSessions && (
+                    <View style={styles.sessionIndicators}>
+                      {daySessions.slice(0, 3).map((session, idx) => (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.sessionDot,
+                            { backgroundColor: TRAINING_TYPES[session.type].color },
+                            session.completed && styles.sessionDotCompleted,
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                  
+                  {hasCompleted && (
+                    <View style={styles.completedBadge}>
+                      <IconSymbol name="checkmark" size={10} color="#FFFFFF" />
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Selected Date Sessions */}
+          {selectedDate && (
+            <View style={styles.selectedDateSection}>
+              <View style={styles.selectedDateHeader}>
+                <View>
+                  <Text style={styles.selectedDateTitle}>
+                    {selectedDate.getDate()} {MONTHS[selectedDate.getMonth()]}
+                  </Text>
+                  <Text style={styles.selectedDateSubtitle}>
+                    {DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1]}
                   </Text>
                 </View>
                 
-                {currentDayData.morning && (
-                  <Pressable onPress={() => openEditModal('morning')}>
-                    <SessionCard 
-                      session={currentDayData.morning} 
-                      title="Mattutina" 
-                      icon="sunrise.fill"
-                      compact={compactView}
-                    />
-                  </Pressable>
-                )}
-
-                {currentDayData.main && (
-                  <Pressable onPress={() => openEditModal('main')}>
-                    <SessionCard 
-                      session={currentDayData.main} 
-                      title="Principale" 
-                      icon="flame.fill"
-                      compact={compactView}
-                    />
-                  </Pressable>
-                )}
-
-                {currentDayData.recovery && (
-                  <Pressable onPress={() => openEditModal('recovery')}>
-                    <SessionCard 
-                      session={currentDayData.recovery} 
-                      title="Recupero" 
-                      icon="heart.fill"
-                      compact={compactView}
-                    />
-                  </Pressable>
-                )}
-
-                <Pressable 
-                  style={styles.addButton}
-                  onPress={() => {
-                    if (!currentDayData.main) openEditModal('main');
-                    else if (!currentDayData.recovery) openEditModal('recovery');
-                    else openEditModal('morning');
-                  }}
-                >
-                  <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-                  <Text style={styles.addButtonText}>Aggiungi Sessione</Text>
+                <Pressable style={styles.addButton} onPress={handleAddSession}>
+                  <LinearGradient
+                    colors={gradients.primary}
+                    style={styles.addButtonGradient}
+                  >
+                    <IconSymbol name="plus" size={20} color="#FFFFFF" />
+                    <Text style={styles.addButtonText}>Aggiungi</Text>
+                  </LinearGradient>
                 </Pressable>
-
-                <View style={styles.notesSection}>
-                  <View style={styles.notesSectionHeader}>
-                    <IconSymbol name="note.text" size={18} color={colors.primary} />
-                    <Text style={styles.notesTitle}>Note Giornaliere</Text>
-                  </View>
-                  <TextInput
-                    style={styles.notesInput}
-                    value={currentDayData.notes || ''}
-                    onChangeText={updateNotes}
-                    placeholder="Aggiungi note, sensazioni, dolori, progressi..."
-                    multiline
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                </View>
               </View>
-            </>
+
+              {selectedDateSessions.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <IconSymbol name="calendar.badge.plus" size={48} color={colors.textLight} />
+                  <Text style={styles.emptyStateText}>
+                    Nessuna sessione programmata
+                  </Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Tocca &quot;Aggiungi&quot; per creare una nuova sessione
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.sessionsList}>
+                  {selectedDateSessions.map((session) => (
+                    <Pressable
+                      key={session.id}
+                      style={[
+                        styles.sessionCard,
+                        session.completed && styles.sessionCardCompleted,
+                      ]}
+                      onPress={() => handleSessionPress(session)}
+                    >
+                      <View style={styles.sessionCardHeader}>
+                        <View style={[
+                          styles.sessionTypeIndicator,
+                          { backgroundColor: TRAINING_TYPES[session.type].color },
+                        ]} />
+                        
+                        <View style={styles.sessionCardContent}>
+                          <Text style={[
+                            styles.sessionCardTitle,
+                            session.completed && styles.sessionCardTitleCompleted,
+                          ]}>
+                            {session.title}
+                          </Text>
+                          <Text style={styles.sessionCardType}>
+                            {TRAINING_TYPES[session.type].label}
+                          </Text>
+                          {session.duration && (
+                            <View style={styles.sessionDurationBadge}>
+                              <IconSymbol name="clock.fill" size={12} color={colors.textSecondary} />
+                              <Text style={styles.sessionDurationText}>{session.duration}</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <Pressable
+                          style={[
+                            styles.sessionCheckbox,
+                            session.completed && styles.sessionCheckboxCompleted,
+                          ]}
+                          onPress={() => handleToggleComplete(session)}
+                        >
+                          {session.completed && (
+                            <IconSymbol name="checkmark" size={16} color="#FFFFFF" />
+                          )}
+                        </Pressable>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
           )}
 
           {/* Legend */}
-          <View style={[commonStyles.card, styles.legendCard]}>
-            <Text style={styles.sectionTitle}>🏷️ Legenda Allenamenti</Text>
+          <View style={styles.legendCard}>
+            <Text style={styles.legendTitle}>Tipi di Allenamento</Text>
             <View style={styles.legendGrid}>
               {Object.entries(TRAINING_TYPES).map(([key, value]) => (
                 <View key={key} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: value.color }]} />
-                  <Text style={styles.legendEmoji}>{value.emoji}</Text>
                   <Text style={styles.legendText}>{value.label}</Text>
                 </View>
               ))}
@@ -731,1015 +412,682 @@ export default function CalendarScreen() {
         </ScrollView>
       </View>
 
-      {/* Edit Modal */}
+      {/* Add Session Modal */}
       <Modal
-        visible={modalVisible}
+        visible={showAddModal}
+        transparent
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => setShowAddModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>✏️ Modifica Sessione</Text>
-                <Pressable onPress={() => setModalVisible(false)}>
-                  <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
-                </Pressable>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nuova Sessione</Text>
+              <Pressable onPress={() => setShowAddModal(false)}>
+                <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputLabel}>Titolo *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Es: Lower Body + Core"
+                value={newSession.title}
+                onChangeText={(text) => setNewSession({ ...newSession, title: text })}
+              />
+
+              <Text style={styles.inputLabel}>Tipo di Allenamento *</Text>
+              <View style={styles.typeGrid}>
+                {Object.entries(TRAINING_TYPES).map(([key, value]) => (
+                  <Pressable
+                    key={key}
+                    style={[
+                      styles.typeButton,
+                      newSession.type === key && styles.typeButtonSelected,
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setNewSession({ ...newSession, type: key as keyof typeof TRAINING_TYPES });
+                    }}
+                  >
+                    <View style={[styles.typeDot, { backgroundColor: value.color }]} />
+                    <Text style={[
+                      styles.typeButtonText,
+                      newSession.type === key && styles.typeButtonTextSelected,
+                    ]}>
+                      {value.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-              
-              {editingSession && (
-                <>
-                  <Text style={styles.inputLabel}>⏰ Orario</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={editingSession.data.time}
-                    onChangeText={(text) => setEditingSession({
-                      ...editingSession,
-                      data: { ...editingSession.data, time: text }
-                    })}
-                    placeholder="es. 10:00-12:00"
-                    placeholderTextColor={colors.textSecondary}
-                  />
 
-                  <Text style={styles.inputLabel}>🏋️ Tipo Allenamento</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeSelector}>
-                    {Object.entries(TRAINING_TYPES).map(([key, value]) => (
-                      <Pressable
-                        key={key}
-                        style={[
-                          styles.typeButton,
-                          editingSession.data.type === key && { backgroundColor: value.color }
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setEditingSession({
-                            ...editingSession,
-                            data: { ...editingSession.data, type: key }
-                          });
-                        }}
-                      >
-                        <Text style={styles.typeButtonEmoji}>{value.emoji}</Text>
-                        <Text style={[
-                          styles.typeButtonText,
-                          editingSession.data.type === key && { color: '#FFF' }
-                        ]}>
-                          {value.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+              <Text style={styles.inputLabel}>Durata</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Es: 90 min"
+                value={newSession.duration}
+                onChangeText={(text) => setNewSession({ ...newSession, duration: text })}
+              />
 
-                  <Text style={styles.inputLabel}>📋 Descrizione</Text>
-                  <Text style={styles.inputHint}>
-                    Separa gli esercizi con | (es: Squat 4×10 | Panca 3×12)
-                  </Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={editingSession.data.description}
-                    onChangeText={(text) => setEditingSession({
-                      ...editingSession,
-                      data: { ...editingSession.data, description: text }
-                    })}
-                    placeholder="Esercizio 1 4×10 | Esercizio 2 3×12 | Esercizio 3 5×8"
-                    multiline
-                    placeholderTextColor={colors.textSecondary}
-                  />
+              <Text style={styles.inputLabel}>Descrizione</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Dettagli della sessione..."
+                value={newSession.description}
+                onChangeText={(text) => setNewSession({ ...newSession, description: text })}
+                multiline
+                numberOfLines={4}
+              />
 
-                  <Text style={styles.inputLabel}>🔢 Reps/Serie</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={editingSession.data.reps}
-                    onChangeText={(text) => setEditingSession({
-                      ...editingSession,
-                      data: { ...editingSession.data, reps: text }
-                    })}
-                    placeholder="es. 4×10, 3×12, 5×8"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-
-                  <Text style={styles.inputLabel}>⚙️ Esecuzione</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={editingSession.data.execution}
-                    onChangeText={(text) => setEditingSession({
-                      ...editingSession,
-                      data: { ...editingSession.data, execution: text }
-                    })}
-                    placeholder="es. Tempo 3-0-1-0, ROM completo"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-
-                  <Text style={styles.inputLabel}>🎯 Focus</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={editingSession.data.focus}
-                    onChangeText={(text) => setEditingSession({
-                      ...editingSession,
-                      data: { ...editingSession.data, focus: text }
-                    })}
-                    placeholder="es. Tecnica perfetta, baseline forza"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-
-                  <Text style={styles.inputLabel}>⏱️ Recupero</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={editingSession.data.recovery}
-                    onChangeText={(text) => setEditingSession({
-                      ...editingSession,
-                      data: { ...editingSession.data, recovery: text }
-                    })}
-                    placeholder="es. 90 secondi tra serie, 2 minuti tra esercizi"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-
-                  <Text style={styles.inputLabel}>💪 RPE (1-10)</Text>
-                  <View style={styles.rpeSelector}>
-                    {[1,2,3,4,5,6,7,8,9,10].map(num => (
-                      <Pressable
-                        key={num}
-                        style={[
-                          styles.rpeButton,
-                          editingSession.data.rpe === num && styles.rpeButtonActive
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setEditingSession({
-                            ...editingSession,
-                            data: { ...editingSession.data, rpe: num }
-                          });
-                        }}
-                      >
-                        <Text style={[
-                          styles.rpeButtonText,
-                          editingSession.data.rpe === num && styles.rpeButtonTextActive
-                        ]}>
-                          {num}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  <View style={styles.modalButtons}>
-                    <Pressable style={styles.deleteButton} onPress={deleteSession}>
-                      <IconSymbol name="trash.fill" size={16} color="#FFFFFF" />
-                      <Text style={styles.deleteButtonText}>Elimina</Text>
-                    </Pressable>
-                    <Pressable style={styles.saveButton} onPress={saveSession}>
-                      <IconSymbol name="checkmark.circle.fill" size={16} color="#FFFFFF" />
-                      <Text style={styles.saveButtonText}>Salva</Text>
-                    </Pressable>
-                  </View>
-                </>
-              )}
+              <Pressable style={styles.saveButton} onPress={handleSaveSession}>
+                <LinearGradient
+                  colors={gradients.success}
+                  style={styles.saveButtonGradient}
+                >
+                  <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
+                  <Text style={styles.saveButtonText}>Salva Sessione</Text>
+                </LinearGradient>
+              </Pressable>
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* Session Detail Modal */}
+      <Modal
+        visible={showDetailModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDetailModal(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowDetailModal(false)}
+        >
+          <Pressable style={styles.detailModalContent} onPress={(e) => e.stopPropagation()}>
+            {selectedSession && (
+              <>
+                <View style={styles.detailHeader}>
+                  <View style={[
+                    styles.detailTypeIndicator,
+                    { backgroundColor: TRAINING_TYPES[selectedSession.type].color },
+                  ]}>
+                    <IconSymbol 
+                      name={TRAINING_TYPES[selectedSession.type].icon as any} 
+                      size={32} 
+                      color="#FFFFFF" 
+                    />
+                  </View>
+                  <Pressable 
+                    style={styles.detailCloseButton}
+                    onPress={() => setShowDetailModal(false)}
+                  >
+                    <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+
+                <Text style={styles.detailTitle}>{selectedSession.title}</Text>
+                <Text style={styles.detailType}>
+                  {TRAINING_TYPES[selectedSession.type].label}
+                </Text>
+
+                {selectedSession.duration && (
+                  <View style={styles.detailDurationBadge}>
+                    <IconSymbol name="clock.fill" size={16} color={colors.primary} />
+                    <Text style={styles.detailDurationText}>{selectedSession.duration}</Text>
+                  </View>
+                )}
+
+                {selectedSession.description && (
+                  <View style={styles.detailDescriptionContainer}>
+                    <Text style={styles.detailDescriptionLabel}>Descrizione</Text>
+                    <Text style={styles.detailDescription}>{selectedSession.description}</Text>
+                  </View>
+                )}
+
+                <View style={styles.detailActions}>
+                  <Pressable
+                    style={[
+                      styles.detailActionButton,
+                      selectedSession.completed && styles.detailActionButtonCompleted,
+                    ]}
+                    onPress={() => {
+                      handleToggleComplete(selectedSession);
+                      setShowDetailModal(false);
+                    }}
+                  >
+                    <IconSymbol 
+                      name={selectedSession.completed ? "checkmark.circle.fill" : "circle"} 
+                      size={24} 
+                      color={selectedSession.completed ? colors.success : colors.textSecondary} 
+                    />
+                    <Text style={styles.detailActionText}>
+                      {selectedSession.completed ? 'Completata' : 'Segna come completata'}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.detailDeleteButton}
+                    onPress={() => handleDeleteSession(selectedSession.id)}
+                  >
+                    <IconSymbol name="trash.fill" size={20} color={colors.error} />
+                    <Text style={styles.detailDeleteText}>Elimina</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
       </Modal>
     </>
   );
 }
 
-function SessionCard({ session, title, icon, compact }) {
-  const type = TRAINING_TYPES[session.type] || TRAINING_TYPES.FORZA_MAX;
-  const exercises = parseExercises(session.description);
-  
-  if (compact) {
-    return (
-      <View style={[styles.sessionCardCompact, { borderLeftColor: type.color }]}>
-        <View style={styles.sessionHeaderCompact}>
-          <View style={styles.sessionTitleRow}>
-            <IconSymbol name={icon} size={16} color={type.color} />
-            <Text style={styles.sessionTitleCompact}>{title}</Text>
-            <View style={[styles.sessionBadgeCompact, { backgroundColor: type.color }]}>
-              <Text style={styles.sessionBadgeTextCompact}>{type.emoji}</Text>
-            </View>
-          </View>
-          <Text style={styles.sessionTimeCompact}>{session.time}</Text>
-        </View>
-        
-        {/* Esercizi in formato compatto */}
-        <View style={styles.exercisesListCompact}>
-          {exercises.map((exercise, index) => (
-            <View key={exercise.id} style={styles.exerciseRowCompact}>
-              <Text style={styles.exerciseNumberCompact}>{index + 1}.</Text>
-              <Text style={styles.exerciseNameCompact} numberOfLines={1}>
-                {exercise.name}
-              </Text>
-              {exercise.sets && (
-                <Text style={styles.exerciseSetsCompact}>{exercise.sets}</Text>
-              )}
-            </View>
-          ))}
-        </View>
-        
-        {session.rpe && (
-          <View style={styles.rpeRowCompact}>
-            <Text style={styles.rpeTextCompact}>RPE {session.rpe}/10</Text>
-            <View style={styles.rpeBarCompact}>
-              <View style={[styles.rpeBarFillCompact, { width: `${session.rpe * 10}%`, backgroundColor: type.color }]} />
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  }
-  
-  return (
-    <View style={[styles.sessionCard, { borderLeftColor: type.color }]}>
-      <View style={styles.sessionHeader}>
-        <View style={styles.sessionTitleContainer}>
-          <IconSymbol name={icon} size={20} color={type.color} />
-          <Text style={styles.sessionTitle}>{title}</Text>
-        </View>
-        <View style={[styles.sessionBadge, { backgroundColor: type.color }]}>
-          <Text style={styles.sessionBadgeEmoji}>{type.emoji}</Text>
-          <Text style={styles.sessionBadgeText}>{type.label}</Text>
-        </View>
-      </View>
-      <Text style={styles.sessionTime}>⏰ {session.time}</Text>
-      
-      {/* Lista esercizi - uno per riga */}
-      <View style={styles.exercisesList}>
-        <View style={styles.exercisesHeader}>
-          <IconSymbol name="list.bullet" size={16} color={colors.primary} />
-          <Text style={styles.exercisesHeaderText}>Esercizi ({exercises.length})</Text>
-        </View>
-        {exercises.map((exercise, index) => (
-          <View key={exercise.id} style={styles.exerciseRow}>
-            <View style={styles.exerciseNumber}>
-              <Text style={styles.exerciseNumberText}>{index + 1}</Text>
-            </View>
-            <View style={styles.exerciseContent}>
-              <Text style={styles.exerciseName}>{exercise.name}</Text>
-              {exercise.sets && (
-                <View style={styles.exerciseSetsContainer}>
-                  <IconSymbol name="number" size={12} color={type.color} />
-                  <Text style={[styles.exerciseSets, { color: type.color }]}>
-                    {exercise.sets}
-                  </Text>
-                </View>
-              )}
-              {exercise.notes && (
-                <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
-              )}
-            </View>
-          </View>
-        ))}
-      </View>
-      
-      {/* Dettagli allenamento */}
-      <View style={styles.detailsContainer}>
-        {session.execution && (
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconLabel}>
-              <IconSymbol name="gearshape.fill" size={14} color={colors.primary} />
-              <Text style={styles.detailLabel}>Esecuzione</Text>
-            </View>
-            <Text style={styles.detailValue}>{session.execution}</Text>
-          </View>
-        )}
-        {session.focus && (
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconLabel}>
-              <IconSymbol name="target" size={14} color={colors.primary} />
-              <Text style={styles.detailLabel}>Focus</Text>
-            </View>
-            <Text style={styles.detailValue}>{session.focus}</Text>
-          </View>
-        )}
-        {session.recovery && (
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconLabel}>
-              <IconSymbol name="timer" size={14} color={colors.primary} />
-              <Text style={styles.detailLabel}>Recupero</Text>
-            </View>
-            <Text style={styles.detailValue}>{session.recovery}</Text>
-          </View>
-        )}
-      </View>
-      
-      {session.rpe && (
-        <View style={styles.rpeContainer}>
-          <View style={styles.rpeHeader}>
-            <Text style={styles.sessionRpe}>💪 RPE: {session.rpe}/10</Text>
-            <Text style={[styles.rpeIntensity, { color: type.color }]}>
-              {session.rpe <= 3 ? 'Leggero' : session.rpe <= 6 ? 'Moderato' : session.rpe <= 8 ? 'Intenso' : 'Massimale'}
-            </Text>
-          </View>
-          <View style={styles.rpeBar}>
-            <View style={[styles.rpeBarFill, { width: `${session.rpe * 10}%`, backgroundColor: type.color }]} />
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
-
-SessionCard.propTypes = {
-  session: PropTypes.shape({
-    type: PropTypes.string.isRequired,
-    time: PropTypes.string.isRequired,
-    description: PropTypes.string.isRequired,
-    reps: PropTypes.string,
-    execution: PropTypes.string,
-    focus: PropTypes.string,
-    recovery: PropTypes.string,
-    rpe: PropTypes.number,
-  }).isRequired,
-  title: PropTypes.string.isRequired,
-  icon: PropTypes.string.isRequired,
-  compact: PropTypes.bool,
-};
-
 const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
-  scrollContentWithTabBar: {
-    paddingBottom: 100,
+  statsCard: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    ...shadows.large,
   },
-  weekSelector: {
-    marginBottom: 16,
-  },
-  weekSelectorHeader: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  viewToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 6,
-  },
-  viewToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  weekList: {
-    paddingVertical: 4,
-  },
-  weekButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginRight: 8,
-    minWidth: 60,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  weekButtonActive: {
-    borderColor: colors.accent,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-  },
-  weekButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  weekButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  weekPhaseText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 2,
-    opacity: 0.9,
-  },
-  summaryCard: {
-    marginBottom: 16,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  summaryTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  weekDates: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  summaryStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 12,
   },
   statItem: {
     alignItems: 'center',
-    paddingHorizontal: 12,
+    flex: 1,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.primary,
+  statNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
   },
   statDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: colors.border,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
-  typeDistribution: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 6,
-  },
-  typeChipDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  typeChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  daysGrid: {
+  calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  dayCard: {
-    width: '13%',
-    aspectRatio: 0.7,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 8,
     alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  navButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  dayCardSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.accent,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-  },
-  dayCardToday: {
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  dayName: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  dayNameSelected: {
-    color: '#FFFFFF',
-  },
-  dayDate: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  dayDateSelected: {
-    color: '#FFFFFF',
-  },
-  dayIndicators: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    ...shadows.small,
   },
-  dayIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  monthYearContainer: {
+    alignItems: 'center',
   },
-  sessionCount: {
-    fontSize: 9,
-    fontWeight: '700',
+  monthText: {
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.text,
+    letterSpacing: -0.5,
+  },
+  yearText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  dayHeadersContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
   },
   dayHeader: {
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
   },
-  dayTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  daySubtitle: {
+  dayHeaderText: {
     fontSize: 13,
+    fontWeight: '700',
     color: colors.textSecondary,
-    fontWeight: '500',
   },
-  sessionCard: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-    borderLeftWidth: 4,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-  },
-  sessionHeader: {
+  calendarGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    flexWrap: 'wrap',
+    marginBottom: 24,
   },
-  sessionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  emptyDay: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
   },
-  sessionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sessionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    gap: 4,
-  },
-  sessionBadgeEmoji: {
-    fontSize: 12,
-  },
-  sessionBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  sessionTime: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  exercisesList: {
-    backgroundColor: colors.highlight,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-  },
-  exercisesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  exercisesHeaderText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  exerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border + '30',
-  },
-  exerciseNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary + '20',
+  dayCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    position: 'relative',
   },
-  exerciseNumberText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
+  dayCellSelected: {
+    backgroundColor: colors.highlightBlue,
+    borderRadius: 12,
   },
-  exerciseContent: {
-    flex: 1,
+  dayCellToday: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: 12,
   },
-  exerciseName: {
-    fontSize: 14,
+  dayNumber: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
-    lineHeight: 20,
   },
-  exerciseSetsContainer: {
+  dayNumberSelected: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  dayNumberToday: {
+    color: colors.primary,
+  },
+  sessionIndicators: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    gap: 2,
     marginTop: 2,
   },
-  exerciseSets: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  exerciseNotes: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  detailsContainer: {
-    backgroundColor: colors.highlight,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  detailIconLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 0.4,
-  },
-  detailLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  detailValue: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    flex: 0.6,
-    textAlign: 'right',
-  },
-  rpeContainer: {
-    marginTop: 8,
-  },
-  rpeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  sessionRpe: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  rpeIntensity: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  rpeBar: {
+  sessionDot: {
+    width: 6,
     height: 6,
-    backgroundColor: colors.background,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  rpeBarFill: {
-    height: '100%',
     borderRadius: 3,
   },
-  sessionCardCompact: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 10,
-    borderLeftWidth: 4,
+  sessionDotCompleted: {
+    borderWidth: 1,
+    borderColor: colors.success,
   },
-  sessionHeaderCompact: {
+  completedBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedDateSection: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    ...shadows.medium,
+  },
+  selectedDateHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
   },
-  sessionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  sessionTitleCompact: {
-    fontSize: 14,
-    fontWeight: '700',
+  selectedDateTitle: {
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.text,
+    letterSpacing: -0.5,
   },
-  sessionBadgeCompact: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sessionBadgeTextCompact: {
-    fontSize: 12,
-  },
-  sessionTimeCompact: {
-    fontSize: 11,
+  selectedDateSubtitle: {
+    fontSize: 15,
     color: colors.textSecondary,
     fontWeight: '600',
-  },
-  exercisesListCompact: {
-    marginBottom: 8,
-  },
-  exerciseRowCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    paddingVertical: 4,
-  },
-  exerciseNumberCompact: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-    width: 20,
-  },
-  exerciseNameCompact: {
-    fontSize: 12,
-    color: colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  exerciseSetsCompact: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  rpeRowCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rpeTextCompact: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-    width: 60,
-  },
-  rpeBarCompact: {
-    flex: 1,
-    height: 4,
-    backgroundColor: colors.highlight,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  rpeBarFillCompact: {
-    height: '100%',
-    borderRadius: 2,
+    marginTop: 2,
   },
   addButton: {
-    backgroundColor: colors.primary,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...shadows.small,
+  },
+  addButtonGradient: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
   },
   addButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
     fontSize: 15,
-    marginLeft: 8,
+    fontWeight: '700',
   },
-  notesSection: {
-    marginTop: 16,
-    backgroundColor: colors.highlight,
-    borderRadius: 12,
-    padding: 14,
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
   },
-  notesSectionHeader: {
+  emptyStateText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 12,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  sessionsList: {
+    gap: 12,
+  },
+  sessionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    ...shadows.small,
+  },
+  sessionCardCompleted: {
+    opacity: 0.7,
+    backgroundColor: colors.highlightGreen,
+  },
+  sessionCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
   },
-  notesTitle: {
-    fontSize: 15,
+  sessionTypeIndicator: {
+    width: 4,
+    height: 48,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  sessionCardContent: {
+    flex: 1,
+  },
+  sessionCardTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 4,
   },
-  notesInput: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    minHeight: 80,
-    fontSize: 14,
-    color: colors.text,
-    textAlignVertical: 'top',
-    borderWidth: 1,
+  sessionCardTitleCompleted: {
+    textDecorationLine: 'line-through',
+  },
+  sessionCardType: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  sessionDurationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sessionDurationText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  sessionCheckbox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+  },
+  sessionCheckboxCompleted: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   legendCard: {
-    marginTop: 16,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    ...shadows.medium,
+  },
+  legendTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
   },
   legendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '48%',
-    marginBottom: 8,
-    backgroundColor: colors.background,
-    padding: 10,
-    borderRadius: 8,
+    gap: 8,
   },
   legendDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginRight: 8,
-  },
-  legendEmoji: {
-    fontSize: 14,
-    marginRight: 6,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.text,
     fontWeight: '600',
     flex: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.text,
   },
+  modalScroll: {
+    maxHeight: 500,
+  },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
-    marginTop: 12,
-  },
-  inputHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 6,
-    fontStyle: 'italic',
+    marginTop: 16,
   },
   input: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
   },
   textArea: {
-    minHeight: 80,
+    height: 100,
     textAlignVertical: 'top',
   },
-  typeSelector: {
-    marginBottom: 12,
-  },
-  typeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-  },
-  typeButtonEmoji: {
-    fontSize: 14,
-  },
-  typeButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  rpeSelector: {
+  typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  rpeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  rpeButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  rpeButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  rpeButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  modalButtons: {
+  typeButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-    gap: 12,
-  },
-  deleteButton: {
-    backgroundColor: '#FF4444',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 12,
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    gap: 8,
   },
-  deleteButtonText: {
-    color: '#FFFFFF',
+  typeButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.highlightBlue,
+  },
+  typeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  typeButtonText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  typeButtonTextSelected: {
+    color: colors.primary,
     fontWeight: '700',
-    fontSize: 15,
-    marginLeft: 6,
   },
   saveButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 24,
+    marginBottom: 16,
+    ...shadows.medium,
+  },
+  saveButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 18,
+    gap: 10,
   },
   saveButtonText: {
     color: '#FFFFFF',
+    fontSize: 17,
     fontWeight: '700',
+  },
+  detailModalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 28,
+    padding: 28,
+    margin: 20,
+    maxHeight: '80%',
+    ...shadows.large,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  detailTypeIndicator: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.medium,
+  },
+  detailCloseButton: {
+    padding: 4,
+  },
+  detailTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  detailType: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  detailDurationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+  },
+  detailDurationText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  detailDescriptionContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  detailDescriptionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailDescription: {
     fontSize: 15,
-    marginLeft: 6,
+    color: colors.text,
+    lineHeight: 24,
+  },
+  detailActions: {
+    gap: 12,
+  },
+  detailActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  detailActionButtonCompleted: {
+    backgroundColor: colors.highlightGreen,
+  },
+  detailActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  detailDeleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.highlightRed,
+    padding: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  detailDeleteText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.error,
   },
 });
