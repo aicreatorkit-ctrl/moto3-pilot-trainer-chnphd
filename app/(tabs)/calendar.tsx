@@ -419,7 +419,7 @@ export default function CalendarScreen() {
         >
           {/* Stats Header */}
           <LinearGradient
-            colors={gradients.racing}
+            colors={['#FF6B6B', '#FF8E53']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.statsCard}
@@ -451,7 +451,9 @@ export default function CalendarScreen() {
             }}
           >
             <LinearGradient
-              colors={gradients.accent}
+              colors={['#667eea', '#764ba2']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.importButtonGradient}
             >
               <IconSymbol name="arrow.down.doc.fill" size={24} color="#FFFFFF" />
@@ -559,7 +561,9 @@ export default function CalendarScreen() {
                 
                 <Pressable style={styles.addButton} onPress={handleAddSession}>
                   <LinearGradient
-                    colors={gradients.primary}
+                    colors={['#667eea', '#764ba2']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
                     style={styles.addButtonGradient}
                   >
                     <IconSymbol name="plus" size={20} color="#FFFFFF" />
@@ -716,7 +720,9 @@ export default function CalendarScreen() {
                 disabled={isAnalyzing || !uploadContent.trim()}
               >
                 <LinearGradient
-                  colors={isAnalyzing ? ['#9CA3AF', '#6B7280'] : gradients.success}
+                  colors={isAnalyzing ? ['#9CA3AF', '#6B7280'] : ['#10b981', '#059669']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                   style={styles.importActionGradient}
                 >
                   {isAnalyzing ? (
@@ -825,7 +831,9 @@ export default function CalendarScreen() {
 
               <Pressable style={styles.saveButton} onPress={handleSaveSession}>
                 <LinearGradient
-                  colors={gradients.success}
+                  colors={['#10b981', '#059669']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                   style={styles.saveButtonGradient}
                 >
                   <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
