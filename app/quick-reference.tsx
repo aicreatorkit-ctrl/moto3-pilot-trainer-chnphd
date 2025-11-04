@@ -1,12 +1,40 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { quickReference } from '@/data/trainingData';
+import { quickReference as defaultQuickReference } from '@/data/trainingData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = '@moto3_custom_quick_reference';
+
+interface QuickReferenceData {
+  hydration: string;
+  nutrition: string;
+  sleep: string;
+  recovery: string;
+  redFlags: string;
+}
 
 export default function QuickReferenceScreen() {
+  const [quickReference, setQuickReference] = useState<QuickReferenceData>(defaultQuickReference);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setQuickReference(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading quick reference:', error);
+    }
+  };
+
   return (
     <>
       <Stack.Screen

@@ -1,13 +1,151 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+
+interface Setting {
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  route?: string;
+  action?: () => void;
+  isDanger?: boolean;
+}
 
 export default function SettingsScreen() {
-  const [notifications, setNotifications] = React.useState(true);
-  const [darkMode, setDarkMode] = React.useState(false);
+  const router = useRouter();
+
+  const handlePress = (route?: string, action?: () => void) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (action) {
+      action();
+    } else if (route) {
+      router.push(route as any);
+    }
+  };
+
+  const clearAllData = async () => {
+    Alert.alert(
+      'Cancella Tutti i Dati',
+      'Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.',
+      [
+        {
+          text: 'Annulla',
+          style: 'cancel',
+        },
+        {
+          text: 'Cancella',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.clear();
+              console.log('All data cleared successfully');
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Successo', 'Tutti i dati sono stati cancellati');
+            } catch (error) {
+              console.log('Error clearing data:', error);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Errore', 'Errore durante la cancellazione dei dati');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const contentManagement: Setting[] = [
+    {
+      title: 'Modifica Dati da File',
+      description: 'Aggiorna sezioni caricando file .txt',
+      icon: 'arrow.up.doc.fill',
+      color: colors.primary,
+      route: '/edit-data',
+    },
+    {
+      title: 'Aggiornamento Automatico',
+      description: 'Gestisci e aggiorna contenuti automaticamente',
+      icon: 'doc.text.fill',
+      color: colors.primary,
+      route: '/content-manager',
+    },
+  ];
+
+  const dataSettings: Setting[] = [
+    {
+      title: 'Routine Mattutina',
+      description: 'Modifica gli elementi della routine',
+      icon: 'sunrise.fill',
+      color: '#FF9500',
+      route: '/edit-morning-routine',
+    },
+    {
+      title: 'Esercizi Riscaldamento',
+      description: 'Personalizza gli esercizi di warmup',
+      icon: 'flame.fill',
+      color: '#FF3B30',
+      route: '/edit-warmup',
+    },
+    {
+      title: 'Esercizi Raffreddamento',
+      description: 'Modifica gli esercizi di cooldown',
+      icon: 'figure.cooldown',
+      color: '#5AC8FA',
+      route: '/edit-cooldown',
+    },
+    {
+      title: 'Esercizi Stretching',
+      description: 'Personalizza gli esercizi di stretching',
+      icon: 'figure.flexibility',
+      color: '#34C759',
+      route: '/edit-stretching',
+    },
+    {
+      title: 'Foam Rolling',
+      description: 'Modifica il protocollo foam rolling',
+      icon: 'cylinder.fill',
+      color: '#AF52DE',
+      route: '/edit-foam-rolling',
+    },
+    {
+      title: 'Riferimento Rapido',
+      description: 'Modifica le linee guida rapide',
+      icon: 'book.fill',
+      color: '#0A84FF',
+      route: '/edit-quick-reference',
+    },
+  ];
+
+  const renderSettingCard = (setting: Setting, index: number) => (
+    <Pressable
+      key={index}
+      style={[
+        styles.settingCard,
+        setting.isDanger && styles.dangerCard,
+      ]}
+      onPress={() => handlePress(setting.route, setting.action)}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: setting.color + '20' }]}>
+        <IconSymbol name={setting.icon as any} size={24} color={setting.color} />
+      </View>
+      <View style={styles.settingInfo}>
+        <Text style={[styles.settingTitle, setting.isDanger && styles.dangerText]}>
+          {setting.title}
+        </Text>
+        <Text style={styles.settingDescription}>{setting.description}</Text>
+      </View>
+      <IconSymbol 
+        name="chevron.right" 
+        size={20} 
+        color={setting.isDanger ? '#FF3B30' : colors.textSecondary} 
+      />
+    </Pressable>
+  );
 
   return (
     <>
@@ -19,76 +157,75 @@ export default function SettingsScreen() {
       />
       <View style={commonStyles.container}>
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={commonStyles.card}>
-            <Text style={styles.sectionTitle}>Generali</Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <IconSymbol name="bell.fill" size={20} color={colors.primary} />
-                <Text style={styles.settingLabel}>Notifiche</Text>
-              </View>
-              <Switch
-                value={notifications}
-                onValueChange={setNotifications}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor="#FFFFFF"
-              />
+          {/* Header Card */}
+          <LinearGradient
+            colors={gradients.racing}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerCard}
+          >
+            <View style={styles.headerIconContainer}>
+              <IconSymbol name="gearshape.fill" size={40} color="#FFFFFF" />
             </View>
+            <Text style={styles.headerTitle}>Impostazioni</Text>
+            <Text style={styles.headerDescription}>
+              Personalizza e gestisci i contenuti dell&apos;app
+            </Text>
+          </LinearGradient>
 
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <IconSymbol name="moon.fill" size={20} color={colors.primary} />
-                <Text style={styles.settingLabel}>Modalità Scura</Text>
-              </View>
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor="#FFFFFF"
-              />
+          {/* Content Management Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol name="doc.text.fill" size={22} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Gestione Contenuti</Text>
             </View>
+            {contentManagement.map((setting, index) => renderSettingCard(setting, index))}
           </View>
 
-          <View style={commonStyles.card}>
-            <Text style={styles.sectionTitle}>Dati</Text>
-            
-            <Pressable style={styles.settingButton}>
-              <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
-              <Text style={styles.settingButtonText}>Esporta Tutti i Dati</Text>
-              <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
-            </Pressable>
+          {/* Data Editing Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol name="pencil.circle.fill" size={22} color={colors.info} />
+              <Text style={styles.sectionTitle}>Modifica Dati</Text>
+            </View>
+            {dataSettings.map((setting, index) => renderSettingCard(setting, index))}
+          </View>
 
-            <Pressable style={styles.settingButton}>
-              <IconSymbol name="square.and.arrow.down" size={20} color={colors.primary} />
-              <Text style={styles.settingButtonText}>Importa Dati</Text>
-              <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
-            </Pressable>
+          {/* Data Management Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol name="externaldrive.fill" size={22} color={colors.warning} />
+              <Text style={styles.sectionTitle}>Gestione Dati</Text>
+            </View>
+            {renderSettingCard({
+              title: 'Cancella Tutti i Dati',
+              description: 'Rimuovi tutti i dati salvati dall&apos;app',
+              icon: 'trash.fill',
+              color: '#FF3B30',
+              action: clearAllData,
+              isDanger: true,
+            }, 0)}
+          </View>
 
-            <Pressable style={styles.settingButton}>
-              <IconSymbol name="trash" size={20} color={colors.secondary} />
-              <Text style={[styles.settingButtonText, { color: colors.secondary }]}>
-                Cancella Tutti i Dati
+          {/* Info Card */}
+          <View style={[commonStyles.card, styles.infoCard]}>
+            <View style={styles.infoIconContainer}>
+              <IconSymbol name="info.circle.fill" size={28} color={colors.info} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoTitle}>Suggerimento</Text>
+              <Text style={styles.infoText}>
+                Puoi aggiornare i contenuti caricando file di testo o modificando direttamente i dati esistenti
               </Text>
-              <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          <View style={commonStyles.card}>
-            <Text style={styles.sectionTitle}>Informazioni</Text>
-            
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Versione</Text>
-              <Text style={styles.infoValue}>1.0.0</Text>
-            </View>
-
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Sviluppato per</Text>
-              <Text style={styles.infoValue}>Piloti Moto3</Text>
             </View>
           </View>
+
+          {/* Bottom Spacing */}
+          <View style={{ height: 32 }} />
         </ScrollView>
       </View>
     </>
@@ -96,60 +233,120 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
+  headerCard: {
+    borderRadius: 24,
+    padding: 28,
+    marginBottom: 24,
+    alignItems: 'center',
+    ...shadows.large,
+  },
+  headerIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  settingItem: {
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 10,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  headerDescription: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.95)',
+    lineHeight: 22,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  section: {
+    marginBottom: 28,
+  },
+  sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 14,
+    paddingHorizontal: 4,
+    gap: 10,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  settingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...shadows.medium,
+  },
+  dangerCard: {
+    backgroundColor: '#FF3B3010',
+    borderWidth: 1,
+    borderColor: '#FF3B3040',
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
   settingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: colors.text,
-    marginLeft: 12,
-  },
-  settingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  settingButtonText: {
     flex: 1,
+  },
+  settingTitle: {
     fontSize: 16,
+    fontWeight: '700',
     color: colors.text,
-    marginLeft: 12,
+    marginBottom: 4,
+    letterSpacing: -0.2,
   },
-  infoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  dangerText: {
+    color: '#FF3B30',
   },
-  infoLabel: {
-    fontSize: 16,
+  settingDescription: {
+    fontSize: 13,
     color: colors.textSecondary,
+    lineHeight: 18,
   },
-  infoValue: {
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.highlightBlue,
+  },
+  infoIconContainer: {
+    marginRight: 14,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
     fontSize: 16,
+    fontWeight: '700',
     color: colors.text,
-    fontWeight: '600',
+    marginBottom: 6,
+  },
+  infoText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    fontWeight: '500',
   },
 });
