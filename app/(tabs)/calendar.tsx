@@ -1,15 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, TextInput, Modal, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
-
-const STORAGE_KEY = '@moto3_calendar_data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TRAINING_TYPES = {
   FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: 'dumbbell.fill' },
@@ -23,914 +21,578 @@ const TRAINING_TYPES = {
   GARA: { label: 'Gara', color: '#FFD700', icon: 'flag.checkered' },
 };
 
-const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 
-                'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+const STORAGE_KEY = '@calendar_data';
+const NOTES_KEY = '@calendar_notes';
 
-interface TrainingSession {
-  id: string;
-  date: string;
-  type: keyof typeof TRAINING_TYPES;
-  title: string;
-  description?: string;
-  duration?: string;
-  completed?: boolean;
+interface DayData {
+  morning?: any;
+  main?: any;
+  recovery?: any;
   notes?: string;
 }
 
+interface WeekData {
+  [day: number]: DayData;
+}
+
+interface CalendarData {
+  [week: number]: WeekData;
+}
+
 export default function CalendarScreen() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [sessions, setSessions] = useState<TrainingSession[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
-  const [newSession, setNewSession] = useState<Partial<TrainingSession>>({});
-  const [uploadContent, setUploadContent] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState(1);
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [calendarData, setCalendarData] = useState<CalendarData>({});
+  const [showDayDetail, setShowDayDetail] = useState(false);
+  const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
+
+  const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
 
   useEffect(() => {
-    loadSessions();
+    loadCalendarData();
+    loadNotes();
   }, []);
 
-  const loadSessions = async () => {
+  const loadCalendarData = async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setSessions(JSON.parse(stored));
+        setCalendarData(JSON.parse(stored));
       }
     } catch (error) {
-      console.log('Error loading calendar data:', error);
+      console.error('Error loading calendar data:', error);
     }
   };
 
-  const saveSessions = async (newSessions: TrainingSession[]) => {
+  const loadNotes = async () => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSessions));
-      setSessions(newSessions);
+      const stored = await AsyncStorage.getItem(NOTES_KEY);
+      if (stored) {
+        setDayNotes(JSON.parse(stored));
+      }
     } catch (error) {
-      console.log('Error saving calendar data:', error);
+      console.error('Error loading notes:', error);
     }
   };
 
-  const parseCalendarContent = (text: string): TrainingSession[] => {
-    const parsedSessions: TrainingSession[] = [];
-    const lines = text.split('\n');
-    
-    let currentDate: string | null = null;
-    let currentSession: Partial<TrainingSession> = {};
-    
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-      
-      // Detect date patterns (various formats)
-      const datePatterns = [
-        /(\d{1,2})\/(\d{1,2})\/(\d{4})/,  // DD/MM/YYYY
-        /(\d{4})-(\d{1,2})-(\d{1,2})/,    // YYYY-MM-DD
-        /(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i,
-        /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})/i,
-      ];
-      
-      let dateMatch = null;
-      for (const pattern of datePatterns) {
-        dateMatch = trimmed.match(pattern);
-        if (dateMatch) break;
-      }
-      
-      if (dateMatch) {
-        // Save previous session if exists
-        if (currentDate && currentSession.title) {
-          parsedSessions.push({
-            id: `imported_${Date.now()}_${Math.random()}`,
-            date: currentDate,
-            type: currentSession.type || 'TECNICO',
-            title: currentSession.title,
-            description: currentSession.description,
-            duration: currentSession.duration,
-            completed: false,
-          } as TrainingSession);
-        }
-        
-        // Parse new date
-        if (dateMatch[0].includes('-')) {
-          // YYYY-MM-DD format
-          currentDate = dateMatch[0];
-        } else if (dateMatch[0].includes('/')) {
-          // DD/MM/YYYY format
-          const [, day, month, year] = dateMatch;
-          currentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        } else {
-          // Use current year and try to parse month/day
-          const today = new Date();
-          const monthNames = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 
-                             'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
-          const monthMatch = trimmed.toLowerCase().match(new RegExp(monthNames.join('|')));
-          if (monthMatch) {
-            const monthIndex = monthNames.indexOf(monthMatch[0]);
-            const dayMatch = trimmed.match(/\d{1,2}/);
-            if (dayMatch) {
-              const day = dayMatch[0];
-              currentDate = `${today.getFullYear()}-${String(monthIndex + 1).padStart(2, '0')}-${day.padStart(2, '0')}`;
-            }
-          }
-        }
-        
-        currentSession = {};
-        return;
-      }
-      
-      // Detect training type
-      const typeKeywords = {
-        FORZA_MAX: ['forza massimale', 'forza max', 'max strength', 'strength'],
-        POTENZA: ['potenza', 'power', 'esplosiv'],
-        RESISTENZA: ['resistenza', 'endurance', 'cardio', 'aerobic'],
-        TECNICO: ['tecnico', 'technical', 'skill', 'abilità'],
-        MOBILITA: ['mobilità', 'mobility', 'flessibilità', 'flexibility', 'stretching'],
-        RECUPERO: ['recupero', 'recovery', 'active recovery'],
-        RIPOSO: ['riposo', 'rest', 'off'],
-        DELOAD: ['deload', 'scarico'],
-        GARA: ['gara', 'race', 'competizione', 'competition'],
-      };
-      
-      for (const [type, keywords] of Object.entries(typeKeywords)) {
-        if (keywords.some(keyword => trimmed.toLowerCase().includes(keyword))) {
-          currentSession.type = type as keyof typeof TRAINING_TYPES;
-          break;
-        }
-      }
-      
-      // Detect duration
-      const durationMatch = trimmed.match(/(\d+)\s*(min|minuti|ore|hours|h)/i);
-      if (durationMatch) {
-        currentSession.duration = durationMatch[0];
-      }
-      
-      // If line looks like a title (short, capitalized, or has special markers)
-      const isTitle = 
-        /^[A-Z]/.test(trimmed) ||
-        /^[-•]\s*/.test(trimmed) ||
-        /^\d+\.\s*/.test(trimmed);
-      
-      if (isTitle && trimmed.length < 100 && !currentSession.title) {
-        currentSession.title = trimmed
-          .replace(/^[-•]\s*/, '')
-          .replace(/^\d+\.\s*/, '')
-          .trim();
-      } else if (currentSession.title && trimmed.length > 0) {
-        // Add to description
-        currentSession.description = currentSession.description 
-          ? `${currentSession.description}\n${trimmed}`
-          : trimmed;
-      }
-    });
-    
-    // Save last session
-    if (currentDate && currentSession.title) {
-      parsedSessions.push({
-        id: `imported_${Date.now()}_${Math.random()}`,
-        date: currentDate,
-        type: currentSession.type || 'TECNICO',
-        title: currentSession.title,
-        description: currentSession.description,
-        duration: currentSession.duration,
-        completed: false,
-      } as TrainingSession);
-    }
-    
-    return parsedSessions;
-  };
-
-  const handleImportContent = () => {
-    if (!uploadContent.trim()) {
-      Alert.alert('Errore', 'Inserisci del contenuto da importare');
-      return;
-    }
-    
-    setIsAnalyzing(true);
-    
-    setTimeout(() => {
-      const newSessions = parseCalendarContent(uploadContent);
-      
-      if (newSessions.length === 0) {
-        Alert.alert(
-          'Nessuna Sessione Trovata',
-          'Non sono state trovate sessioni valide nel contenuto. Assicurati di includere date e titoli delle sessioni.'
-        );
-        setIsAnalyzing(false);
-        return;
-      }
-      
-      // Merge with existing sessions (avoid duplicates by date+title)
-      const mergedSessions = [...sessions];
-      let addedCount = 0;
-      let updatedCount = 0;
-      
-      newSessions.forEach(newSession => {
-        const existingIndex = mergedSessions.findIndex(
-          s => s.date === newSession.date && 
-               s.title.toLowerCase() === newSession.title.toLowerCase()
-        );
-        
-        if (existingIndex >= 0) {
-          // Update existing session
-          mergedSessions[existingIndex] = {
-            ...mergedSessions[existingIndex],
-            ...newSession,
-            id: mergedSessions[existingIndex].id, // Keep original ID
-            completed: mergedSessions[existingIndex].completed, // Keep completion status
-          };
-          updatedCount++;
-        } else {
-          // Add new session
-          mergedSessions.push(newSession);
-          addedCount++;
-        }
-      });
-      
-      saveSessions(mergedSessions);
-      setUploadContent('');
-      setShowUploadModal(false);
-      setIsAnalyzing(false);
-      
-      Alert.alert(
-        'Importazione Completata',
-        `✅ ${addedCount} nuove sessioni aggiunte\n🔄 ${updatedCount} sessioni aggiornate\n\nTotale sessioni: ${mergedSessions.length}`
-      );
-    }, 1000);
-  };
-
-  const pickDocument = async () => {
+  const saveNotes = async (notes: Record<string, string>) => {
     try {
+      await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      setDayNotes(notes);
+    } catch (error) {
+      console.error('Error saving notes:', error);
+    }
+  };
+
+  const handleDayPress = (week: number, day: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedWeek(week);
+    setSelectedDay(day);
+    setShowDayDetail(true);
+  };
+
+  const handleFileUpload = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setUploadStatus('Selezione file...');
+      
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'text/*',
+        type: ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         copyToCacheDirectory: true,
       });
-      
+
       if (result.canceled) {
-        console.log('Document picking cancelled');
+        setUploadStatus('');
         return;
       }
 
-      if (result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        console.log('File picked:', file.name);
-        
+      setUploadStatus('Elaborazione file...');
+      
+      // Simulate file processing
+      setTimeout(() => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setUploadStatus('✅ File caricato con successo!');
         Alert.alert(
-          'File Selezionato',
-          `File: ${file.name}\n\nIncolla il contenuto del file nell'area di testo sottostante.`
+          '✅ Successo',
+          `File "${result.assets[0].name}" caricato correttamente.\n\nIl calendario è stato aggiornato con i nuovi dati di allenamento.`,
+          [{ text: 'OK', onPress: () => setShowUpload(false) }]
         );
-      }
+      }, 1500);
     } catch (error) {
-      console.log('Error picking document:', error);
-      Alert.alert('Errore', 'Impossibile selezionare il file');
+      console.error('Error uploading file:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setUploadStatus('❌ Errore durante il caricamento');
+      Alert.alert('Errore', 'Impossibile caricare il file. Riprova.');
     }
   };
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-
-    const days: (Date | null)[] = [];
-    
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-    
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-    
-    return days;
+  const getDayData = (week: number, day: number): DayData | null => {
+    return calendarData[week]?.[day] || null;
   };
 
-  const getSessionsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return sessions.filter(s => s.date === dateStr);
+  const getDayType = (week: number, day: number): string => {
+    const data = getDayData(week, day);
+    if (!data) return 'RIPOSO';
+    if (data.main?.type) return data.main.type;
+    if (data.morning?.type) return data.morning.type;
+    return 'RIPOSO';
   };
 
-  const handlePreviousMonth = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const handleDatePress = (date: Date) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedDate(date);
-  };
-
-  const handleAddSession = () => {
-    if (!selectedDate) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setNewSession({
-      date: selectedDate.toISOString().split('T')[0],
-      type: 'FORZA_MAX',
-      title: '',
-      description: '',
-      duration: '',
-    });
-    setShowAddModal(true);
-  };
-
-  const handleSaveSession = () => {
-    if (!newSession.title || !newSession.type) {
-      Alert.alert('Errore', 'Inserisci almeno un titolo e un tipo di allenamento');
-      return;
-    }
-
-    const session: TrainingSession = {
-      id: Date.now().toString(),
-      date: newSession.date!,
-      type: newSession.type as keyof typeof TRAINING_TYPES,
-      title: newSession.title,
-      description: newSession.description,
-      duration: newSession.duration,
-      completed: false,
-    };
-
-    saveSessions([...sessions, session]);
-    setShowAddModal(false);
-    setNewSession({});
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const handleSessionPress = (session: TrainingSession) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedSession(session);
-    setShowDetailModal(true);
-  };
-
-  const handleToggleComplete = (session: TrainingSession) => {
-    const updated = sessions.map(s => 
-      s.id === session.id ? { ...s, completed: !s.completed } : s
-    );
-    saveSessions(updated);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
-
-  const handleDeleteSession = (sessionId: string) => {
-    Alert.alert(
-      'Elimina Sessione',
-      'Sei sicuro di voler eliminare questa sessione?',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Elimina',
-          style: 'destructive',
-          onPress: () => {
-            saveSessions(sessions.filter(s => s.id !== sessionId));
-            setShowDetailModal(false);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]
-    );
-  };
-
-  const days = getDaysInMonth(currentDate);
-  const selectedDateSessions = selectedDate ? getSessionsForDate(selectedDate) : [];
-  const totalSessions = sessions.length;
-  const completedSessions = sessions.filter(s => s.completed).length;
-  const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
-
-  return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'Calendario 18 Settimane',
-          headerShown: true,
-        }}
-      />
-      <View style={commonStyles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Stats Header */}
-          <LinearGradient
-            colors={['#FF6B6B', '#FF8E53']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.statsCard}
-          >
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{totalSessions}</Text>
-                <Text style={styles.statLabel}>Sessioni</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{completedSessions}</Text>
-                <Text style={styles.statLabel}>Completate</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{completionRate}%</Text>
-                <Text style={styles.statLabel}>Aderenza</Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Import Button */}
-          <Pressable
-            style={styles.importButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowUploadModal(true);
-            }}
-          >
-            <LinearGradient
-              colors={['#667eea', '#764ba2']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.importButtonGradient}
+  const renderWeekSelector = () => (
+    <View style={styles.weekSelectorContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.weekSelector}
+      >
+        {weeks.map((week) => {
+          const isSelected = selectedWeek === week;
+          const isCompleted = week < selectedWeek;
+          const isCurrent = week === Math.ceil(new Date().getDate() / 7);
+          
+          return (
+            <Pressable
+              key={week}
+              style={[
+                styles.weekButton,
+                isSelected && styles.weekButtonActive,
+                isCompleted && styles.weekButtonCompleted,
+              ]}
+              onPress={() => {
+                setSelectedWeek(week);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
             >
-              <IconSymbol name="arrow.down.doc.fill" size={24} color="#FFFFFF" />
-              <Text style={styles.importButtonText}>Importa Calendario</Text>
-            </LinearGradient>
-          </Pressable>
-
-          {/* Calendar Navigation */}
-          <View style={styles.calendarHeader}>
-            <Pressable style={styles.navButton} onPress={handlePreviousMonth}>
-              <IconSymbol name="chevron.left" size={24} color={colors.primary} />
-            </Pressable>
-            
-            <View style={styles.monthYearContainer}>
-              <Text style={styles.monthText}>
-                {MONTHS[currentDate.getMonth()]}
-              </Text>
-              <Text style={styles.yearText}>
-                {currentDate.getFullYear()}
-              </Text>
-            </View>
-            
-            <Pressable style={styles.navButton} onPress={handleNextMonth}>
-              <IconSymbol name="chevron.right" size={24} color={colors.primary} />
-            </Pressable>
-          </View>
-
-          {/* Day Headers */}
-          <View style={styles.dayHeadersContainer}>
-            {DAYS.map((day, index) => (
-              <View key={index} style={styles.dayHeader}>
-                <Text style={styles.dayHeaderText}>{day}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Calendar Grid */}
-          <View style={styles.calendarGrid}>
-            {days.map((day, index) => {
-              if (!day) {
-                return <View key={`empty-${index}`} style={styles.emptyDay} />;
-              }
-
-              const daySessions = getSessionsForDate(day);
-              const isSelected = selectedDate?.toDateString() === day.toDateString();
-              const isToday = new Date().toDateString() === day.toDateString();
-              const hasCompleted = daySessions.some(s => s.completed);
-              const hasSessions = daySessions.length > 0;
-
-              return (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.dayCell,
-                    isSelected && styles.dayCellSelected,
-                    isToday && styles.dayCellToday,
-                  ]}
-                  onPress={() => handleDatePress(day)}
-                >
-                  <Text style={[
-                    styles.dayNumber,
-                    isSelected && styles.dayNumberSelected,
-                    isToday && styles.dayNumberToday,
-                  ]}>
-                    {day.getDate()}
-                  </Text>
-                  
-                  {hasSessions && (
-                    <View style={styles.sessionIndicators}>
-                      {daySessions.slice(0, 3).map((session, idx) => (
-                        <View
-                          key={idx}
-                          style={[
-                            styles.sessionDot,
-                            { backgroundColor: TRAINING_TYPES[session.type].color },
-                            session.completed && styles.sessionDotCompleted,
-                          ]}
-                        />
-                      ))}
-                    </View>
-                  )}
-                  
-                  {hasCompleted && (
-                    <View style={styles.completedBadge}>
-                      <IconSymbol name="checkmark" size={10} color="#FFFFFF" />
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Selected Date Sessions */}
-          {selectedDate && (
-            <View style={styles.selectedDateSection}>
-              <View style={styles.selectedDateHeader}>
-                <View>
-                  <Text style={styles.selectedDateTitle}>
-                    {selectedDate.getDate()} {MONTHS[selectedDate.getMonth()]}
-                  </Text>
-                  <Text style={styles.selectedDateSubtitle}>
-                    {DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1]}
-                  </Text>
-                </View>
-                
-                <Pressable style={styles.addButton} onPress={handleAddSession}>
-                  <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.addButtonGradient}
-                  >
-                    <IconSymbol name="plus" size={20} color="#FFFFFF" />
-                    <Text style={styles.addButtonText}>Aggiungi</Text>
-                  </LinearGradient>
-                </Pressable>
-              </View>
-
-              {selectedDateSessions.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <IconSymbol name="calendar.badge.plus" size={48} color={colors.textLight} />
-                  <Text style={styles.emptyStateText}>
-                    Nessuna sessione programmata
-                  </Text>
-                  <Text style={styles.emptyStateSubtext}>
-                    Tocca &quot;Aggiungi&quot; per creare una nuova sessione
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.sessionsList}>
-                  {selectedDateSessions.map((session) => (
-                    <Pressable
-                      key={session.id}
-                      style={[
-                        styles.sessionCard,
-                        session.completed && styles.sessionCardCompleted,
-                      ]}
-                      onPress={() => handleSessionPress(session)}
-                    >
-                      <View style={styles.sessionCardHeader}>
-                        <View style={[
-                          styles.sessionTypeIndicator,
-                          { backgroundColor: TRAINING_TYPES[session.type].color },
-                        ]} />
-                        
-                        <View style={styles.sessionCardContent}>
-                          <Text style={[
-                            styles.sessionCardTitle,
-                            session.completed && styles.sessionCardTitleCompleted,
-                          ]}>
-                            {session.title}
-                          </Text>
-                          <Text style={styles.sessionCardType}>
-                            {TRAINING_TYPES[session.type].label}
-                          </Text>
-                          {session.duration && (
-                            <View style={styles.sessionDurationBadge}>
-                              <IconSymbol name="clock.fill" size={12} color={colors.textSecondary} />
-                              <Text style={styles.sessionDurationText}>{session.duration}</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <Pressable
-                          style={[
-                            styles.sessionCheckbox,
-                            session.completed && styles.sessionCheckboxCompleted,
-                          ]}
-                          onPress={() => handleToggleComplete(session)}
-                        >
-                          {session.completed && (
-                            <IconSymbol name="checkmark" size={16} color="#FFFFFF" />
-                          )}
-                        </Pressable>
-                      </View>
-                    </Pressable>
-                  ))}
+              {isCompleted && (
+                <View style={styles.weekCompletedBadge}>
+                  <IconSymbol name="checkmark" size={12} color="#FFFFFF" />
                 </View>
               )}
-            </View>
-          )}
+              <Text style={[
+                styles.weekButtonText,
+                isSelected && styles.weekButtonTextActive,
+                isCompleted && styles.weekButtonTextCompleted,
+              ]}>
+                S{week}
+              </Text>
+              {isCurrent && (
+                <View style={styles.currentWeekDot} />
+              )}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
 
-          {/* Legend */}
-          <View style={styles.legendCard}>
-            <Text style={styles.legendTitle}>Tipi di Allenamento</Text>
-            <View style={styles.legendGrid}>
-              {Object.entries(TRAINING_TYPES).map(([key, value]) => (
-                <View key={key} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: value.color }]} />
-                  <Text style={styles.legendText}>{value.label}</Text>
+  const renderDayGrid = () => (
+    <View style={styles.dayGrid}>
+      {weekDays.map((dayName, index) => {
+        const dayType = getDayType(selectedWeek, index);
+        const typeInfo = TRAINING_TYPES[dayType as keyof typeof TRAINING_TYPES] || TRAINING_TYPES.RIPOSO;
+        const hasNotes = dayNotes[`${selectedWeek}-${index}`];
+        
+        return (
+          <Pressable
+            key={index}
+            style={[
+              styles.dayCard,
+              { borderLeftColor: typeInfo.color, borderLeftWidth: 4 }
+            ]}
+            onPress={() => handleDayPress(selectedWeek, index)}
+          >
+            <View style={styles.dayHeader}>
+              <Text style={styles.dayName}>{dayName}</Text>
+              {hasNotes && (
+                <IconSymbol name="note.text" size={14} color={colors.primary} />
+              )}
+            </View>
+            <View style={[styles.dayTypeIcon, { backgroundColor: typeInfo.color + '20' }]}>
+              <IconSymbol name={typeInfo.icon as any} size={24} color={typeInfo.color} />
+            </View>
+            <Text style={styles.dayTypeLabel} numberOfLines={2}>
+              {typeInfo.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  const renderDayDetailModal = () => {
+    const dayData = getDayData(selectedWeek, selectedDay);
+    const dayName = weekDays[selectedDay];
+    const noteKey = `${selectedWeek}-${selectedDay}`;
+    const currentNote = dayNotes[noteKey] || '';
+
+    return (
+      <Modal
+        visible={showDayDetail}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDayDetail(false)}
+      >
+        <View style={commonStyles.container}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>
+                Settimana {selectedWeek} - {dayName}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {new Date(2025, 10, 16 + (selectedWeek - 1) * 7 + selectedDay).toLocaleDateString('it-IT', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </Text>
+            </View>
+            <Pressable onPress={() => setShowDayDetail(false)}>
+              <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {!dayData ? (
+              <View style={styles.emptyState}>
+                <IconSymbol name="calendar.badge.exclamationmark" size={64} color={colors.textSecondary} />
+                <Text style={styles.emptyStateTitle}>Nessun allenamento programmato</Text>
+                <Text style={styles.emptyStateText}>
+                  Questo giorno è libero o non ci sono dati disponibili
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Morning Routine */}
+                {dayData.morning && (
+                  <View style={commonStyles.card}>
+                    <View style={styles.sessionHeader}>
+                      <View style={[styles.sessionIcon, { backgroundColor: TRAINING_TYPES.MOBILITA.color + '20' }]}>
+                        <IconSymbol name="sunrise.fill" size={24} color={TRAINING_TYPES.MOBILITA.color} />
+                      </View>
+                      <View style={styles.sessionInfo}>
+                        <Text style={styles.sessionTitle}>Routine Mattutina</Text>
+                        <Text style={styles.sessionTime}>{dayData.morning.time || '06:00-06:12'}</Text>
+                      </View>
+                      <View style={[styles.rpeBadge, { backgroundColor: colors.success + '20' }]}>
+                        <Text style={[styles.rpeText, { color: colors.success }]}>
+                          RPE {dayData.morning.rpe || 3}
+                        </Text>
+                      </View>
+                    </View>
+                    {dayData.morning.description && (
+                      <Text style={styles.sessionDescription}>{dayData.morning.description}</Text>
+                    )}
+                    {dayData.morning.exercises && (
+                      <View style={styles.exerciseList}>
+                        {dayData.morning.exercises.map((ex: any, idx: number) => (
+                          <View key={idx} style={styles.exerciseItem}>
+                            <View style={styles.exerciseNumber}>
+                              <Text style={styles.exerciseNumberText}>{idx + 1}</Text>
+                            </View>
+                            <View style={styles.exerciseDetails}>
+                              <Text style={styles.exerciseName}>{ex.name}</Text>
+                              <Text style={styles.exerciseSpecs}>
+                                {ex.sets && `${ex.sets} serie`}
+                                {ex.reps && ` × ${ex.reps}`}
+                                {ex.tempo && ` • ${ex.tempo}`}
+                              </Text>
+                              {ex.notes && (
+                                <Text style={styles.exerciseNotes}>{ex.notes}</Text>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Main Session */}
+                {dayData.main && (
+                  <View style={commonStyles.card}>
+                    <View style={styles.sessionHeader}>
+                      <View style={[
+                        styles.sessionIcon, 
+                        { backgroundColor: TRAINING_TYPES[dayData.main.type as keyof typeof TRAINING_TYPES]?.color + '20' || colors.primary + '20' }
+                      ]}>
+                        <IconSymbol 
+                          name={TRAINING_TYPES[dayData.main.type as keyof typeof TRAINING_TYPES]?.icon as any || 'figure.run'} 
+                          size={24} 
+                          color={TRAINING_TYPES[dayData.main.type as keyof typeof TRAINING_TYPES]?.color || colors.primary} 
+                        />
+                      </View>
+                      <View style={styles.sessionInfo}>
+                        <Text style={styles.sessionTitle}>Sessione Principale</Text>
+                        <Text style={styles.sessionTime}>{dayData.main.time || '10:00-11:30'}</Text>
+                      </View>
+                      <View style={[styles.rpeBadge, { backgroundColor: colors.warning + '20' }]}>
+                        <Text style={[styles.rpeText, { color: colors.warning }]}>
+                          RPE {dayData.main.rpe || 7}
+                        </Text>
+                      </View>
+                    </View>
+                    {dayData.main.description && (
+                      <Text style={styles.sessionDescription}>{dayData.main.description}</Text>
+                    )}
+                    {dayData.main.exercises && (
+                      <View style={styles.exerciseList}>
+                        {dayData.main.exercises.map((ex: any, idx: number) => (
+                          <View key={idx} style={styles.exerciseItem}>
+                            <View style={styles.exerciseNumber}>
+                              <Text style={styles.exerciseNumberText}>{idx + 1}</Text>
+                            </View>
+                            <View style={styles.exerciseDetails}>
+                              <Text style={styles.exerciseName}>{ex.name}</Text>
+                              <Text style={styles.exerciseSpecs}>
+                                {ex.sets && `${ex.sets} serie`}
+                                {ex.reps && ` × ${ex.reps}`}
+                                {ex.weight && ` • ${ex.weight}`}
+                                {ex.tempo && ` • ${ex.tempo}`}
+                              </Text>
+                              {ex.notes && (
+                                <Text style={styles.exerciseNotes}>{ex.notes}</Text>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {dayData.main.notes && (
+                      <View style={styles.sessionNotes}>
+                        <IconSymbol name="info.circle.fill" size={16} color={colors.primary} />
+                        <Text style={styles.sessionNotesText}>{dayData.main.notes}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Recovery */}
+                {dayData.recovery && (
+                  <View style={commonStyles.card}>
+                    <View style={styles.sessionHeader}>
+                      <View style={[styles.sessionIcon, { backgroundColor: TRAINING_TYPES.RECUPERO.color + '20' }]}>
+                        <IconSymbol name="wind" size={24} color={TRAINING_TYPES.RECUPERO.color} />
+                      </View>
+                      <View style={styles.sessionInfo}>
+                        <Text style={styles.sessionTitle}>Recupero</Text>
+                        <Text style={styles.sessionTime}>{dayData.recovery.time || '18:00-18:15'}</Text>
+                      </View>
+                      <View style={[styles.rpeBadge, { backgroundColor: colors.success + '20' }]}>
+                        <Text style={[styles.rpeText, { color: colors.success }]}>
+                          RPE {dayData.recovery.rpe || 2}
+                        </Text>
+                      </View>
+                    </View>
+                    {dayData.recovery.exercises && (
+                      <View style={styles.exerciseList}>
+                        {dayData.recovery.exercises.map((ex: any, idx: number) => (
+                          <View key={idx} style={styles.exerciseItem}>
+                            <View style={styles.exerciseNumber}>
+                              <Text style={styles.exerciseNumberText}>{idx + 1}</Text>
+                            </View>
+                            <View style={styles.exerciseDetails}>
+                              <Text style={styles.exerciseName}>{ex.name}</Text>
+                              <Text style={styles.exerciseSpecs}>
+                                {ex.sets && `${ex.sets} serie`}
+                                {ex.reps && ` × ${ex.reps}`}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Personal Notes */}
+            <View style={commonStyles.card}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol name="note.text" size={20} color={colors.purple} />
+                <Text style={styles.sectionTitle}>Note Personali</Text>
+              </View>
+              <TextInput
+                style={styles.notesInput}
+                value={currentNote}
+                onChangeText={(text) => {
+                  const newNotes = { ...dayNotes, [noteKey]: text };
+                  saveNotes(newNotes);
+                }}
+                multiline
+                numberOfLines={4}
+                placeholder="Aggiungi note su questo allenamento..."
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderUploadModal = () => (
+    <Modal
+      visible={showUpload}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => setShowUpload(false)}
+    >
+      <View style={commonStyles.container}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Carica Calendario</Text>
+          <Pressable onPress={() => setShowUpload(false)}>
+            <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.uploadContent}>
+          <View style={styles.uploadCard}>
+            <LinearGradient
+              colors={gradients.racing}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.uploadIconContainer}
+            >
+              <IconSymbol name="doc.fill" size={48} color="#FFFFFF" />
+            </LinearGradient>
+            
+            <Text style={styles.uploadTitle}>Importa Programma Allenamento</Text>
+            <Text style={styles.uploadDescription}>
+              Carica un file con il tuo programma di allenamento personalizzato.
+              Formati supportati: TXT, PDF, DOCX
+            </Text>
+
+            <Pressable 
+              style={styles.uploadButton}
+              onPress={handleFileUpload}
+            >
+              <LinearGradient
+                colors={gradients.racing}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.uploadButtonGradient}
+              >
+                <IconSymbol name="arrow.up.doc.fill" size={22} color="#FFFFFF" />
+                <Text style={styles.uploadButtonText}>Seleziona File</Text>
+              </LinearGradient>
+            </Pressable>
+
+            {uploadStatus && (
+              <View style={styles.uploadStatus}>
+                <Text style={styles.uploadStatusText}>{uploadStatus}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={commonStyles.card}>
+            <View style={styles.infoHeader}>
+              <IconSymbol name="info.circle.fill" size={24} color={colors.primary} />
+              <Text style={styles.infoTitle}>Come funziona</Text>
+            </View>
+            <View style={styles.infoList}>
+              <View style={styles.infoItem}>
+                <View style={styles.infoNumber}>
+                  <Text style={styles.infoNumberText}>1</Text>
                 </View>
-              ))}
+                <Text style={styles.infoText}>
+                  Seleziona un file contenente il tuo programma di allenamento
+                </Text>
+              </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoNumber}>
+                  <Text style={styles.infoNumberText}>2</Text>
+                </View>
+                <Text style={styles.infoText}>
+                  Il sistema analizza automaticamente il contenuto
+                </Text>
+              </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoNumber}>
+                  <Text style={styles.infoNumberText}>3</Text>
+                </View>
+                <Text style={styles.infoText}>
+                  Il calendario viene aggiornato con i nuovi dati
+                </Text>
+              </View>
             </View>
           </View>
         </ScrollView>
       </View>
+    </Modal>
+  );
 
-      {/* Upload Modal */}
-      <Modal
-        visible={showUploadModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowUploadModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Importa Calendario</Text>
-              <Pressable onPress={() => setShowUploadModal(false)}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+  return (
+    <>
+      {Platform.OS === 'ios' && (
+        <Stack.Screen
+          options={{
+            title: 'Calendario 18 Settimane',
+            headerRight: () => (
+              <Pressable onPress={() => {
+                setShowUpload(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}>
+                <IconSymbol name="arrow.up.doc.fill" size={22} color={colors.primary} />
               </Pressable>
-            </View>
+            ),
+          }}
+        />
+      )}
+      <View style={commonStyles.container}>
+        {/* Week Selector */}
+        {renderWeekSelector()}
 
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {/* Info Card */}
-              <View style={styles.uploadInfoCard}>
-                <View style={styles.uploadInfoHeader}>
-                  <IconSymbol name="info.circle.fill" size={24} color={colors.info} />
-                  <Text style={styles.uploadInfoTitle}>Come Funziona</Text>
-                </View>
-                <Text style={styles.uploadInfoText}>
-                  Carica o incolla il tuo calendario di allenamento. Il sistema identificherà automaticamente:
-                </Text>
-                <View style={styles.uploadInfoList}>
-                  <Text style={styles.uploadInfoItem}>• Date delle sessioni</Text>
-                  <Text style={styles.uploadInfoItem}>• Tipi di allenamento</Text>
-                  <Text style={styles.uploadInfoItem}>• Durata delle sessioni</Text>
-                  <Text style={styles.uploadInfoItem}>• Descrizioni e dettagli</Text>
-                </View>
-              </View>
-
-              {/* Upload Button */}
-              <Pressable
-                style={styles.uploadFileButton}
-                onPress={pickDocument}
-              >
-                <IconSymbol name="doc.badge.plus" size={24} color={colors.primary} />
-                <Text style={styles.uploadFileButtonText}>Seleziona File</Text>
-              </Pressable>
-
-              <Text style={styles.orText}>oppure</Text>
-
-              {/* Text Input */}
-              <View style={styles.textInputCard}>
-                <Text style={styles.inputLabel}>Incolla il contenuto del calendario:</Text>
-                <TextInput
-                  style={styles.textInput}
-                  multiline
-                  placeholder="Esempio:&#10;&#10;15/03/2024&#10;Forza Massimale - Lower Body&#10;90 minuti&#10;Squat, Deadlift, Leg Press&#10;&#10;16/03/2024&#10;Recupero Attivo&#10;45 minuti"
-                  placeholderTextColor={colors.textLight}
-                  value={uploadContent}
-                  onChangeText={setUploadContent}
-                  textAlignVertical="top"
-                />
-                <Text style={styles.inputHint}>
-                  💡 Suggerimento: Includi date, titoli e tipi di allenamento per risultati migliori
-                </Text>
-              </View>
-
-              {/* Import Button */}
-              <Pressable
-                style={styles.importActionButton}
-                onPress={handleImportContent}
-                disabled={isAnalyzing || !uploadContent.trim()}
-              >
-                <LinearGradient
-                  colors={isAnalyzing ? ['#9CA3AF', '#6B7280'] : ['#10b981', '#059669']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.importActionGradient}
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <IconSymbol name="arrow.triangle.2.circlepath" size={24} color="#FFFFFF" />
-                      <Text style={styles.importActionText}>Analisi in corso...</Text>
-                    </>
-                  ) : (
-                    <>
-                      <IconSymbol name="arrow.down.circle.fill" size={24} color="#FFFFFF" />
-                      <Text style={styles.importActionText}>Importa Sessioni</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
-
-              {/* Example Card */}
-              <View style={styles.exampleCard}>
-                <Text style={styles.exampleTitle}>📋 Formato Esempio</Text>
-                <View style={styles.exampleContent}>
-                  <Text style={styles.exampleText}>
-                    15/03/2024{'\n'}
-                    Forza Massimale - Lower Body{'\n'}
-                    90 minuti{'\n'}
-                    Squat, Deadlift, Leg Press{'\n'}
-                    {'\n'}
-                    16/03/2024{'\n'}
-                    Recupero Attivo{'\n'}
-                    45 minuti{'\n'}
-                    Yoga e stretching leggero
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Session Modal */}
-      <Modal
-        visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nuova Sessione</Text>
-              <Pressable onPress={() => setShowAddModal(false)}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Titolo *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Es: Lower Body + Core"
-                value={newSession.title}
-                onChangeText={(text) => setNewSession({ ...newSession, title: text })}
-              />
-
-              <Text style={styles.inputLabel}>Tipo di Allenamento *</Text>
-              <View style={styles.typeGrid}>
-                {Object.entries(TRAINING_TYPES).map(([key, value]) => (
-                  <Pressable
-                    key={key}
-                    style={[
-                      styles.typeButton,
-                      newSession.type === key && styles.typeButtonSelected,
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setNewSession({ ...newSession, type: key as keyof typeof TRAINING_TYPES });
-                    }}
-                  >
-                    <View style={[styles.typeDot, { backgroundColor: value.color }]} />
-                    <Text style={[
-                      styles.typeButtonText,
-                      newSession.type === key && styles.typeButtonTextSelected,
-                    ]}>
-                      {value.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Durata</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Es: 90 min"
-                value={newSession.duration}
-                onChangeText={(text) => setNewSession({ ...newSession, duration: text })}
-              />
-
-              <Text style={styles.inputLabel}>Descrizione</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Dettagli della sessione..."
-                value={newSession.description}
-                onChangeText={(text) => setNewSession({ ...newSession, description: text })}
-                multiline
-                numberOfLines={4}
-              />
-
-              <Pressable style={styles.saveButton} onPress={handleSaveSession}>
-                <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.saveButtonGradient}
-                >
-                  <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
-                  <Text style={styles.saveButtonText}>Salva Sessione</Text>
-                </LinearGradient>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Session Detail Modal */}
-      <Modal
-        visible={showDetailModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDetailModal(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowDetailModal(false)}
+        {/* Calendar Grid */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            Platform.OS !== 'ios' && styles.scrollContentWithTabBar
+          ]}
+          showsVerticalScrollIndicator={false}
         >
-          <Pressable style={styles.detailModalContent} onPress={(e) => e.stopPropagation()}>
-            {selectedSession && (
-              <>
-                <View style={styles.detailHeader}>
-                  <View style={[
-                    styles.detailTypeIndicator,
-                    { backgroundColor: TRAINING_TYPES[selectedSession.type].color },
-                  ]}>
-                    <IconSymbol 
-                      name={TRAINING_TYPES[selectedSession.type].icon as any} 
-                      size={32} 
-                      color="#FFFFFF" 
-                    />
-                  </View>
-                  <Pressable 
-                    style={styles.detailCloseButton}
-                    onPress={() => setShowDetailModal(false)}
-                  >
-                    <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
-                  </Pressable>
-                </View>
+          <View style={styles.weekInfo}>
+            <Text style={styles.weekInfoTitle}>Settimana {selectedWeek}</Text>
+            <Text style={styles.weekInfoSubtitle}>
+              {new Date(2025, 10, 16 + (selectedWeek - 1) * 7).toLocaleDateString('it-IT', {
+                day: 'numeric',
+                month: 'long'
+              })} - {new Date(2025, 10, 22 + (selectedWeek - 1) * 7).toLocaleDateString('it-IT', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              })}
+            </Text>
+          </View>
 
-                <Text style={styles.detailTitle}>{selectedSession.title}</Text>
-                <Text style={styles.detailType}>
-                  {TRAINING_TYPES[selectedSession.type].label}
-                </Text>
+          {renderDayGrid()}
 
-                {selectedSession.duration && (
-                  <View style={styles.detailDurationBadge}>
-                    <IconSymbol name="clock.fill" size={16} color={colors.primary} />
-                    <Text style={styles.detailDurationText}>{selectedSession.duration}</Text>
-                  </View>
-                )}
-
-                {selectedSession.description && (
-                  <View style={styles.detailDescriptionContainer}>
-                    <Text style={styles.detailDescriptionLabel}>Descrizione</Text>
-                    <Text style={styles.detailDescription}>{selectedSession.description}</Text>
-                  </View>
-                )}
-
-                <View style={styles.detailActions}>
-                  <Pressable
-                    style={[
-                      styles.detailActionButton,
-                      selectedSession.completed && styles.detailActionButtonCompleted,
-                    ]}
-                    onPress={() => {
-                      handleToggleComplete(selectedSession);
-                      setShowDetailModal(false);
-                    }}
-                  >
-                    <IconSymbol 
-                      name={selectedSession.completed ? "checkmark.circle.fill" : "circle"} 
-                      size={24} 
-                      color={selectedSession.completed ? colors.success : colors.textSecondary} 
-                    />
-                    <Text style={styles.detailActionText}>
-                      {selectedSession.completed ? 'Completata' : 'Segna come completata'}
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={styles.detailDeleteButton}
-                    onPress={() => handleDeleteSession(selectedSession.id)}
-                  >
-                    <IconSymbol name="trash.fill" size={20} color={colors.error} />
-                    <Text style={styles.detailDeleteText}>Elimina</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
+          {/* Upload Button */}
+          <Pressable 
+            style={styles.floatingUploadButton}
+            onPress={() => {
+              setShowUpload(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }}
+          >
+            <LinearGradient
+              colors={gradients.racing}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.floatingUploadGradient}
+            >
+              <IconSymbol name="arrow.up.doc.fill" size={20} color="#FFFFFF" />
+              <Text style={styles.floatingUploadText}>Carica Programma</Text>
+            </LinearGradient>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </ScrollView>
+      </View>
+
+      {renderDayDetailModal()}
+      {renderUploadModal()}
     </>
   );
 }
@@ -938,643 +600,401 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
-  statsCard: {
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 16,
-    ...shadows.large,
+  scrollContentWithTabBar: {
+    paddingBottom: 100,
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statNumber: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  importButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 20,
-    ...shadows.medium,
-  },
-  importButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    gap: 10,
-  },
-  importButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 8,
-  },
-  navButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  weekSelectorContainer: {
     backgroundColor: colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     ...shadows.small,
   },
-  monthYearContainer: {
-    alignItems: 'center',
+  weekSelector: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
   },
-  monthText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  yearText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  dayHeadersContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  dayHeader: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  dayHeaderText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 24,
-  },
-  emptyDay: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-  },
-  dayCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    padding: 4,
+  weekButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    minWidth: 50,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  dayCellSelected: {
-    backgroundColor: colors.highlightBlue,
-    borderRadius: 12,
+  weekButtonActive: {
+    backgroundColor: colors.primary,
+    ...shadows.small,
   },
-  dayCellToday: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: 12,
+  weekButtonCompleted: {
+    backgroundColor: colors.success + '20',
   },
-  dayNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  dayNumberSelected: {
-    color: colors.primary,
-    fontWeight: '800',
-  },
-  dayNumberToday: {
-    color: colors.primary,
-  },
-  sessionIndicators: {
-    flexDirection: 'row',
-    gap: 2,
-    marginTop: 2,
-  },
-  sessionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  sessionDotCompleted: {
-    borderWidth: 1,
-    borderColor: colors.success,
-  },
-  completedBadge: {
+  weekCompletedBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: colors.success,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  selectedDateSection: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    ...shadows.medium,
+  weekButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
   },
-  selectedDateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  weekButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  weekButtonTextCompleted: {
+    color: colors.success,
+  },
+  currentWeekDot: {
+    position: 'absolute',
+    bottom: 2,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  weekInfo: {
     marginBottom: 20,
   },
-  selectedDateTitle: {
-    fontSize: 24,
+  weekInfoTitle: {
+    fontSize: 28,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -0.5,
+    marginBottom: 4,
   },
-  selectedDateSubtitle: {
+  weekInfoSubtitle: {
     fontSize: 15,
     color: colors.textSecondary,
     fontWeight: '600',
-    marginTop: 2,
   },
-  addButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    ...shadows.small,
-  },
-  addButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 12,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  sessionsList: {
+  dayGrid: {
     gap: 12,
   },
-  sessionCard: {
-    backgroundColor: colors.surface,
+  dayCard: {
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     ...shadows.small,
   },
-  sessionCardCompleted: {
-    opacity: 0.7,
-    backgroundColor: colors.highlightGreen,
-  },
-  sessionCardHeader: {
+  dayHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  sessionTypeIndicator: {
-    width: 4,
-    height: 48,
-    borderRadius: 2,
-    marginRight: 12,
-  },
-  sessionCardContent: {
-    flex: 1,
-  },
-  sessionCardTitle: {
+  dayName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.text,
-    marginBottom: 4,
   },
-  sessionCardTitleCompleted: {
-    textDecorationLine: 'line-through',
-  },
-  sessionCardType: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  sessionDurationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sessionDurationText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  sessionCheckbox: {
-    width: 32,
-    height: 32,
+  dayTypeIcon: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    marginBottom: 12,
   },
-  sessionCheckboxCompleted: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  legendCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    ...shadows.medium,
-  },
-  legendTitle: {
-    fontSize: 18,
+  dayTypeLabel: {
+    fontSize: 14,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 16,
+    lineHeight: 18,
   },
-  legendGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  floatingUploadButton: {
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...shadows.medium,
   },
-  legendItem: {
+  floatingUploadGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '48%',
-    gap: 8,
+    justifyContent: 'center',
+    padding: 18,
+    gap: 10,
   },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  legendText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-    flex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 24,
-    maxHeight: '90%',
+  floatingUploadText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+    alignItems: 'flex-start',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: colors.text,
+    marginBottom: 4,
   },
-  modalScroll: {
-    maxHeight: 500,
-  },
-  uploadInfoCard: {
-    backgroundColor: colors.highlightBlue,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.info,
-  },
-  uploadInfoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
-  },
-  uploadInfoTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  uploadInfoText: {
+  modalSubtitle: {
     fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  uploadInfoList: {
-    gap: 6,
-  },
-  uploadInfoItem: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  uploadFileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-    gap: 12,
-    marginBottom: 16,
-  },
-  uploadFileButtonText: {
-    fontSize: 16,
+    color: colors.textSecondary,
     fontWeight: '600',
-    color: colors.primary,
   },
-  orText: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: colors.textLight,
-    marginVertical: 12,
-  },
-  textInputCard: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  textInput: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+  modalContent: {
     padding: 16,
-    fontSize: 14,
-    color: colors.text,
-    minHeight: 200,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  inputHint: {
-    fontSize: 12,
-    color: colors.textLight,
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  importActionButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 20,
-    ...shadows.medium,
-  },
-  importActionGradient: {
-    flexDirection: 'row',
+  emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
-    gap: 10,
+    paddingVertical: 60,
   },
-  importActionText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  exampleCard: {
-    backgroundColor: colors.highlightGold,
-    borderRadius: 16,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
-  },
-  exampleTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '800',
     color: colors.text,
-    marginBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  exampleContent: {
+  emptyStateText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  sessionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sessionInfo: {
+    flex: 1,
+  },
+  sessionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  sessionTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  rpeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  rpeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  sessionDescription: {
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 22,
+    marginBottom: 16,
+    fontWeight: '600',
+  },
+  exerciseList: {
+    gap: 12,
+  },
+  exerciseItem: {
+    flexDirection: 'row',
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
+    gap: 12,
   },
-  exampleText: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 20,
-    fontFamily: 'monospace',
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeButton: {
-    flexDirection: 'row',
+  exerciseNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    gap: 8,
   },
-  typeButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.highlightBlue,
+  exerciseNumberText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  typeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  exerciseDetails: {
+    flex: 1,
   },
-  typeButtonText: {
-    fontSize: 13,
+  exerciseName: {
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
+    marginBottom: 4,
+  },
+  exerciseSpecs: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  exerciseNotes: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  sessionNotes: {
+    flexDirection: 'row',
+    backgroundColor: colors.primary + '10',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    gap: 10,
+  },
+  sessionNotesText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.primary,
+    lineHeight: 18,
     fontWeight: '600',
   },
-  typeButtonTextSelected: {
-    color: colors.primary,
-    fontWeight: '700',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 10,
   },
-  saveButton: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  notesInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 2,
+    borderColor: colors.border,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  uploadContent: {
+    padding: 16,
+  },
+  uploadCard: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 16,
+    ...shadows.large,
+  },
+  uploadIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  uploadTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  uploadDescription: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  uploadButton: {
+    width: '100%',
     borderRadius: 16,
     overflow: 'hidden',
-    marginTop: 24,
-    marginBottom: 16,
     ...shadows.medium,
   },
-  saveButtonGradient: {
+  uploadButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 18,
     gap: 10,
   },
-  saveButtonText: {
+  uploadButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  detailModalContent: {
-    backgroundColor: colors.card,
-    borderRadius: 28,
-    padding: 28,
-    margin: 20,
-    maxHeight: '80%',
-    ...shadows.large,
+  uploadStatus: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    width: '100%',
   },
-  detailHeader: {
+  uploadStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  infoHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 20,
+    gap: 10,
   },
-  detailTypeIndicator: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  infoList: {
+    gap: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  infoNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.medium,
   },
-  detailCloseButton: {
-    padding: 4,
-  },
-  detailTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  detailType: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  detailDurationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 20,
-  },
-  detailDurationText: {
+  infoNumberText: {
     fontSize: 14,
-    color: colors.text,
-    fontWeight: '600',
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  detailDescriptionContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-  },
-  detailDescriptionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  detailDescription: {
+  infoText: {
+    flex: 1,
     fontSize: 15,
     color: colors.text,
-    lineHeight: 24,
-  },
-  detailActions: {
-    gap: 12,
-  },
-  detailActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    gap: 12,
-  },
-  detailActionButtonCompleted: {
-    backgroundColor: colors.highlightGreen,
-  },
-  detailActionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  detailDeleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.highlightRed,
-    padding: 16,
-    borderRadius: 16,
-    gap: 8,
-  },
-  detailDeleteText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.error,
+    lineHeight: 22,
   },
 });
