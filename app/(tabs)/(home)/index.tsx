@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useTheme } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Animated } from 'react-native';
-import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
+import { colors, commonStyles, shadows, gradients, spacing, borderRadius, typography } from '@/styles/commonStyles';
 import { Stack, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
@@ -21,6 +21,7 @@ interface FeatureSection {
   title: string;
   description: string;
   icon: string;
+  color: string;
   items: QuickActionCard[];
 }
 
@@ -63,12 +64,13 @@ export default function HomeScreen() {
     </Pressable>
   );
 
-  // Organized feature sections
+  // Organized feature sections with color coding
   const sections: FeatureSection[] = [
     {
       title: 'Allenamento Quotidiano',
       description: 'Routine e sessioni giornaliere',
       icon: 'figure.run',
+      color: colors.warning,
       items: [
         {
           title: 'Routine Mattutina',
@@ -91,6 +93,7 @@ export default function HomeScreen() {
       title: 'Preparazione & Recupero',
       description: 'Protocolli pre e post allenamento',
       icon: 'heart.circle.fill',
+      color: colors.success,
       items: [
         {
           title: 'Riscaldamento',
@@ -120,12 +123,20 @@ export default function HomeScreen() {
           gradient: gradients.purple,
           route: '/foam-rolling',
         },
+        {
+          title: 'Mobilità',
+          subtitle: 'Esercizi mobilità',
+          icon: 'figure.flexibility',
+          gradient: gradients.ocean,
+          route: '/mobility',
+        },
       ],
     },
     {
       title: 'Monitoraggio & Analisi',
       description: 'Traccia le tue prestazioni',
       icon: 'chart.line.uptrend.xyaxis',
+      color: colors.primary,
       items: [
         {
           title: 'Controllo Prontezza',
@@ -150,12 +161,20 @@ export default function HomeScreen() {
           route: '/red-flags',
           badge: 'ALERT',
         },
+        {
+          title: 'Traguardi',
+          subtitle: 'Record personali',
+          icon: 'trophy.fill',
+          gradient: gradients.gold,
+          route: '/achievements',
+        },
       ],
     },
     {
       title: 'Strumenti Professionali',
       description: 'Suite avanzata per piloti',
       icon: 'wrench.and.screwdriver.fill',
+      color: colors.info,
       items: [
         {
           title: 'Timer Multi-Intervallo',
@@ -199,6 +218,7 @@ export default function HomeScreen() {
       title: 'Tecnologie Avanzate',
       description: 'AI e analisi biomeccanica',
       icon: 'sparkles',
+      color: colors.accent,
       items: [
         {
           title: 'Analisi Video AI',
@@ -237,6 +257,7 @@ export default function HomeScreen() {
       title: 'Benessere & Performance',
       description: 'Mente e corpo al massimo',
       icon: 'brain.head.profile',
+      color: colors.purple,
       items: [
         {
           title: 'Allenamento Mentale',
@@ -315,8 +336,13 @@ export default function HomeScreen() {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
-                <IconSymbol name="bolt.fill" size={24} color={colors.racingGold} />
-                <Text style={styles.sectionTitle}>Accesso Rapido</Text>
+                <View style={[styles.sectionIconContainer, { backgroundColor: colors.racingGold + '20' }]}>
+                  <IconSymbol name="bolt.fill" size={20} color={colors.racingGold} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Accesso Rapido</Text>
+                  <Text style={styles.sectionDescription}>Le funzioni più utilizzate</Text>
+                </View>
               </View>
             </View>
             <View style={styles.quickAccessGrid}>
@@ -391,8 +417,10 @@ export default function HomeScreen() {
             <View key={sectionIndex} style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionHeaderLeft}>
-                  <IconSymbol name={section.icon as any} size={24} color={colors.primary} />
-                  <View>
+                  <View style={[styles.sectionIconContainer, { backgroundColor: section.color + '20' }]}>
+                    <IconSymbol name={section.icon as any} size={20} color={section.color} />
+                  </View>
+                  <View style={styles.sectionHeaderText}>
                     <Text style={styles.sectionTitle}>{section.title}</Text>
                     <Text style={styles.sectionDescription}>{section.description}</Text>
                   </View>
@@ -403,7 +431,10 @@ export default function HomeScreen() {
                 {section.items.map((item, itemIndex) => (
                   <Pressable
                     key={itemIndex}
-                    style={styles.featureCard}
+                    style={({ pressed }) => [
+                      styles.featureCard,
+                      pressed && styles.featureCardPressed,
+                    ]}
                     onPress={() => handlePress(item.route)}
                   >
                     <LinearGradient
@@ -423,7 +454,9 @@ export default function HomeScreen() {
                       <Text style={styles.featureTitle}>{item.title}</Text>
                       <Text style={styles.featureSubtitle}>{item.subtitle}</Text>
                     </View>
-                    <IconSymbol name="chevron.right" size={16} color={colors.textLight} />
+                    <View style={styles.featureArrow}>
+                      <IconSymbol name="chevron.right" size={16} color={colors.textLight} />
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -434,12 +467,20 @@ export default function HomeScreen() {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
-                <IconSymbol name="book.fill" size={24} color={colors.info} />
-                <Text style={styles.sectionTitle}>Riferimenti</Text>
+                <View style={[styles.sectionIconContainer, { backgroundColor: colors.info + '20' }]}>
+                  <IconSymbol name="book.fill" size={20} color={colors.info} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Riferimenti</Text>
+                  <Text style={styles.sectionDescription}>Guide e protocolli</Text>
+                </View>
               </View>
             </View>
             <Pressable
-              style={[commonStyles.card, styles.referenceCard]}
+              style={({ pressed }) => [
+                styles.referenceCard,
+                pressed && styles.referenceCardPressed,
+              ]}
               onPress={() => handlePress('/quick-reference')}
             >
               <View style={styles.referenceIconContainer}>
@@ -465,12 +506,12 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   heroCard: {
-    borderRadius: 28,
-    padding: 32,
-    marginBottom: 24,
+    borderRadius: borderRadius.xxl,
+    padding: spacing.xxxl,
+    marginBottom: spacing.xxl,
     alignItems: 'center',
     ...shadows.large,
   },
@@ -481,30 +522,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    ...typography.title,
+    color: colors.textInverse,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   heroSubtitle: {
-    fontSize: 15,
+    ...typography.caption,
     color: 'rgba(255, 255, 255, 0.95)',
-    lineHeight: 22,
     textAlign: 'center',
-    fontWeight: '500',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   heroStats: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     width: '100%',
     justifyContent: 'space-around',
   },
@@ -515,13 +552,12 @@ const styles = StyleSheet.create({
   heroStatValue: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 4,
+    color: colors.textInverse,
+    marginBottom: spacing.xs,
   },
   heroStatLabel: {
-    fontSize: 12,
+    ...typography.small,
     color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
   },
   heroStatDivider: {
     width: 1,
@@ -529,84 +565,93 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   sectionContainer: {
-    marginBottom: 32,
+    marginBottom: spacing.xxxl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   sectionHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
+  },
+  sectionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHeaderText: {
+    flex: 1,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...typography.subtitle,
     color: colors.text,
-    letterSpacing: -0.5,
+    marginBottom: 2,
   },
   sectionDescription: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginTop: 2,
-    fontWeight: '500',
   },
   quickAccessGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   quickAccessCard: {
     flex: 1,
     minWidth: '47%',
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
     ...shadows.medium,
   },
   quickAccessGradient: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   quickAccessTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.heading,
     color: colors.text,
     marginBottom: 2,
     textAlign: 'center',
   },
   quickAccessSubtitle: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    fontWeight: '500',
     textAlign: 'center',
   },
   cardsGrid: {
-    gap: 12,
+    gap: spacing.md,
   },
   featureCard: {
     backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     ...shadows.medium,
   },
+  featureCardPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.98 }],
+  },
   featureGradient: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: spacing.md,
     position: 'relative',
   },
   featureBadge: {
@@ -616,64 +661,65 @@ const styles = StyleSheet.create({
     backgroundColor: colors.racingGold,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: borderRadius.xs,
     borderWidth: 2,
     borderColor: colors.card,
   },
   featureBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
+    ...typography.tiny,
     color: colors.racingBlack,
-    letterSpacing: 0.5,
   },
   featureContent: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.heading,
     color: colors.text,
-    marginBottom: 3,
-    letterSpacing: -0.2,
+    marginBottom: 2,
   },
   featureSubtitle: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    fontWeight: '500',
+  },
+  featureArrow: {
+    marginLeft: spacing.sm,
   },
   referenceCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.highlightBlue,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    ...shadows.medium,
+  },
+  referenceCardPressed: {
+    opacity: 0.7,
   },
   referenceIconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.info + '20',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   referenceContent: {
     flex: 1,
   },
   referenceTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...typography.heading,
     color: colors.text,
-    marginBottom: 6,
-    letterSpacing: -0.3,
+    marginBottom: spacing.xs,
   },
   referenceDescription: {
-    fontSize: 14,
+    ...typography.caption,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
   headerButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.surface,
