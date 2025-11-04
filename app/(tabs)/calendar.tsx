@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
 
 const STORAGE_KEY = '@moto3_calendar_data';
 
@@ -43,8 +44,11 @@ export default function CalendarScreen() {
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [newSession, setNewSession] = useState<Partial<TrainingSession>>({});
+  const [uploadContent, setUploadContent] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     loadSessions();
@@ -67,6 +71,220 @@ export default function CalendarScreen() {
       setSessions(newSessions);
     } catch (error) {
       console.log('Error saving calendar data:', error);
+    }
+  };
+
+  const parseCalendarContent = (text: string): TrainingSession[] => {
+    const parsedSessions: TrainingSession[] = [];
+    const lines = text.split('\n');
+    
+    let currentDate: string | null = null;
+    let currentSession: Partial<TrainingSession> = {};
+    
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      
+      // Detect date patterns (various formats)
+      const datePatterns = [
+        /(\d{1,2})\/(\d{1,2})\/(\d{4})/,  // DD/MM/YYYY
+        /(\d{4})-(\d{1,2})-(\d{1,2})/,    // YYYY-MM-DD
+        /(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i,
+        /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})/i,
+      ];
+      
+      let dateMatch = null;
+      for (const pattern of datePatterns) {
+        dateMatch = trimmed.match(pattern);
+        if (dateMatch) break;
+      }
+      
+      if (dateMatch) {
+        // Save previous session if exists
+        if (currentDate && currentSession.title) {
+          parsedSessions.push({
+            id: `imported_${Date.now()}_${Math.random()}`,
+            date: currentDate,
+            type: currentSession.type || 'TECNICO',
+            title: currentSession.title,
+            description: currentSession.description,
+            duration: currentSession.duration,
+            completed: false,
+          } as TrainingSession);
+        }
+        
+        // Parse new date
+        if (dateMatch[0].includes('-')) {
+          // YYYY-MM-DD format
+          currentDate = dateMatch[0];
+        } else if (dateMatch[0].includes('/')) {
+          // DD/MM/YYYY format
+          const [, day, month, year] = dateMatch;
+          currentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        } else {
+          // Use current year and try to parse month/day
+          const today = new Date();
+          const monthNames = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 
+                             'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+          const monthMatch = trimmed.toLowerCase().match(new RegExp(monthNames.join('|')));
+          if (monthMatch) {
+            const monthIndex = monthNames.indexOf(monthMatch[0]);
+            const dayMatch = trimmed.match(/\d{1,2}/);
+            if (dayMatch) {
+              const day = dayMatch[0];
+              currentDate = `${today.getFullYear()}-${String(monthIndex + 1).padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+          }
+        }
+        
+        currentSession = {};
+        return;
+      }
+      
+      // Detect training type
+      const typeKeywords = {
+        FORZA_MAX: ['forza massimale', 'forza max', 'max strength', 'strength'],
+        POTENZA: ['potenza', 'power', 'esplosiv'],
+        RESISTENZA: ['resistenza', 'endurance', 'cardio', 'aerobic'],
+        TECNICO: ['tecnico', 'technical', 'skill', 'abilità'],
+        MOBILITA: ['mobilità', 'mobility', 'flessibilità', 'flexibility', 'stretching'],
+        RECUPERO: ['recupero', 'recovery', 'active recovery'],
+        RIPOSO: ['riposo', 'rest', 'off'],
+        DELOAD: ['deload', 'scarico'],
+        GARA: ['gara', 'race', 'competizione', 'competition'],
+      };
+      
+      for (const [type, keywords] of Object.entries(typeKeywords)) {
+        if (keywords.some(keyword => trimmed.toLowerCase().includes(keyword))) {
+          currentSession.type = type as keyof typeof TRAINING_TYPES;
+          break;
+        }
+      }
+      
+      // Detect duration
+      const durationMatch = trimmed.match(/(\d+)\s*(min|minuti|ore|hours|h)/i);
+      if (durationMatch) {
+        currentSession.duration = durationMatch[0];
+      }
+      
+      // If line looks like a title (short, capitalized, or has special markers)
+      const isTitle = 
+        /^[A-Z]/.test(trimmed) ||
+        /^[-•]\s*/.test(trimmed) ||
+        /^\d+\.\s*/.test(trimmed);
+      
+      if (isTitle && trimmed.length < 100 && !currentSession.title) {
+        currentSession.title = trimmed
+          .replace(/^[-•]\s*/, '')
+          .replace(/^\d+\.\s*/, '')
+          .trim();
+      } else if (currentSession.title && trimmed.length > 0) {
+        // Add to description
+        currentSession.description = currentSession.description 
+          ? `${currentSession.description}\n${trimmed}`
+          : trimmed;
+      }
+    });
+    
+    // Save last session
+    if (currentDate && currentSession.title) {
+      parsedSessions.push({
+        id: `imported_${Date.now()}_${Math.random()}`,
+        date: currentDate,
+        type: currentSession.type || 'TECNICO',
+        title: currentSession.title,
+        description: currentSession.description,
+        duration: currentSession.duration,
+        completed: false,
+      } as TrainingSession);
+    }
+    
+    return parsedSessions;
+  };
+
+  const handleImportContent = () => {
+    if (!uploadContent.trim()) {
+      Alert.alert('Errore', 'Inserisci del contenuto da importare');
+      return;
+    }
+    
+    setIsAnalyzing(true);
+    
+    setTimeout(() => {
+      const newSessions = parseCalendarContent(uploadContent);
+      
+      if (newSessions.length === 0) {
+        Alert.alert(
+          'Nessuna Sessione Trovata',
+          'Non sono state trovate sessioni valide nel contenuto. Assicurati di includere date e titoli delle sessioni.'
+        );
+        setIsAnalyzing(false);
+        return;
+      }
+      
+      // Merge with existing sessions (avoid duplicates by date+title)
+      const mergedSessions = [...sessions];
+      let addedCount = 0;
+      let updatedCount = 0;
+      
+      newSessions.forEach(newSession => {
+        const existingIndex = mergedSessions.findIndex(
+          s => s.date === newSession.date && 
+               s.title.toLowerCase() === newSession.title.toLowerCase()
+        );
+        
+        if (existingIndex >= 0) {
+          // Update existing session
+          mergedSessions[existingIndex] = {
+            ...mergedSessions[existingIndex],
+            ...newSession,
+            id: mergedSessions[existingIndex].id, // Keep original ID
+            completed: mergedSessions[existingIndex].completed, // Keep completion status
+          };
+          updatedCount++;
+        } else {
+          // Add new session
+          mergedSessions.push(newSession);
+          addedCount++;
+        }
+      });
+      
+      saveSessions(mergedSessions);
+      setUploadContent('');
+      setShowUploadModal(false);
+      setIsAnalyzing(false);
+      
+      Alert.alert(
+        'Importazione Completata',
+        `✅ ${addedCount} nuove sessioni aggiunte\n🔄 ${updatedCount} sessioni aggiornate\n\nTotale sessioni: ${mergedSessions.length}`
+      );
+    }, 1000);
+  };
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'text/*',
+        copyToCacheDirectory: true,
+      });
+      
+      if (result.canceled) {
+        console.log('Document picking cancelled');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        console.log('File picked:', file.name);
+        
+        Alert.alert(
+          'File Selezionato',
+          `File: ${file.name}\n\nIncolla il contenuto del file nell'area di testo sottostante.`
+        );
+      }
+    } catch (error) {
+      console.log('Error picking document:', error);
+      Alert.alert('Errore', 'Impossibile selezionare il file');
     }
   };
 
@@ -223,6 +441,23 @@ export default function CalendarScreen() {
               </View>
             </View>
           </LinearGradient>
+
+          {/* Import Button */}
+          <Pressable
+            style={styles.importButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowUploadModal(true);
+            }}
+          >
+            <LinearGradient
+              colors={gradients.accent}
+              style={styles.importButtonGradient}
+            >
+              <IconSymbol name="arrow.down.doc.fill" size={24} color="#FFFFFF" />
+              <Text style={styles.importButtonText}>Importa Calendario</Text>
+            </LinearGradient>
+          </Pressable>
 
           {/* Calendar Navigation */}
           <View style={styles.calendarHeader}>
@@ -412,6 +647,114 @@ export default function CalendarScreen() {
         </ScrollView>
       </View>
 
+      {/* Upload Modal */}
+      <Modal
+        visible={showUploadModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowUploadModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Importa Calendario</Text>
+              <Pressable onPress={() => setShowUploadModal(false)}>
+                <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {/* Info Card */}
+              <View style={styles.uploadInfoCard}>
+                <View style={styles.uploadInfoHeader}>
+                  <IconSymbol name="info.circle.fill" size={24} color={colors.info} />
+                  <Text style={styles.uploadInfoTitle}>Come Funziona</Text>
+                </View>
+                <Text style={styles.uploadInfoText}>
+                  Carica o incolla il tuo calendario di allenamento. Il sistema identificherà automaticamente:
+                </Text>
+                <View style={styles.uploadInfoList}>
+                  <Text style={styles.uploadInfoItem}>• Date delle sessioni</Text>
+                  <Text style={styles.uploadInfoItem}>• Tipi di allenamento</Text>
+                  <Text style={styles.uploadInfoItem}>• Durata delle sessioni</Text>
+                  <Text style={styles.uploadInfoItem}>• Descrizioni e dettagli</Text>
+                </View>
+              </View>
+
+              {/* Upload Button */}
+              <Pressable
+                style={styles.uploadFileButton}
+                onPress={pickDocument}
+              >
+                <IconSymbol name="doc.badge.plus" size={24} color={colors.primary} />
+                <Text style={styles.uploadFileButtonText}>Seleziona File</Text>
+              </Pressable>
+
+              <Text style={styles.orText}>oppure</Text>
+
+              {/* Text Input */}
+              <View style={styles.textInputCard}>
+                <Text style={styles.inputLabel}>Incolla il contenuto del calendario:</Text>
+                <TextInput
+                  style={styles.textInput}
+                  multiline
+                  placeholder="Esempio:&#10;&#10;15/03/2024&#10;Forza Massimale - Lower Body&#10;90 minuti&#10;Squat, Deadlift, Leg Press&#10;&#10;16/03/2024&#10;Recupero Attivo&#10;45 minuti"
+                  placeholderTextColor={colors.textLight}
+                  value={uploadContent}
+                  onChangeText={setUploadContent}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.inputHint}>
+                  💡 Suggerimento: Includi date, titoli e tipi di allenamento per risultati migliori
+                </Text>
+              </View>
+
+              {/* Import Button */}
+              <Pressable
+                style={styles.importActionButton}
+                onPress={handleImportContent}
+                disabled={isAnalyzing || !uploadContent.trim()}
+              >
+                <LinearGradient
+                  colors={isAnalyzing ? ['#9CA3AF', '#6B7280'] : gradients.success}
+                  style={styles.importActionGradient}
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <IconSymbol name="arrow.triangle.2.circlepath" size={24} color="#FFFFFF" />
+                      <Text style={styles.importActionText}>Analisi in corso...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <IconSymbol name="arrow.down.circle.fill" size={24} color="#FFFFFF" />
+                      <Text style={styles.importActionText}>Importa Sessioni</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
+
+              {/* Example Card */}
+              <View style={styles.exampleCard}>
+                <Text style={styles.exampleTitle}>📋 Formato Esempio</Text>
+                <View style={styles.exampleContent}>
+                  <Text style={styles.exampleText}>
+                    15/03/2024{'\n'}
+                    Forza Massimale - Lower Body{'\n'}
+                    90 minuti{'\n'}
+                    Squat, Deadlift, Leg Press{'\n'}
+                    {'\n'}
+                    16/03/2024{'\n'}
+                    Recupero Attivo{'\n'}
+                    45 minuti{'\n'}
+                    Yoga e stretching leggero
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Add Session Modal */}
       <Modal
         visible={showAddModal}
@@ -592,7 +935,7 @@ const styles = StyleSheet.create({
   statsCard: {
     borderRadius: 20,
     padding: 24,
-    marginBottom: 20,
+    marginBottom: 16,
     ...shadows.large,
   },
   statsRow: {
@@ -619,6 +962,24 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  importButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    ...shadows.medium,
+  },
+  importButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 10,
+  },
+  importButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -911,12 +1272,130 @@ const styles = StyleSheet.create({
   modalScroll: {
     maxHeight: 500,
   },
+  uploadInfoCard: {
+    backgroundColor: colors.highlightBlue,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.info,
+  },
+  uploadInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  uploadInfoTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  uploadInfoText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  uploadInfoList: {
+    gap: 6,
+  },
+  uploadInfoItem: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  uploadFileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    gap: 12,
+    marginBottom: 16,
+  },
+  uploadFileButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  orText: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: colors.textLight,
+    marginVertical: 12,
+  },
+  textInputCard: {
+    marginBottom: 20,
+  },
   inputLabel: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
     marginTop: 16,
+  },
+  textInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 14,
+    color: colors.text,
+    minHeight: 200,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  importActionButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    ...shadows.medium,
+  },
+  importActionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    gap: 10,
+  },
+  importActionText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  exampleCard: {
+    backgroundColor: colors.highlightGold,
+    borderRadius: 16,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  exampleTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  exampleContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+  },
+  exampleText: {
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 20,
+    fontFamily: 'monospace',
   },
   input: {
     backgroundColor: colors.surface,
