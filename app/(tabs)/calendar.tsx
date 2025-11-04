@@ -600,7 +600,6 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
-    paddingTop: 24,
     paddingBottom: 32,
   },
   scrollContentWithTabBar: {
@@ -610,17 +609,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingTop: 8,
     ...shadows.small,
   },
   weekSelector: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     gap: 8,
   },
   weekButton: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: colors.surface,
     minWidth: 50,
@@ -666,8 +664,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   weekInfo: {
-    marginBottom: 24,
-    marginTop: 8,
+    marginBottom: 20,
   },
   weekInfoTitle: {
     fontSize: 28,
