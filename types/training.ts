@@ -4,7 +4,6 @@ export interface MorningRoutineItem {
   title: string;
   completed: boolean;
   time?: number;
-  description?: string;
 }
 
 export interface Exercise {
@@ -14,13 +13,12 @@ export interface Exercise {
   reps?: number;
   duration?: number;
   notes?: string;
-  description?: string;
 }
 
 export interface WorkoutSession {
   id: string;
   date: string;
-  type: 'warmup' | 'cooldown' | 'stretching' | 'foam-rolling' | 'mobility' | 'training';
+  type: 'warmup' | 'cooldown' | 'stretching' | 'foam-rolling' | 'training';
   exercises: Exercise[];
   duration: number;
   completed: boolean;
