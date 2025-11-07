@@ -87,6 +87,14 @@ export default function HomeScreen() {
           gradient: gradients.blue,
           route: '/(tabs)/calendar',
         },
+        {
+          title: 'Checklist Stampabili',
+          subtitle: 'Liste di controllo',
+          icon: 'list.clipboard.fill',
+          gradient: gradients.purple,
+          route: '/printable-checklists',
+          badge: 'NEW',
+        },
       ],
     },
     {
