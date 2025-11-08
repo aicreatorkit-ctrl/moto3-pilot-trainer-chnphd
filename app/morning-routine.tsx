@@ -1,20 +1,208 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import { defaultMorningRoutine } from '@/data/trainingData';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, commonStyles, shadows } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
 
-const STORAGE_KEY = '@moto3_custom_morning_routine';
+const STORAGE_KEY = '@morning_routine_progress';
+
+interface RoutineItem {
+  id: string;
+  title: string;
+  time: number;
+  completed: boolean;
+  category: string;
+  sets: string;
+  description: string;
+}
+
+const MOBILITY_12MIN_ROUTINE: RoutineItem[] = [
+  {
+    id: 'cat-cow',
+    title: 'Cat-Cow',
+    time: 90,
+    completed: false,
+    category: 'mobilità',
+    sets: '2×15 reps',
+    description: `TIMING: 90 secondi totali | 3" per fase
+
+SETUP:
+• Posizione quadrupedia
+• Mani larghezza spalle, ginocchia larghezza anche
+• Schiena neutra iniziale
+
+ESECUZIONE:
+COW (Estensione):
+• INSPIRA 3": Pancia giù, petto avanti, testa su
+• Focus mobilità TORACICA (NO iperestensione lombare)
+
+CAT (Flessione):
+• ESPIRA 3": Retroversione MASSIMA, schiena arco
+• Ombelico verso colonna, glutei squeeze
+• Testa verso ombelico
+
+RESPIRAZIONE:
+Box 4-0-4: Inspira 3" nasale, espira 3" bocca
+
+FOCUS:
+• Retroversione CAT massimale (obiettivo primario)
+• Movimento fluido vertebra per vertebra
+• Velocità costante 3" per fase`
+  },
+  {
+    id: 'childs-pose',
+    title: "Child's Pose",
+    time: 90,
+    completed: false,
+    category: 'mobilità',
+    sets: '2×45"',
+    description: `TIMING: 90 secondi totali | 2×45" hold
+
+SETUP:
+• Seduto su talloni
+• Braccia estese avanti
+• Fronte a terra
+• Glutei cercano talloni
+
+ESECUZIONE:
+• Hold statico 45"
+• Respirazione Box 4-2-4
+• Ogni espira: Sink più profondo
+• Focus decompressione lombare`
+  },
+  {
+    id: 'glute-bridge',
+    title: 'Glute Bridge',
+    time: 90,
+    completed: false,
+    category: 'mobilità',
+    sets: '2×12 reps',
+    description: `TIMING: 90 secondi totali | Hold 2" per rep
+
+SETUP:
+• Supino, piedi vicino glutei
+• Ginocchia 90°
+• Schiena PIATTA
+
+ESECUZIONE:
+FASE 1 - Retroversione PRE-movimento
+FASE 2 - Salita (2"): Glutei guidano
+FASE 3 - Hold top (2"): Glutei squeeze MASSIMO
+FASE 4 - Discesa (2"): Controllato
+
+FOCUS:
+• Glutei attivazione 9/10
+• Lombari OFF (deprogrammazione estensori)
+• Retroversione costante`
+  },
+  {
+    id: 'psoas-stretch',
+    title: 'Psoas Stretch',
+    time: 160,
+    completed: false,
+    category: 'mobilità',
+    sets: '2×40"/lato',
+    description: `TIMING: 160 secondi totali | 40" per lato × 2 serie
+
+SETUP:
+• Affondo, ginocchio posteriore a terra
+• Torso VERTICALE
+• Retroversione attiva
+
+ESECUZIONE:
+• Spingi bacino AVANTI e BASSO
+• Mantieni retroversione (CRITICO!)
+• Hold 40" con respirazione 4-2-4
+
+FOCUS:
+• Psoas stretch gamba posteriore
+• Retroversione ATTIVA
+• Intensità 6-7/10`
+  },
+  {
+    id: 'plank-hold',
+    title: 'Plank Hold',
+    time: 125,
+    completed: false,
+    category: 'core',
+    sets: '2×40" rec 45"',
+    description: `TIMING: 125 secondi totali | 2×40" + recupero 45"
+
+SETUP:
+• Avambracci, gomiti sotto spalle
+• Corpo linea retta
+• Piedi larghezza anche
+
+ESECUZIONE:
+FASE 1 - Attivazione:
+• Retroversione bacino MASSIMA
+• Glutei squeeze 9/10
+• POI solleva ginocchia
+
+FASE 2 - Hold 40":
+• Retroversione LOCKED
+• Glutei costanti 8-9/10
+• Respirazione Box 4-2-4
+
+STOP SE:
+• Lombare estende → STOP immediato`
+  },
+  {
+    id: 'dead-bug',
+    title: 'Dead Bug',
+    time: 100,
+    completed: false,
+    category: 'core',
+    sets: '2×8/lato rec 45"',
+    description: `TIMING: 100 secondi totali | 2×8 per lato + recupero 45"
+
+SETUP:
+• Supino, schiena PIATTA
+• Ginocchia 90°, braccia estese su
+
+ESECUZIONE:
+• INSPIRA: Setup lombare piatta
+• ESPIRA 4": Extend braccio DX + gamba SX
+• Lombare RESTA PIATTA (critico)
+• INSPIRA: Return
+
+FOCUS:
+• Dissociazione anca-colonna
+• Lombare piatta 100% reps
+• Espirazione forzata`
+  },
+  {
+    id: 'bird-dog',
+    title: 'Bird Dog',
+    time: 125,
+    completed: false,
+    category: 'core',
+    sets: '2×6/lato rec 45"',
+    description: `TIMING: 125 secondi totali | 2×6 per lato + recupero 45"
+
+SETUP:
+• Quadrupedia
+• Schiena neutra PIATTA
+• Core pre-attivato
+
+ESECUZIONE:
+FASE 1 - Extend (4"): Simultaneo braccio + gamba opposta
+FASE 2 - Hold (2"): Linea retta
+FASE 3 - Return (4"): Controllato
+
+FOCUS:
+• Schiena RIGIDA
+• Stabilità anti-rotazione
+• Controllo massimo`
+  }
+];
 
 export default function MorningRoutineScreen() {
-  const router = useRouter();
-  const [routine, setRoutine] = useState(defaultMorningRoutine);
-  const [selectedItem, setSelectedItem] = useState<typeof defaultMorningRoutine[0] | null>(null);
+  const [routine, setRoutine] = useState<RoutineItem[]>(MOBILITY_12MIN_ROUTINE);
+  const [selectedItem, setSelectedItem] = useState<RoutineItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
@@ -25,354 +213,421 @@ export default function MorningRoutineScreen() {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setRoutine(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        const merged = MOBILITY_12MIN_ROUTINE.map(defaultItem => {
+          const storedItem = parsed.find((item: RoutineItem) => item.id === defaultItem.id);
+          return storedItem ? { ...defaultItem, completed: storedItem.completed } : defaultItem;
+        });
+        setRoutine(merged);
       }
     } catch (error) {
-      console.log('Error loading morning routine:', error);
+      console.log('Error loading routine:', error);
+    }
+  };
+
+  const saveRoutine = async (newRoutine: RoutineItem[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newRoutine));
+    } catch (error) {
+      console.log('Error saving routine:', error);
     }
   };
 
   const toggleItem = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setRoutine(routine.map(item => 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newRoutine = routine.map(item => 
       item.id === id ? { ...item, completed: !item.completed } : item
-    ));
+    );
+    setRoutine(newRoutine);
+    saveRoutine(newRoutine);
   };
 
-  const showDetails = (item: typeof defaultMorningRoutine[0]) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedItem(item);
-    setShowDetailModal(true);
+  const resetRoutine = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const resetRoutine = routine.map(item => ({ ...item, completed: false }));
+    setRoutine(resetRoutine);
+    saveRoutine(resetRoutine);
   };
 
   const completedCount = routine.filter(item => item.completed).length;
   const progress = (completedCount / routine.length) * 100;
+  const totalMinutes = Math.floor(routine.reduce((sum, item) => sum + item.time, 0) / 60);
+
+  const mobilityExercises = routine.filter(item => item.category === 'mobilità');
+  const coreExercises = routine.filter(item => item.category === 'core');
 
   return (
-    <>
-      <Stack.Screen
+    <View style={styles.container}>
+      <Stack.Screen 
         options={{
-          title: 'Mattutina di Routine',
-          presentation: 'card',
-        }}
+          title: 'Mobilità 12 Min',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTintColor: '#fff',
+        }} 
       />
-      <View style={commonStyles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <LinearGradient
+          colors={['#8B5CF6', '#EC4899']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
         >
-          {/* Enhanced Progress Header */}
-          <LinearGradient
-            colors={gradients.sunset}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.progressCard}
-          >
-            <View style={styles.progressIconContainer}>
-              <IconSymbol name="sunrise.fill" size={40} color="#FFFFFF" />
+          <Text style={styles.headerIcon}>💪</Text>
+          <Text style={styles.headerTitle}>Mobilità 12 Min</Text>
+          <Text style={styles.headerSubtitle}>Protocollo Anti-Iperlordosi Lombare</Text>
+          
+          <View style={styles.progressBarContainer}>
+            <View style={[styles.progressBar, { width: `${progress}%` }]} />
+          </View>
+          
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{completedCount}</Text>
+              <Text style={styles.statLabel}>Completati</Text>
             </View>
-            <Text style={styles.progressTitle}>Routine Mattutina</Text>
-            <Text style={styles.progressSubtitle}>
-              Il fondamento della tua giornata di allenamento
-            </Text>
-            
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBg}>
-                <LinearGradient
-                  colors={['#FFFFFF', 'rgba(255, 255, 255, 0.8)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.progressBarFill, { width: `${progress}%` }]}
-                />
-              </View>
-              <View style={styles.progressStats}>
-                <View style={styles.progressStatItem}>
-                  <Text style={styles.progressStatNumber}>{completedCount}</Text>
-                  <Text style={styles.progressStatLabel}>Completati</Text>
-                </View>
-                <View style={styles.progressDivider} />
-                <View style={styles.progressStatItem}>
-                  <Text style={styles.progressStatNumber}>{routine.length}</Text>
-                  <Text style={styles.progressStatLabel}>Totali</Text>
-                </View>
-                <View style={styles.progressDivider} />
-                <View style={styles.progressStatItem}>
-                  <Text style={styles.progressStatNumber}>{Math.round(progress)}%</Text>
-                  <Text style={styles.progressStatLabel}>Progresso</Text>
-                </View>
-              </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{routine.length}</Text>
+              <Text style={styles.statLabel}>Esercizi</Text>
             </View>
-          </LinearGradient>
-
-          {/* Enhanced Info Card */}
-          <View style={[commonStyles.card, styles.infoCard]}>
-            <View style={styles.infoIconWrapper}>
-              <LinearGradient
-                colors={gradients.blue}
-                style={styles.infoIconGradient}
-              >
-                <IconSymbol name="info.circle.fill" size={24} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>Perché è Importante</Text>
-              <Text style={styles.infoText}>
-                La routine mattutina stabilisce il tono della giornata, monitora il recupero 
-                e prepara corpo e mente per prestazioni ottimali. Ogni elemento è essenziale 
-                per massimizzare le tue performance in pista.
-              </Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{totalMinutes}'</Text>
+              <Text style={styles.statLabel}>Durata</Text>
             </View>
           </View>
+        </LinearGradient>
 
-          {/* Enhanced Checklist */}
-          <View style={styles.checklistSection}>
-            <Text style={styles.sectionTitle}>Checklist Mattutina</Text>
-            <Text style={styles.sectionSubtitle}>
-              Completa tutti gli elementi entro 45 minuti dal risveglio
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoIcon}>⚠️</Text>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Target: Iperlordosi 4° → &lt;2/10</Text>
+            <Text style={styles.infoText}>
+              Routine specifica correzione iperlordosi lombare SEVERA. 
+              Enfasi retroversione bacino, attivazione glutei, deprogrammazione estensori lombari.
             </Text>
+          </View>
+        </View>
 
-            {routine.map((item, index) => (
-              <Pressable
-                key={item.id}
-                style={[
-                  styles.routineCard,
-                  item.completed && styles.routineCardCompleted,
-                ]}
-                onPress={() => toggleItem(item.id)}
-              >
-                <View style={styles.routineHeader}>
-                  <View style={styles.routineLeft}>
-                    <View style={styles.routineNumberBadge}>
-                      <Text style={styles.routineNumberText}>{index + 1}</Text>
-                    </View>
-                    <Pressable
-                      style={[
-                        styles.checkbox,
-                        item.completed && styles.checkboxChecked,
-                      ]}
-                      onPress={() => toggleItem(item.id)}
-                    >
-                      {item.completed && (
-                        <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
-                      )}
-                    </Pressable>
-                  </View>
-                  
-                  <View style={styles.routineContent}>
-                    <Text style={[
-                      styles.routineTitle,
-                      item.completed && styles.routineTitleCompleted,
-                    ]}>
-                      {item.title}
-                    </Text>
-                    {item.time && (
-                      <View style={styles.routineTimeContainer}>
-                        <IconSymbol name="clock.fill" size={14} color={colors.primary} />
-                        <Text style={styles.routineTime}>
-                          {Math.floor(item.time / 60)} minuti
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <Pressable 
-                    style={styles.infoButton}
-                    onPress={() => showDetails(item)}
-                  >
-                    <View style={styles.infoButtonCircle}>
-                      <IconSymbol name="info.circle.fill" size={24} color={colors.info} />
-                    </View>
-                  </Pressable>
-                </View>
+        {/* PARTE 1: MOBILITÀ */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionBadge}>
+              <Text style={styles.sectionBadgeText}>PARTE 1</Text>
+            </View>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>Mobilità Anti-Iperlordosi</Text>
+              <Text style={styles.sectionSubtitle}>7 minuti • 4 esercizi</Text>
+            </View>
+            {completedCount > 0 && (
+              <Pressable style={styles.resetButton} onPress={resetRoutine}>
+                <Text style={styles.resetButtonText}>🔄</Text>
               </Pressable>
-            ))}
+            )}
           </View>
 
-          {/* Enhanced Tips Card */}
-          <View style={[commonStyles.card, styles.tipsCard]}>
-            <View style={styles.tipsHeader}>
-              <LinearGradient
-                colors={gradients.warning}
-                style={styles.tipsIconGradient}
-              >
-                <IconSymbol name="lightbulb.fill" size={22} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.tipsTitle}>Suggerimenti Chiave</Text>
-            </View>
-            <View style={styles.tipsList}>
-              {[
-                'Completa la routine entro 30-45 minuti dal risveglio',
-                'Mantieni costanza negli orari (stesso orario ogni giorno)',
-                'Annota eventuali anomalie o sensazioni inusuali',
-                'L\'idratazione è prioritaria: inizia subito',
-                'Usa i dati raccolti per adattare l\'allenamento',
-              ].map((tip, index) => (
-                <View key={index} style={styles.tipItem}>
-                  <View style={styles.tipBullet}>
-                    <View style={styles.tipBulletInner} />
-                  </View>
-                  <Text style={styles.tipText}>{tip}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Complete Button */}
-          <Pressable 
-            style={[
-              styles.completeButton,
-              completedCount === routine.length && styles.completeButtonActive,
-            ]}
-            disabled={completedCount !== routine.length}
-            onPress={() => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              router.back();
-            }}
-          >
-            <LinearGradient
-              colors={completedCount === routine.length ? gradients.success : ['#9CA3AF', '#6B7280']}
-              style={styles.completeButtonGradient}
+          {mobilityExercises.map((item, index) => (
+            <View
+              key={item.id}
+              style={[
+                styles.exerciseCard,
+                item.completed && styles.exerciseCardCompleted
+              ]}
             >
-              <IconSymbol 
-                name={completedCount === routine.length ? "checkmark.seal.fill" : "circle"} 
-                size={28} 
-                color="#FFFFFF" 
-              />
-              <Text style={styles.completeButtonText}>
-                {completedCount === routine.length ? 'Routine Completata!' : 'Completa tutti gli elementi'}
-              </Text>
-            </LinearGradient>
-          </Pressable>
-        </ScrollView>
-      </View>
+              <View style={styles.exerciseContent}>
+                <View style={styles.exerciseNumber}>
+                  <Text style={styles.exerciseNumberText}>{index + 1}</Text>
+                </View>
+                
+                <Pressable
+                  style={[
+                    styles.checkbox,
+                    item.completed && styles.checkboxChecked
+                  ]}
+                  onPress={() => toggleItem(item.id)}
+                >
+                  {item.completed && <Text style={styles.checkmark}>✓</Text>}
+                </Pressable>
+                
+                <View style={styles.exerciseInfo}>
+                  <Text style={[
+                    styles.exerciseTitle,
+                    item.completed && styles.exerciseTitleCompleted
+                  ]}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.exerciseMeta}>
+                    <Text style={styles.exerciseMetaText}>
+                      ⏱️ {Math.floor(item.time / 60)}'
+                    </Text>
+                    <Text style={styles.exerciseMetaText}>
+                      📊 {item.sets}
+                    </Text>
+                  </View>
+                </View>
 
-      {/* Enhanced Modal */}
+                <Pressable
+                  style={styles.infoButton}
+                  onPress={() => {
+                    setSelectedItem(item);
+                    setShowDetailModal(true);
+                  }}
+                >
+                  <Text style={styles.infoButtonText}>ℹ️</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* PARTE 2: CORE */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionBadge, { backgroundColor: '#EF4444' }]}>
+              <Text style={styles.sectionBadgeText}>PARTE 2</Text>
+            </View>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>Core Anti-Estensione</Text>
+              <Text style={styles.sectionSubtitle}>5 minuti • 3 esercizi</Text>
+            </View>
+          </View>
+
+          {coreExercises.map((item, index) => (
+            <View
+              key={item.id}
+              style={[
+                styles.exerciseCard,
+                item.completed && styles.exerciseCardCompleted
+              ]}
+            >
+              <View style={styles.exerciseContent}>
+                <View style={[styles.exerciseNumber, { backgroundColor: '#EF4444' }]}>
+                  <Text style={styles.exerciseNumberText}>{index + 5}</Text>
+                </View>
+                
+                <Pressable
+                  style={[
+                    styles.checkbox,
+                    item.completed && styles.checkboxChecked
+                  ]}
+                  onPress={() => toggleItem(item.id)}
+                >
+                  {item.completed && <Text style={styles.checkmark}>✓</Text>}
+                </Pressable>
+                
+                <View style={styles.exerciseInfo}>
+                  <Text style={[
+                    styles.exerciseTitle,
+                    item.completed && styles.exerciseTitleCompleted
+                  ]}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.exerciseMeta}>
+                    <Text style={styles.exerciseMetaText}>
+                      ⏱️ {Math.floor(item.time / 60)}'
+                    </Text>
+                    <Text style={styles.exerciseMetaText}>
+                      📊 {item.sets}
+                    </Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  style={styles.infoButton}
+                  onPress={() => {
+                    setSelectedItem(item);
+                    setShowDetailModal(true);
+                  }}
+                >
+                  <Text style={styles.infoButtonText}>ℹ️</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Principi */}
+        <View style={styles.principlesCard}>
+          <View style={styles.principlesHeader}>
+            <Text style={styles.principlesIcon}>🛡️</Text>
+            <Text style={styles.principlesTitle}>Principi NON Negoziabili</Text>
+          </View>
+          <Text style={styles.principleItem}>
+            • <Text style={styles.principleBold}>RETROVERSIONE</Text> attiva in OGNI esercizio (fondamentale)
+          </Text>
+          <Text style={styles.principleItem}>
+            • <Text style={styles.principleBold}>Glutei</Text> attivazione 8-9/10 costante
+          </Text>
+          <Text style={styles.principleItem}>
+            • <Text style={styles.principleBold}>ZERO dolore</Text> durante esecuzione → STOP immediato
+          </Text>
+          <Text style={styles.principleItem}>
+            • <Text style={styles.principleBold}>Respirazione</Text> Box 4-2-4 (no apnea)
+          </Text>
+          <Text style={styles.principleItem}>
+            • <Text style={styles.principleBold}>Lombare piatta</Text> 100% tempo (se arch = STOP)
+          </Text>
+        </View>
+
+        {/* Complete Button */}
+        <Pressable
+          style={[
+            styles.completeButton,
+            completedCount === routine.length && styles.completeButtonActive
+          ]}
+          disabled={completedCount !== routine.length}
+          onPress={() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }}
+        >
+          <Text style={styles.completeButtonText}>
+            {completedCount === routine.length 
+              ? '✅ Routine Completata! 💪' 
+              : `Completa ${routine.length - completedCount} esercizi`}
+          </Text>
+        </Pressable>
+      </ScrollView>
+
+      {/* Detail Modal */}
       <Modal
         visible={showDetailModal}
-        transparent
-        animationType="fade"
+        animationType="slide"
+        transparent={true}
         onRequestClose={() => setShowDetailModal(false)}
       >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowDetailModal(false)}
-        >
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedItem?.title}</Text>
-              <Pressable 
-                style={styles.modalCloseButton}
-                onPress={() => setShowDetailModal(false)}
-              >
-                <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            <ScrollView 
-              style={styles.modalScroll}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.modalDescription}>
-                {selectedItem?.description || 'Nessuna descrizione disponibile.'}
-              </Text>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedItem && (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{selectedItem.title}</Text>
+                  <Pressable
+                    style={styles.modalCloseButton}
+                    onPress={() => setShowDetailModal(false)}
+                  >
+                    <Text style={styles.modalCloseText}>✕</Text>
+                  </Pressable>
+                </View>
+                
+                <View style={styles.modalMeta}>
+                  <Text style={styles.modalMetaText}>
+                    ⏱️ {Math.floor(selectedItem.time / 60)} min
+                  </Text>
+                  <Text style={styles.modalMetaText}>
+                    📊 {selectedItem.sets}
+                  </Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>
+                      {selectedItem.category.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Text style={styles.modalDescription}>
+                    {selectedItem.description}
+                  </Text>
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
       </Modal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
   },
-  progressCard: {
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  header: {
     borderRadius: 24,
-    padding: 28,
-    marginBottom: 20,
+    padding: 32,
+    marginBottom: 24,
     alignItems: 'center',
     ...shadows.large,
   },
-  progressIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerIcon: {
+    fontSize: 48,
     marginBottom: 16,
   },
-  progressTitle: {
-    fontSize: 26,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-    letterSpacing: -0.5,
+    color: '#fff',
+    marginBottom: 8,
   },
-  progressSubtitle: {
+  headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
+    color: '#fff',
+    opacity: 0.9,
     marginBottom: 24,
-    paddingHorizontal: 20,
+    textAlign: 'center',
   },
   progressBarContainer: {
     width: '100%',
-  },
-  progressBarBg: {
     height: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderRadius: 5,
     overflow: 'hidden',
     marginBottom: 16,
   },
-  progressBarFill: {
+  progressBar: {
     height: '100%',
+    backgroundColor: '#fff',
     borderRadius: 5,
   },
-  progressStats: {
+  statsRow: {
     flexDirection: 'row',
+    width: '100%',
     justifyContent: 'space-around',
     alignItems: 'center',
   },
-  progressStatItem: {
-    alignItems: 'center',
+  statBox: {
     flex: 1,
+    alignItems: 'center',
   },
-  progressStatNumber: {
+  statValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#fff',
     marginBottom: 4,
   },
-  progressStatLabel: {
+  statLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: '#fff',
+    opacity: 0.85,
     fontWeight: '600',
   },
-  progressDivider: {
+  statDivider: {
     width: 1,
     height: 32,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   infoCard: {
     flexDirection: 'row',
-    marginBottom: 24,
-    backgroundColor: colors.highlightBlue,
+    backgroundColor: '#FEF3C7',
     borderLeftWidth: 4,
-    borderLeftColor: colors.info,
+    borderLeftColor: '#F59E0B',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    gap: 16,
   },
-  infoIconWrapper: {
-    marginRight: 16,
-  },
-  infoIconGradient: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+  infoIcon: {
+    fontSize: 32,
   },
   infoContent: {
     flex: 1,
@@ -380,188 +635,185 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.text,
+    color: '#1f2937',
     marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
-    color: colors.text,
-    lineHeight: 22,
+    color: '#374151',
+    lineHeight: 20,
   },
-  checklistSection: {
-    marginBottom: 24,
+  section: {
+    marginBottom: 32,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 16,
   },
-  routineCard: {
-    backgroundColor: colors.card,
+  sectionBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+  },
+  sectionBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  sectionTitleContainer: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  resetButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.small,
+  },
+  resetButtonText: {
+    fontSize: 18,
+  },
+  exerciseCard: {
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    ...shadows.small,
     borderWidth: 2,
     borderColor: 'transparent',
+    ...shadows.small,
   },
-  routineCardCompleted: {
-    backgroundColor: colors.highlightGreen,
-    borderColor: colors.success,
+  exerciseCardCompleted: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#10B981',
     opacity: 0.7,
   },
-  routineHeader: {
+  exerciseContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  routineLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  routineNumberBadge: {
+  exerciseNumber: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
+    backgroundColor: '#8B5CF6',
     alignItems: 'center',
-    marginRight: 10,
+    justifyContent: 'center',
     ...shadows.small,
   },
-  routineNumberText: {
+  exerciseNumberText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#fff',
   },
   checkbox: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 2.5,
-    borderColor: colors.primary,
-    justifyContent: 'center',
+    borderColor: '#3b82f6',
+    backgroundColor: '#fff',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
-  routineContent: {
+  checkmark: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  exerciseInfo: {
     flex: 1,
   },
-  routineTitle: {
+  exerciseTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-    lineHeight: 22,
+    color: '#1f2937',
+    marginBottom: 6,
   },
-  routineTitleCompleted: {
+  exerciseTitleCompleted: {
     textDecorationLine: 'line-through',
-    color: colors.textSecondary,
+    color: '#6b7280',
   },
-  routineTimeContainer: {
+  exerciseMeta: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    gap: 12,
   },
-  routineTime: {
+  exerciseMetaText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: '#6b7280',
     fontWeight: '500',
   },
   infoButton: {
-    padding: 4,
+    padding: 8,
   },
-  infoButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+  infoButtonText: {
+    fontSize: 24,
   },
-  tipsCard: {
-    backgroundColor: colors.highlightGold,
+  principlesCard: {
+    backgroundColor: '#FEE2E2',
     borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
-    marginBottom: 20,
+    borderLeftColor: '#DC2626',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
   },
-  tipsHeader: {
+  principlesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 16,
   },
-  tipsIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  principlesIcon: {
+    fontSize: 32,
   },
-  tipsTitle: {
+  principlesTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.text,
+    color: '#1f2937',
   },
-  tipsList: {
-    gap: 12,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  tipBullet: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 149, 0, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    marginTop: 2,
-  },
-  tipBulletInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.warning,
-  },
-  tipText: {
-    flex: 1,
+  principleItem: {
     fontSize: 14,
-    color: colors.text,
-    lineHeight: 22,
+    color: '#374151',
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  principleBold: {
+    fontWeight: '700',
   },
   completeButton: {
+    padding: 18,
     borderRadius: 16,
-    overflow: 'hidden',
+    backgroundColor: '#9CA3AF',
+    alignItems: 'center',
     ...shadows.medium,
   },
-  completeButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    gap: 12,
-  },
   completeButtonActive: {
-    ...shadows.large,
+    backgroundColor: '#10B981',
   },
   completeButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    color: '#fff',
   },
   modalOverlay: {
     flex: 1,
@@ -569,20 +821,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.card,
+    backgroundColor: '#fff',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
     maxHeight: '85%',
-    ...shadows.large,
-  },
-  modalHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: colors.border,
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -593,20 +836,47 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
+    color: '#1f2937',
     flex: 1,
     marginRight: 12,
-    lineHeight: 28,
   },
   modalCloseButton: {
     padding: 4,
   },
-  modalScroll: {
-    maxHeight: 500,
+  modalCloseText: {
+    fontSize: 32,
+    color: '#6b7280',
+    lineHeight: 32,
+  },
+  modalMeta: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    flexWrap: 'wrap',
+  },
+  modalMetaText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  categoryBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  categoryBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3b82f6',
   },
   modalDescription: {
-    fontSize: 16,
-    color: colors.text,
-    lineHeight: 26,
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 22,
+    fontFamily: 'monospace',
   },
 });

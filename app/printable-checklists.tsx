@@ -1,1013 +1,723 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { IconSymbol } from '@/components/IconSymbol';
-import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, commonStyles, shadows, gradients, spacing, borderRadius, typography } from '@/styles/commonStyles';
+import { colors, commonStyles, shadows } from '@/styles/commonStyles';
+import * as Haptics from 'expo-haptics';
+
+const STORAGE_KEY = '@printable_checklists_progress';
 
 interface ChecklistItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
-interface Checklist {
-  id: string;
+  id: number;
   title: string;
-  category: 'pre-training' | 'post-training' | 'race-day' | 'weekly' | 'custom';
-  icon: string;
-  gradient: string[];
-  items: ChecklistItem[];
-  createdAt: string;
-  lastUsed?: string;
+  color: string;
+  items: string[];
 }
 
-const STORAGE_KEY = '@printable_checklists';
-
-const DEFAULT_CHECKLISTS: Checklist[] = [
+const CHECKLISTS: ChecklistItem[] = [
   {
-    id: 'pre-training',
-    title: 'Pre-Allenamento',
-    category: 'pre-training',
-    icon: 'checkmark.circle.fill',
-    gradient: gradients.racing,
-    createdAt: new Date().toISOString(),
+    id: 1,
+    title: 'Routine Mattutina 12\'',
+    color: '#FF6B6B',
     items: [
-      { id: '1', text: 'Controllo prontezza fisica', completed: false },
-      { id: '2', text: 'Idratazione (500ml acqua)', completed: false },
-      { id: '3', text: 'Riscaldamento dinamico (10 min)', completed: false },
-      { id: '4', text: 'Mobilità articolare', completed: false },
-      { id: '5', text: 'Attivazione muscolare', completed: false },
-      { id: '6', text: 'Controllo attrezzatura', completed: false },
-      { id: '7', text: 'Visualizzazione obiettivi', completed: false },
-      { id: '8', text: 'Respirazione e focus mentale', completed: false },
-    ],
+      'HRV misurata: ___ ms (baseline: ___ ms)',
+      'Rigidità lombare PRE: ___/10',
+      'Energia generale: ___/10',
+      'Sleep ore: ___ h',
+      'Cat-Cow 2×15 - Retroversione: ___/10',
+      'Child\'s Pose 2×45" - Stretch tollerabile',
+      'Glute Bridge 2×12 - Glutei attivi >8/10',
+      'Psoas Stretch 2×40" - Lato tight: DX/SX',
+      'Plank 2×40" - Forma OK, Lombare piatta',
+      'Dead Bug 2×8/lato - Lombare a terra',
+      'Bird Dog 2×6/lato - Schiena neutra',
+      'Rigidità lombare POST: ___/10 (Δ: ___)'
+    ]
   },
   {
-    id: 'post-training',
-    title: 'Post-Allenamento',
-    category: 'post-training',
-    icon: 'checkmark.shield.fill',
-    gradient: gradients.success,
-    createdAt: new Date().toISOString(),
+    id: 2,
+    title: 'Red Flags Decision Tree',
+    color: '#F59E0B',
     items: [
-      { id: '1', text: 'Raffreddamento attivo (10 min)', completed: false },
-      { id: '2', text: 'Stretching completo', completed: false },
-      { id: '3', text: 'Foam rolling', completed: false },
-      { id: '4', text: 'Idratazione (750ml)', completed: false },
-      { id: '5', text: 'Nutrizione post-workout', completed: false },
-      { id: '6', text: 'Doccia fredda/calda alternata', completed: false },
-      { id: '7', text: 'Registrazione dati allenamento', completed: false },
-      { id: '8', text: 'Valutazione RPE e note', completed: false },
-    ],
+      'HRV >55ms → GO | 50-55 → CAUTIOUS | 45-50 → EASY -30% | <45 → DELOAD',
+      'Rigidità 0-3 → GO | 4-5 → Routine 2× | 6-7 → SKIP gym | >7 → FISIO',
+      'Dolore 0 → GO | 1-2 → Reduce -20% | 3-4 → SKIP lower | >4 → OFF',
+      'Sleep >7h → GO | 6-7 → No finisher | 5-6 → EASY -30% | <5 → OFF',
+      'Energia 7-10 → GO | 5-6 → No finisher | 3-4 → EASY -50% | <3 → OFF',
+      'DECISIONE FINALE: FULL / MODIFY / EASY / OFF'
+    ]
   },
   {
-    id: 'race-day',
-    title: 'Giorno Gara',
-    category: 'race-day',
-    icon: 'flag.checkered.2.crossed',
-    gradient: gradients.championship,
-    createdAt: new Date().toISOString(),
+    id: 3,
+    title: 'Front Squat Form Check',
+    color: '#3B82F6',
     items: [
-      { id: '1', text: 'Colazione 3 ore prima', completed: false },
-      { id: '2', text: 'Controllo equipaggiamento completo', completed: false },
-      { id: '3', text: 'Riscaldamento specifico', completed: false },
-      { id: '4', text: 'Idratazione programmata', completed: false },
-      { id: '5', text: 'Visualizzazione tracciato', completed: false },
-      { id: '6', text: 'Routine mentale pre-gara', completed: false },
-      { id: '7', text: 'Controllo setup moto', completed: false },
-      { id: '8', text: 'Briefing tecnico', completed: false },
-      { id: '9', text: 'Attivazione neuromuscolare', completed: false },
-      { id: '10', text: 'Focus e concentrazione finale', completed: false },
-    ],
+      'SETUP: Bilanciere su deltoidi, gomiti ALTI',
+      'SETUP: Piedi larghezza anche, retroversione attiva',
+      'SETUP: Core braced, respiro profondo',
+      'DISCESA 3": Tronco VERTICALE (NO inclinazione)',
+      'DISCESA: Ginocchia tracking su punte, schiena PIATTA',
+      'DISCESA: Peso su talloni, gomiti ALTI mantenuti',
+      'BOTTOM: Zero iperestensione lombare (CRITICO!)',
+      'BOTTOM: Retroversione mantenuta, petto alto',
+      'SALITA: Drive talloni, tronco verticale',
+      'SALITA: Gomiti ALTI, schiena piatta, lock-out',
+      'RESPIRO: Inspira top→hold discesa→espira salita',
+      'Carico: ___ kg × ___ reps - RPE: ___/10',
+      'Forma: 10/10 | 8-9/10 | <8/10 → REDUCE -20%',
+      'RED FLAG: Lombare estende/Dolore >2/10 → STOP'
+    ]
   },
   {
-    id: 'weekly-check',
-    title: 'Controllo Settimanale',
-    category: 'weekly',
-    icon: 'calendar.badge.checkmark',
-    gradient: gradients.blue,
-    createdAt: new Date().toISOString(),
+    id: 4,
+    title: 'Trap-Bar Deadlift Form Check',
+    color: '#8B5CF6',
     items: [
-      { id: '1', text: 'Revisione obiettivi settimana', completed: false },
-      { id: '2', text: 'Analisi carico allenamento', completed: false },
-      { id: '3', text: 'Controllo peso corporeo', completed: false },
-      { id: '4', text: 'Valutazione HRV media', completed: false },
-      { id: '5', text: 'Check rigidità muscolare', completed: false },
-      { id: '6', text: 'Pianificazione settimana successiva', completed: false },
-      { id: '7', text: 'Aggiornamento progressi', completed: false },
-      { id: '8', text: 'Identificazione aree miglioramento', completed: false },
-    ],
+      'SETUP: Maniglie ALTE (riduce ROM, safe lombare)',
+      'SETUP: Piedi centro trap-bar, schiena NEUTRA',
+      'SETUP: Scapole sopra barra, retroversione attiva',
+      'PULL: Leg drive simultaneo (NO sequenziale)',
+      'PULL: Schiena NEUTRA mantenuta (angle costante)',
+      'PULL: Spalle retracted, petto alto, drive talloni',
+      'PULL: Zero arrotondamento lombare (CRITICO!)',
+      'LOCK-OUT: Anche estese, torace alto, controllo',
+      'DISCESA 3": Controllata, schiena neutra, NO drop',
+      'RESET: Pausa terra 1", NO touch-and-go',
+      'RESPIRO: Inspira pre-pull→hold→espira top',
+      'Carico: ___ kg × ___ reps - RPE: ___/10',
+      'Forma: 10/10 → +5% | 8-9 → Mantieni | <8 → -10-20%',
+      'RED FLAG: Lombare flette/Dolore >2 → STOP'
+    ]
   },
+  {
+    id: 5,
+    title: 'Plank Hold Form Check',
+    color: '#10B981',
+    items: [
+      'SETUP: Gomiti sotto spalle 90°',
+      'SETUP: Retroversione ATTIVA prima di sollevare',
+      'SETUP: Glutei squeeze 9/10, core braced',
+      'HOLD: Linea retta spalle-anche-caviglie',
+      'HOLD: Schiena PIATTA (zero arch lombare)',
+      'HOLD: Glutei squeeze 8-9/10 mantenuto',
+      'HOLD: Retroversione locked, collo neutro',
+      'RESPIRO: Box 4-2-4 continua (NO apnea)',
+      'CHECK 15": Glutei contratti? SI/NO',
+      'CHECK 30": Schiena piatta? SI/NO',
+      'CHECK 45": Respirazione fluida? SI/NO',
+      'Target: ___ sec | Actual: ___ sec',
+      'Forma mantenuta fino alla fine: SI/NO',
+      'STOP SE: Lombare estende/Glutei rilassano/Apnea'
+    ]
+  },
+  {
+    id: 6,
+    title: 'Session Tracking Palestra',
+    color: '#EF4444',
+    items: [
+      'Data: ___/___ | Sett: ___/22 | Tipo: Lower/Upper/Acc',
+      'PRE: HRV ___ ms | Rigidità ___/10 | Energia ___/10',
+      'PRE: Sleep ___ h | Decisione: FULL/MODIFY/EASY',
+      'ES.1: _______ | ___ kg × ___ reps × ___ serie',
+      'ES.1: S1: ___×___ RPE___ | S2: ___×___ RPE___',
+      'ES.1: S3: ___×___ RPE___ | S4: ___×___ RPE___',
+      'ES.1: Forma 10|8-9|<8 | Rep crolla: ___ | +5%: SI/NO',
+      'ES.2: _______ | ___ kg × ___ × ___ serie',
+      'ES.2: Serie tracking + Forma + Progress',
+      'ES.3-6: [Ripeti format sopra per altri esercizi]',
+      'FINISHER: Tipo _______ | ___ min | RPE ___/10',
+      'POST: Durata ___ min | Load: RPE___ × ___min = ___',
+      'POST: Rigidità ___/10 | Fatica ___/10 | Soddisf ___/10',
+      'RED FLAG: Dolore >2 | Rigidità↑ | Form breakdown >3'
+    ]
+  },
+  {
+    id: 7,
+    title: 'Tracking Settimanale',
+    color: '#3B82F6',
+    items: [
+      'Settimana: ___ | Periodo: ___/___ → ___/___',
+      'ADERENZA: Routine 12\' ___/6 | Allenamenti ___/6',
+      'ADERENZA: Stretching sera ___/6 | Finisher ___/3',
+      'HRV media: ___ ms (baseline: ___) | Δ: ___%',
+      'RED FLAG: HRV drop >12% vs 4-week baseline',
+      'Peso: ___ kg (Δ: ___) | Sleep: ___ h/notte',
+      'Rigidità media: ___/10 (Lu_Ma_Me_Gi_Ve_Sa)',
+      'Energia media: ___/10 | Recovery: OK/LIMIT/POOR',
+      'LOAD: Totale ___ unità | 4 sett: ___+___+___+___',
+      'ACR: ___÷4 = ___ | VERDE <1.3 | GIALLO 1.3-1.5 | ROSSO >1.5',
+      'FORZA: F.Squat ___kg×5 (Δ:___) | TrapDL ___kg×5 (Δ:___)',
+      'FORZA: Pull +___kg×5 | Dips +___kg×5',
+      'CORE: Plank ___ sec | Wall sit ___ sec | L-sit ___ sec',
+      'CARDIO: Z2 120\' HR avg ___bpm | RSA recovery ___/8 <130',
+      'RED FLAGS: HRV drop | ACR >1.3 | Rigidità >3.5 (sett 8-10)',
+      'RED FLAGS: Aderenza <80% | Dolore >2 | Sleep <6h 4+ notti',
+      'DECISIONE: CONTINUA | SWITCH B | DELOAD 48h',
+      'DECISIONE: REDUCE 20% (ACR >1.3) | Consulto fisio'
+    ]
+  },
+  {
+    id: 8,
+    title: 'Review Mensile',
+    color: '#8B5CF6',
+    items: [
+      'MESE: ___ | Periodo: ___/___ → ___/___',
+      'POSTURA: Rigidità inizio ___/10 → fine ___/10 (Δ: ___)',
+      'POSTURA: Target ___/10 | ON TRACK: SI/NO',
+      'ROM Hip Flexion: DX ___° SX ___° (target >115°)',
+      'CORE: Plank max ___ sec | Wall sit ___ sec | L-sit ___ sec',
+      'FORZA: Front Squat ___kg×5 → ___kg×5 (Δ: +___kg +___%)',
+      'FORZA: Trap-Bar DL ___kg×5 → ___kg×5 (Δ: +___kg +___%)',
+      'FORZA: Weighted Pull +___kg → +___kg | Dips +___kg → +___kg',
+      'Status progressione: ON / STALLO / REGRESSION',
+      'CARDIO Z2: HR avg ___bpm → ___bpm (Δ: ___ target -2/-5)',
+      'RSA: Recovery <130 bpm ___/8 | Power drop 1→8: ___%',
+      'ADERENZA: Routine ___/26 | Allenamenti ___/26 | Stretch ___/26',
+      'Overall aderenza: ___% (target >85%)',
+      'BIOMETRICS: HRV medio ___ ms | Peso ___ kg | Sleep ___ h',
+      'RED FLAGS: HRV drop >15% | Rigidità NO migliora | Injury',
+      'RED FLAGS: Aderenza <75% | Stallo forza 4+ sett',
+      'ADJUSTMENT necessari mese prossimo:',
+      'Meeting preparatore: Data ___/___ | CONTINUA/MODIFY/SWITCH B'
+    ]
+  },
+  {
+    id: 9,
+    title: 'Quick Reference - Limiti Sicuri',
+    color: '#DC2626',
+    items: [
+      'HRV: >50ms ✅ | 45-50 ⚠️ | <45 🛑',
+      'Rigidità: <4/10 ✅ | 4-5 ⚠️ | >5 🛑',
+      'Dolore lombare: 0-1 ✅ | 2-3 ⚠️ | >3 🛑',
+      'Sleep: >7h ✅ | 6-7h ⚠️ | <6h 🛑',
+      'Energia: >7/10 ✅ | 5-6 ⚠️ | <5 🛑',
+      'ACR: 0.8-1.3 ✅ | 1.3-1.5 ⚠️ | >1.5 🛑',
+      'PROGRESSIONE: Forma 10/10 → +5% | 8-9 → Mantieni | <8 → -10-20%',
+      'STOP SET: Lombare arch | Dolore >2 | Form breakdown | Grip fail',
+      'SKIP GYM: HRV <45 | Rigidità >6 | Dolore >3 | Sleep <5 | Energia <3',
+      'FISIO URGENTE: Dolore >4/10 48h+ | Rigidità >7 2gg+ | Sciatalgia',
+      'CLAUSOLE AUTO: Sett 8-10 rigidità >3.5 → SWITCH B',
+      'CLAUSOLE: HRV <50 2gg → DELOAD 48h | Dolore >3 → FISIO 24h'
+    ]
+  }
 ];
 
 export default function PrintableChecklistsScreen() {
-  const [checklists, setChecklists] = useState<Checklist[]>(DEFAULT_CHECKLISTS);
-  const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
+  const [selectedChecklist, setSelectedChecklist] = useState<ChecklistItem | null>(null);
+  const [checks, setChecks] = useState<{ [key: string]: boolean }>({});
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newChecklistTitle, setNewChecklistTitle] = useState('');
-  const [newChecklistItems, setNewChecklistItems] = useState<string[]>(['']);
 
   useEffect(() => {
-    loadChecklists();
+    loadProgress();
   }, []);
 
-  const loadChecklists = async () => {
+  const loadProgress = async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        setChecklists(parsed);
+        setChecks(JSON.parse(stored));
       }
     } catch (error) {
-      console.log('Error loading checklists:', error);
+      console.log('Error loading checklist progress:', error);
     }
   };
 
-  const saveChecklists = async (updatedChecklists: Checklist[]) => {
+  const saveProgress = async (newChecks: { [key: string]: boolean }) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedChecklists));
-      setChecklists(updatedChecklists);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newChecks));
     } catch (error) {
-      console.log('Error saving checklists:', error);
+      console.log('Error saving checklist progress:', error);
     }
   };
 
-  const handleChecklistPress = (checklist: Checklist) => {
+  const toggleCheck = (listId: number, itemIndex: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const key = `${listId}-${itemIndex}`;
+    const newChecks = { ...checks, [key]: !checks[key] };
+    setChecks(newChecks);
+    saveProgress(newChecks);
+  };
+
+  const resetChecklist = (listId: number) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const newChecks = { ...checks };
+    CHECKLISTS.find(c => c.id === listId)?.items.forEach((_, i) => {
+      delete newChecks[`${listId}-${i}`];
+    });
+    setChecks(newChecks);
+    saveProgress(newChecks);
+  };
+
+  const getProgress = (checklist: ChecklistItem) => {
+    let completed = 0;
+    checklist.items.forEach((_, i) => {
+      if (checks[`${checklist.id}-${i}`]) completed++;
+    });
+    return Math.round((completed / checklist.items.length) * 100);
+  };
+
+  const getCompletedCount = (checklist: ChecklistItem) => {
+    let completed = 0;
+    checklist.items.forEach((_, i) => {
+      if (checks[`${checklist.id}-${i}`]) completed++;
+    });
+    return completed;
+  };
+
+  const openChecklist = (checklist: ChecklistItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedChecklist(checklist);
     setShowDetailModal(true);
   };
 
-  const toggleItem = (itemId: string) => {
-    if (!selectedChecklist) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    const updatedItems = selectedChecklist.items.map(item =>
-      item.id === itemId ? { ...item, completed: !item.completed } : item
-    );
-    
-    const updatedChecklist = {
-      ...selectedChecklist,
-      items: updatedItems,
-      lastUsed: new Date().toISOString(),
-    };
-    
-    setSelectedChecklist(updatedChecklist);
-    
-    const updatedChecklists = checklists.map(c =>
-      c.id === updatedChecklist.id ? updatedChecklist : c
-    );
-    
-    saveChecklists(updatedChecklists);
-  };
-
-  const resetChecklist = () => {
-    if (!selectedChecklist) return;
-    
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    const resetItems = selectedChecklist.items.map(item => ({
-      ...item,
-      completed: false,
-    }));
-    
-    const updatedChecklist = {
-      ...selectedChecklist,
-      items: resetItems,
-    };
-    
-    setSelectedChecklist(updatedChecklist);
-    
-    const updatedChecklists = checklists.map(c =>
-      c.id === updatedChecklist.id ? updatedChecklist : c
-    );
-    
-    saveChecklists(updatedChecklists);
-  };
-
-  const exportChecklist = async () => {
-    if (!selectedChecklist) return;
-    
-    const completedCount = selectedChecklist.items.filter(i => i.completed).length;
-    const totalCount = selectedChecklist.items.length;
-    
-    let text = `📋 ${selectedChecklist.title}\n`;
-    text += `Completato: ${completedCount}/${totalCount}\n\n`;
-    
-    selectedChecklist.items.forEach((item, index) => {
-      const status = item.completed ? '✅' : '⬜';
-      text += `${status} ${index + 1}. ${item.text}\n`;
-    });
-    
-    text += `\n🏍️ Moto3 Training App`;
-    
-    try {
-      await Share.share({
-        message: text,
-        title: selectedChecklist.title,
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.log('Error sharing checklist:', error);
-    }
-  };
-
-  const createNewChecklist = () => {
-    if (!newChecklistTitle.trim()) {
-      Alert.alert('Errore', 'Inserisci un titolo per la checklist');
-      return;
-    }
-    
-    const validItems = newChecklistItems.filter(item => item.trim() !== '');
-    
-    if (validItems.length === 0) {
-      Alert.alert('Errore', 'Aggiungi almeno un elemento alla checklist');
-      return;
-    }
-    
-    const newChecklist: Checklist = {
-      id: `custom-${Date.now()}`,
-      title: newChecklistTitle,
-      category: 'custom',
-      icon: 'list.bullet.clipboard',
-      gradient: gradients.purple,
-      createdAt: new Date().toISOString(),
-      items: validItems.map((text, index) => ({
-        id: `${index + 1}`,
-        text,
-        completed: false,
-      })),
-    };
-    
-    const updatedChecklists = [...checklists, newChecklist];
-    saveChecklists(updatedChecklists);
-    
-    setNewChecklistTitle('');
-    setNewChecklistItems(['']);
-    setShowCreateModal(false);
-    
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Successo', 'Checklist creata con successo!');
-  };
-
-  const deleteChecklist = (checklistId: string) => {
-    Alert.alert(
-      'Elimina Checklist',
-      'Sei sicuro di voler eliminare questa checklist?',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Elimina',
-          style: 'destructive',
-          onPress: () => {
-            const updatedChecklists = checklists.filter(c => c.id !== checklistId);
-            saveChecklists(updatedChecklists);
-            setShowDetailModal(false);
-            setSelectedChecklist(null);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]
-    );
-  };
-
-  const addNewItemField = () => {
-    setNewChecklistItems([...newChecklistItems, '']);
-  };
-
-  const updateNewItemField = (index: number, value: string) => {
-    const updated = [...newChecklistItems];
-    updated[index] = value;
-    setNewChecklistItems(updated);
-  };
-
-  const removeNewItemField = (index: number) => {
-    if (newChecklistItems.length > 1) {
-      const updated = newChecklistItems.filter((_, i) => i !== index);
-      setNewChecklistItems(updated);
-    }
-  };
-
-  const getCategoryLabel = (category: Checklist['category']) => {
-    const labels = {
-      'pre-training': 'Pre-Allenamento',
-      'post-training': 'Post-Allenamento',
-      'race-day': 'Giorno Gara',
-      'weekly': 'Settimanale',
-      'custom': 'Personalizzata',
-    };
-    return labels[category];
-  };
-
-  const getCompletionPercentage = (checklist: Checklist) => {
-    const completed = checklist.items.filter(i => i.completed).length;
-    return Math.round((completed / checklist.items.length) * 100);
-  };
-
   return (
-    <>
-      <Stack.Screen
+    <View style={styles.container}>
+      <Stack.Screen 
         options={{
           title: 'Checklist Stampabili',
-          headerLargeTitle: true,
-        }}
+          headerStyle: { backgroundColor: colors.primary },
+          headerTintColor: '#fff',
+        }} 
       />
-      <View style={commonStyles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <LinearGradient
+          colors={['#FF6B6B', '#FF8E53']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
         >
-          {/* Header Card */}
-          <LinearGradient
-            colors={gradients.racing}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerCard}
-          >
-            <View style={styles.headerIconContainer}>
-              <IconSymbol name="list.clipboard.fill" size={40} color="#FFFFFF" />
-            </View>
-            <Text style={styles.headerTitle}>Checklist Stampabili</Text>
-            <Text style={styles.headerSubtitle}>
-              Organizza e traccia le tue routine con checklist personalizzabili
-            </Text>
-          </LinearGradient>
-
-          {/* Create New Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.createButtonPressed,
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowCreateModal(true);
-            }}
-          >
-            <LinearGradient
-              colors={gradients.purple}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.createButtonGradient}
-            >
-              <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-              <Text style={styles.createButtonText}>Crea Nuova Checklist</Text>
-            </LinearGradient>
-          </Pressable>
-
-          {/* Checklists Grid */}
-          <View style={styles.checklistsGrid}>
-            {checklists.map((checklist) => {
-              const percentage = getCompletionPercentage(checklist);
-              const completedCount = checklist.items.filter(i => i.completed).length;
-              
-              return (
-                <Pressable
-                  key={checklist.id}
-                  style={({ pressed }) => [
-                    styles.checklistCard,
-                    pressed && styles.checklistCardPressed,
-                  ]}
-                  onPress={() => handleChecklistPress(checklist)}
-                >
-                  <LinearGradient
-                    colors={checklist.gradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.checklistIconContainer}
-                  >
-                    <IconSymbol name={checklist.icon as any} size={32} color="#FFFFFF" />
-                  </LinearGradient>
-                  
-                  <View style={styles.checklistContent}>
-                    <Text style={styles.checklistTitle}>{checklist.title}</Text>
-                    <Text style={styles.checklistCategory}>
-                      {getCategoryLabel(checklist.category)}
-                    </Text>
-                    
-                    <View style={styles.checklistStats}>
-                      <View style={styles.checklistStat}>
-                        <IconSymbol name="checkmark.circle.fill" size={16} color={colors.success} />
-                        <Text style={styles.checklistStatText}>
-                          {completedCount}/{checklist.items.length}
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.progressBarContainer}>
-                        <View style={styles.progressBar}>
-                          <View
-                            style={[
-                              styles.progressBarFill,
-                              { width: `${percentage}%` },
-                            ]}
-                          />
-                        </View>
-                        <Text style={styles.progressText}>{percentage}%</Text>
-                      </View>
-                    </View>
-                  </View>
-                  
-                  <IconSymbol name="chevron.right" size={20} color={colors.textLight} />
-                </Pressable>
-              );
-            })}
+          <View style={styles.headerIcon}>
+            <Text style={styles.headerIconText}>✓</Text>
           </View>
+          <Text style={styles.headerTitle}>Checklist Stampabili</Text>
+          <Text style={styles.headerSubtitle}>Sistema tracking Moto3</Text>
+        </LinearGradient>
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
+        {/* Checklists Grid */}
+        <View style={styles.grid}>
+          {CHECKLISTS.map((checklist) => {
+            const progress = getProgress(checklist);
+            const completed = getCompletedCount(checklist);
 
-        {/* Detail Modal */}
-        <Modal
-          visible={showDetailModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowDetailModal(false)}
-        >
-          {selectedChecklist && (
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <Pressable
-                  onPress={() => setShowDetailModal(false)}
-                  style={styles.modalCloseButton}
-                >
-                  <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
-                </Pressable>
-                
-                <LinearGradient
-                  colors={selectedChecklist.gradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.modalIconContainer}
-                >
-                  <IconSymbol name={selectedChecklist.icon as any} size={48} color="#FFFFFF" />
-                </LinearGradient>
-                
-                <Text style={styles.modalTitle}>{selectedChecklist.title}</Text>
-                <Text style={styles.modalCategory}>
-                  {getCategoryLabel(selectedChecklist.category)}
+            return (
+              <Pressable
+                key={checklist.id}
+                style={styles.checklistCard}
+                onPress={() => openChecklist(checklist)}
+              >
+                <View style={[styles.checklistIcon, { backgroundColor: checklist.color }]}>
+                  <Text style={styles.checklistIconText}>✓</Text>
+                </View>
+                <Text style={styles.checklistTitle}>{checklist.title}</Text>
+                <Text style={styles.checklistCount}>
+                  ✓ {completed}/{checklist.items.length}
                 </Text>
                 
-                <View style={styles.modalStats}>
-                  <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>
-                      {selectedChecklist.items.filter(i => i.completed).length}
-                    </Text>
-                    <Text style={styles.modalStatLabel}>Completati</Text>
-                  </View>
-                  <View style={styles.modalStatDivider} />
-                  <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>
-                      {selectedChecklist.items.length}
-                    </Text>
-                    <Text style={styles.modalStatLabel}>Totali</Text>
-                  </View>
-                  <View style={styles.modalStatDivider} />
-                  <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>
-                      {getCompletionPercentage(selectedChecklist)}%
-                    </Text>
-                    <Text style={styles.modalStatLabel}>Progresso</Text>
-                  </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBar, { width: `${progress}%` }]} />
                 </View>
-              </View>
-              
-              <ScrollView
-                style={styles.modalContent}
-                contentContainerStyle={styles.modalContentContainer}
-                showsVerticalScrollIndicator={false}
-              >
-                {selectedChecklist.items.map((item, index) => (
-                  <Pressable
-                    key={item.id}
-                    style={({ pressed }) => [
-                      styles.checklistItem,
-                      item.completed && styles.checklistItemCompleted,
-                      pressed && styles.checklistItemPressed,
-                    ]}
-                    onPress={() => toggleItem(item.id)}
-                  >
-                    <View style={styles.checklistItemNumber}>
-                      <Text style={styles.checklistItemNumberText}>{index + 1}</Text>
-                    </View>
-                    
-                    <Text
-                      style={[
-                        styles.checklistItemText,
-                        item.completed && styles.checklistItemTextCompleted,
-                      ]}
-                    >
-                      {item.text}
-                    </Text>
-                    
-                    <View
-                      style={[
-                        styles.checkbox,
-                        item.completed && styles.checkboxChecked,
-                      ]}
-                    >
-                      {item.completed && (
-                        <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
-                      )}
-                    </View>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              
-              <View style={styles.modalActions}>
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={resetChecklist}
-                >
-                  <IconSymbol name="arrow.counterclockwise" size={20} color={colors.warning} />
-                  <Text style={styles.actionButtonText}>Reset</Text>
-                </Pressable>
                 
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={exportChecklist}
-                >
-                  <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
-                  <Text style={styles.actionButtonText}>Esporta</Text>
-                </Pressable>
-                
-                {selectedChecklist.category === 'custom' && (
-                  <Pressable
-                    style={styles.actionButton}
-                    onPress={() => deleteChecklist(selectedChecklist.id)}
-                  >
-                    <IconSymbol name="trash" size={20} color={colors.error} />
-                    <Text style={styles.actionButtonText}>Elimina</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          )}
-        </Modal>
+                <View style={styles.checklistFooter}>
+                  <Text style={styles.progressText}>{progress}%</Text>
+                  <Text style={styles.arrowText}>→</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
 
-        {/* Create Modal */}
-        <Modal
-          visible={showCreateModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowCreateModal(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Pressable
-                onPress={() => setShowCreateModal(false)}
-                style={styles.modalCloseButton}
-              >
-                <IconSymbol name="xmark.circle.fill" size={32} color={colors.textSecondary} />
-              </Pressable>
-              
-              <LinearGradient
-                colors={gradients.purple}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.modalIconContainer}
-              >
-                <IconSymbol name="plus.circle.fill" size={48} color="#FFFFFF" />
-              </LinearGradient>
-              
-              <Text style={styles.modalTitle}>Nuova Checklist</Text>
-              <Text style={styles.modalCategory}>Crea una checklist personalizzata</Text>
-            </View>
-            
-            <ScrollView
-              style={styles.modalContent}
-              contentContainerStyle={styles.modalContentContainer}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Titolo Checklist</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Es: Routine Pre-Gara"
-                  placeholderTextColor={colors.textLight}
-                  value={newChecklistTitle}
-                  onChangeText={setNewChecklistTitle}
-                />
-              </View>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Elementi Checklist</Text>
-                {newChecklistItems.map((item, index) => (
-                  <View key={index} style={styles.itemInputRow}>
-                    <Text style={styles.itemNumber}>{index + 1}.</Text>
-                    <TextInput
-                      style={styles.itemInput}
-                      placeholder="Inserisci elemento"
-                      placeholderTextColor={colors.textLight}
-                      value={item}
-                      onChangeText={(value) => updateNewItemField(index, value)}
-                    />
-                    {newChecklistItems.length > 1 && (
-                      <Pressable
-                        onPress={() => removeNewItemField(index)}
-                        style={styles.removeItemButton}
-                      >
-                        <IconSymbol name="minus.circle.fill" size={24} color={colors.error} />
-                      </Pressable>
-                    )}
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>Note Preparatore</Text>
+          <Text style={styles.infoText}>
+            Sistema con 9 checklist per tracking giornaliero, form check esercizi, 
+            monitoraggio settimanale/mensile. Include red flags, limiti sicuri iperlordosi.
+          </Text>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>🏍️ Moto3 - Winter 2025-2026</Text>
+          <Text style={styles.footerSubtext}>Programma Ale | 22 settimane</Text>
+        </View>
+      </ScrollView>
+
+      {/* Detail Modal */}
+      <Modal
+        visible={showDetailModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDetailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedChecklist && (
+              <>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={[styles.modalIcon, { backgroundColor: selectedChecklist.color }]}>
+                    <Text style={styles.modalIconText}>✓</Text>
                   </View>
-                ))}
-                
-                <Pressable
-                  style={styles.addItemButton}
-                  onPress={addNewItemField}
-                >
-                  <IconSymbol name="plus.circle" size={20} color={colors.primary} />
-                  <Text style={styles.addItemButtonText}>Aggiungi Elemento</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-            
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.actionButtonLarge, styles.actionButtonSecondary]}
-                onPress={() => setShowCreateModal(false)}
-              >
-                <Text style={styles.actionButtonLargeTextSecondary}>Annulla</Text>
-              </Pressable>
-              
-              <Pressable
-                style={styles.actionButtonLarge}
-                onPress={createNewChecklist}
-              >
-                <LinearGradient
-                  colors={gradients.purple}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.actionButtonLargeGradient}
-                >
-                  <Text style={styles.actionButtonLargeText}>Crea Checklist</Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
+                  
+                  <Text style={styles.modalTitle}>{selectedChecklist.title}</Text>
+                  
+                  <View style={styles.statsRow}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statValue}>{getCompletedCount(selectedChecklist)}</Text>
+                      <Text style={styles.statLabel}>Fatti</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statBox}>
+                      <Text style={styles.statValue}>{selectedChecklist.items.length}</Text>
+                      <Text style={styles.statLabel}>Totali</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statBox}>
+                      <Text style={styles.statValue}>{getProgress(selectedChecklist)}%</Text>
+                      <Text style={styles.statLabel}>%</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.itemsList}>
+                    {selectedChecklist.items.map((item, index) => {
+                      const isChecked = checks[`${selectedChecklist.id}-${index}`];
+                      
+                      return (
+                        <Pressable
+                          key={index}
+                          style={[
+                            styles.checklistItem,
+                            isChecked && styles.checklistItemChecked
+                          ]}
+                          onPress={() => toggleCheck(selectedChecklist.id, index)}
+                        >
+                          <View style={styles.itemNumber}>
+                            <Text style={styles.itemNumberText}>{index + 1}</Text>
+                          </View>
+                          <Text style={[
+                            styles.itemText,
+                            isChecked && styles.itemTextChecked
+                          ]}>
+                            {item}
+                          </Text>
+                          <View style={[
+                            styles.checkbox,
+                            isChecked && styles.checkboxChecked
+                          ]}>
+                            {isChecked && <Text style={styles.checkmark}>✓</Text>}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalActions}>
+                  <Pressable
+                    style={[styles.actionButton, styles.resetButton]}
+                    onPress={() => resetChecklist(selectedChecklist.id)}
+                  >
+                    <Text style={styles.resetButtonText}>🔄 Reset</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.actionButton, styles.closeButton]}
+                    onPress={() => setShowDetailModal(false)}
+                  >
+                    <Text style={styles.closeButtonText}>Chiudi</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
-        </Modal>
-      </View>
-    </>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
   scrollContent: {
-    padding: spacing.lg,
+    padding: 16,
+    paddingBottom: 32,
   },
-  headerCard: {
-    borderRadius: borderRadius.xxl,
-    padding: spacing.xxxl,
-    marginBottom: spacing.xl,
+  header: {
+    borderRadius: 20,
+    padding: 32,
     alignItems: 'center',
-    ...shadows.large,
+    marginBottom: 24,
   },
-  headerIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  headerIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  headerIconText: {
+    fontSize: 30,
+    color: '#fff',
   },
   headerTitle: {
-    ...typography.title,
-    color: colors.textInverse,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 8,
   },
   headerSubtitle: {
-    ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.95)',
-    textAlign: 'center',
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.9,
   },
-  createButton: {
-    marginBottom: spacing.xl,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    ...shadows.medium,
-  },
-  createButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  createButtonGradient: {
+  grid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  createButtonText: {
-    ...typography.heading,
-    color: colors.textInverse,
-  },
-  checklistsGrid: {
-    gap: spacing.md,
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 24,
   },
   checklistCard: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
     ...shadows.medium,
   },
-  checklistCardPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
-  },
-  checklistIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: borderRadius.md,
-    justifyContent: 'center',
+  checklistIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
     alignItems: 'center',
-    marginRight: spacing.md,
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  checklistContent: {
-    flex: 1,
+  checklistIconText: {
+    fontSize: 24,
+    color: '#fff',
   },
   checklistTitle: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.xs,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+    lineHeight: 20,
   },
-  checklistCategory: {
-    ...typography.small,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  checklistStats: {
-    gap: spacing.sm,
-  },
-  checklistStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  checklistStatText: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: '600',
+  checklistCount: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 12,
   },
   progressBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
   progressBar: {
-    flex: 1,
-    height: 6,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.round,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
     height: '100%',
-    backgroundColor: colors.success,
-    borderRadius: borderRadius.round,
+    backgroundColor: '#10b981',
+    borderRadius: 3,
+  },
+  checklistFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   progressText: {
-    ...typography.small,
-    color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: '700',
-    minWidth: 40,
-    textAlign: 'right',
+    color: '#1f2937',
   },
-  modalContainer: {
+  arrowText: {
+    fontSize: 18,
+    color: '#6b7280',
+  },
+  infoCard: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  footerSubtext: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  modalOverlay: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    padding: spacing.xl,
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalCloseButton: {
-    position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
-    zIndex: 10,
-  },
-  modalIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  modalTitle: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    textAlign: 'center',
-  },
-  modalCategory: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  modalStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    width: '100%',
-    justifyContent: 'space-around',
-  },
-  modalStat: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  modalStatValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  modalStatLabel: {
-    ...typography.small,
-    color: colors.textSecondary,
-  },
-  modalStatDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.border,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    maxHeight: '85%',
   },
-  modalContentContainer: {
-    padding: spacing.lg,
+  modalIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalIconText: {
+    fontSize: 30,
+    color: '#fff',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#d1d5db',
+  },
+  itemsList: {
+    marginBottom: 20,
   },
   checklistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    gap: spacing.md,
-    ...shadows.small,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    gap: 10,
   },
-  checklistItemCompleted: {
-    backgroundColor: colors.highlightGreen,
+  checklistItemChecked: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#10b981',
   },
-  checklistItemPressed: {
-    opacity: 0.7,
-  },
-  checklistItemNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+  itemNumber: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  checklistItemNumberText: {
-    ...typography.caption,
-    color: colors.text,
+  itemNumberText: {
+    fontSize: 12,
     fontWeight: '700',
+    color: '#1f2937',
   },
-  checklistItemText: {
+  itemText: {
     flex: 1,
-    ...typography.body,
-    color: colors.text,
+    fontSize: 13,
+    color: '#1f2937',
+    lineHeight: 18,
   },
-  checklistItemTextCompleted: {
+  itemTextChecked: {
     textDecorationLine: 'line-through',
-    color: colors.textSecondary,
+    color: '#6b7280',
   },
   checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
-    borderColor: colors.border,
-    justifyContent: 'center',
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
+  },
+  checkmark: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '700',
   },
   modalActions: {
     flexDirection: 'row',
-    padding: spacing.lg,
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: 10,
+    paddingTop: 16,
   },
   actionButton: {
     flex: 1,
-    flexDirection: 'row',
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
   },
-  actionButtonText: {
-    ...typography.caption,
-    color: colors.text,
+  resetButton: {
+    backgroundColor: '#fef3c7',
+  },
+  resetButtonText: {
+    fontSize: 14,
     fontWeight: '700',
+    color: '#92400e',
   },
-  actionButtonLarge: {
-    flex: 1,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
+  closeButton: {
+    backgroundColor: colors.primary,
   },
-  actionButtonSecondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  actionButtonLargeGradient: {
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  actionButtonLargeText: {
-    ...typography.heading,
-    color: colors.textInverse,
-  },
-  actionButtonLargeTextSecondary: {
-    ...typography.heading,
-    color: colors.text,
-    textAlign: 'center',
-    paddingVertical: spacing.lg,
-  },
-  inputGroup: {
-    marginBottom: spacing.xl,
-  },
-  inputLabel: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    fontSize: 17,
-    color: colors.text,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  itemInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  itemNumber: {
-    ...typography.body,
-    color: colors.textSecondary,
+  closeButtonText: {
+    fontSize: 14,
     fontWeight: '700',
-    width: 24,
-  },
-  itemInput: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  removeItemButton: {
-    padding: spacing.xs,
-  },
-  addItemButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  addItemButtonText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '700',
+    color: '#fff',
   },
 });
