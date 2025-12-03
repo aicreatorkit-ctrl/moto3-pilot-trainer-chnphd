@@ -1,29 +1,46 @@
 
-import { supabase } from '@/src/config/supabase';
+import { supabase, isSupabaseConfigured } from '@/src/config/supabase';
 
 /**
- * Service per gestire l'autenticazione
- * Single-user MVP: email + password
+ * Servizio per gestire l'autenticazione
+ * Funziona solo se Supabase è configurato
  */
-export class AuthService {
-  // Login
-  static async signIn(email: string, password: string) {
+export const AuthService = {
+  /**
+   * Effettua il login
+   */
+  signIn: async (email: string, password: string) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile effettuare login');
+      return { data: null, error: new Error('Supabase non configurato') };
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
-      if (error) throw error;
-      return { data, error: null };
+      if (error) {
+        console.log('Login error:', error);
+      }
+      
+      return { data, error };
     } catch (error) {
-      console.log('Sign in error:', error);
-      return { data: null, error };
+      console.log('Login exception:', error);
+      return { data: null, error: error as Error };
     }
-  }
+  },
 
-  // Registrazione (per setup iniziale)
-  static async signUp(email: string, password: string, fullName: string) {
+  /**
+   * Registra un nuovo utente
+   */
+  signUp: async (email: string, password: string, fullName: string) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile registrarsi');
+      return { data: null, error: new Error('Supabase non configurato') };
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -35,51 +52,77 @@ export class AuthService {
         },
       });
       
-      if (error) throw error;
-      
-      // Crea il profilo
-      if (data.user) {
-        await supabase.from('profiles').insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          role: 'pilot',
-        });
+      if (error) {
+        console.log('SignUp error:', error);
       }
       
-      return { data, error: null };
+      return { data, error };
     } catch (error) {
-      console.log('Sign up error:', error);
-      return { data: null, error };
+      console.log('SignUp exception:', error);
+      return { data: null, error: error as Error };
     }
-  }
+  },
 
-  // Logout
-  static async signOut() {
+  /**
+   * Effettua il logout
+   */
+  signOut: async () => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile effettuare logout');
+      return { error: new Error('Supabase non configurato') };
+    }
+
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      console.log('Sign out error:', error);
+      
+      if (error) {
+        console.log('SignOut error:', error);
+      }
+      
       return { error };
-    }
-  }
-
-  // Ottieni sessione corrente
-  static async getSession() {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return { session, error: null };
     } catch (error) {
-      console.log('Get session error:', error);
-      return { session: null, error };
+      console.log('SignOut exception:', error);
+      return { error: error as Error };
     }
-  }
+  },
 
-  // Ascolta cambiamenti di auth
-  static onAuthStateChange(callback: (event: string, session: any) => void) {
-    return supabase.auth.onAuthStateChange(callback);
-  }
-}
+  /**
+   * Ottiene la sessione corrente
+   */
+  getSession: async () => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - nessuna sessione');
+      return { session: null, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.log('GetSession error:', error);
+      }
+      
+      return { session: data.session, error };
+    } catch (error) {
+      console.log('GetSession exception:', error);
+      return { session: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Ascolta i cambiamenti dello stato di autenticazione
+   */
+  onAuthStateChange: (callback: (event: string, session: any) => void) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - nessun listener');
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    }
+
+    try {
+      return supabase.auth.onAuthStateChange(callback);
+    } catch (error) {
+      console.log('OnAuthStateChange exception:', error);
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    }
+  },
+};

@@ -1,17 +1,23 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Card } from '@/src/components/common/Card';
 import { Button } from '@/src/components/common/Button';
 import { colors, spacing, typography } from '@/styles/commonStyles';
 import { useAuth } from '@/src/hooks/useAuth';
+import { isSupabaseConfigured } from '@/src/config/constants';
 
 /**
  * Settings Screen - Impostazioni e profilo
  */
 export const SettingsScreen: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, configured } = useAuth();
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+
+  useEffect(() => {
+    setSupabaseConfigured(isSupabaseConfigured());
+  }, []);
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -30,6 +36,21 @@ export const SettingsScreen: React.FC = () => {
           },
         },
       ]
+    );
+  };
+
+  const handleSupabaseInfo = () => {
+    Alert.alert(
+      supabaseConfigured ? '✅ Supabase Configurato' : '⚠️ Supabase Non Configurato',
+      supabaseConfigured 
+        ? 'I tuoi dati vengono sincronizzati su cloud e tra dispositivi.'
+        : 'Per abilitare il salvataggio dati:\n\n' +
+          '1. Crea un progetto su supabase.com\n' +
+          '2. Copia .env.example in .env\n' +
+          '3. Inserisci le credenziali\n' +
+          '4. Riavvia l\'app\n\n' +
+          'Senza Supabase, l\'app funziona ma i dati non vengono salvati.',
+      [{ text: 'OK' }]
     );
   };
 
@@ -68,6 +89,45 @@ export const SettingsScreen: React.FC = () => {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
       >
+        {/* Supabase Status Card */}
+        <TouchableOpacity onPress={handleSupabaseInfo} activeOpacity={0.7}>
+          <Card 
+            variant="racing" 
+            style={[
+              styles.statusCard,
+              { 
+                backgroundColor: supabaseConfigured ? '#00C85320' : '#FF950020',
+                borderLeftColor: supabaseConfigured ? '#00C853' : '#FF9500',
+              }
+            ]}
+          >
+            <View style={styles.statusIcon}>
+              <IconSymbol 
+                ios_icon_name={supabaseConfigured ? 'checkmark.circle.fill' : 'exclamationmark.triangle.fill'} 
+                android_material_icon_name={supabaseConfigured ? 'check_circle' : 'warning'} 
+                size={32} 
+                color={supabaseConfigured ? '#00C853' : '#FF9500'} 
+              />
+            </View>
+            <View style={styles.statusInfo}>
+              <Text style={styles.statusTitle}>
+                {supabaseConfigured ? 'Supabase Configurato' : 'Supabase Non Configurato'}
+              </Text>
+              <Text style={styles.statusText}>
+                {supabaseConfigured 
+                  ? 'Dati sincronizzati su cloud' 
+                  : 'Tocca per configurare il salvataggio dati'}
+              </Text>
+            </View>
+            <IconSymbol 
+              ios_icon_name="chevron.right" 
+              android_material_icon_name="chevron_right" 
+              size={20} 
+              color={colors.textSecondary} 
+            />
+          </Card>
+        </TouchableOpacity>
+
         {/* User Card */}
         {user && (
           <Card variant="racing" style={styles.userCard}>
@@ -145,7 +205,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: spacing.xl,
-    paddingTop: 48, // Android notch
+    paddingTop: 48,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
@@ -159,7 +219,27 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.xl,
-    paddingBottom: 100, // Spazio per bottom tab
+    paddingBottom: 100,
+  },
+  statusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xxl,
+  },
+  statusIcon: {
+    marginRight: spacing.md,
+  },
+  statusInfo: {
+    flex: 1,
+  },
+  statusTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  statusText: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   userCard: {
     flexDirection: 'row',

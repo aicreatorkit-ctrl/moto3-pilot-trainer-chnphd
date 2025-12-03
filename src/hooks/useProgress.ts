@@ -1,31 +1,71 @@
 
 import { useState, useEffect } from 'react';
 import { ProgressService } from '@/src/services/progress.service';
-import { ProgressMetrics } from '@/src/types';
+import { isSupabaseConfigured } from '@/src/config/constants';
+
+interface DateRange {
+  start: string;
+  end: string;
+}
+
+interface ProgressMetrics {
+  sleep: Array<{ date: string; value: number }>;
+  energy: Array<{ date: string; value: number }>;
+  weight: Array<{ date: string; value: number }>;
+  hrv: Array<{ date: string; value: number }>;
+}
 
 /**
- * Hook per caricare dati di progresso
+ * Hook per gestire i dati di progresso
+ * Funziona anche senza Supabase (restituisce dati vuoti)
  */
-export const useProgress = (dateRange: { start: string; end: string }) => {
+export const useProgress = (dateRange: DateRange) => {
   const [metrics, setMetrics] = useState<ProgressMetrics>({
-    weight: [],
-    hrv: [],
     sleep: [],
     energy: [],
+    weight: [],
+    hrv: [],
   });
   const [loading, setLoading] = useState(true);
+  const [configured, setConfigured] = useState(false);
 
   useEffect(() => {
     loadMetrics();
   }, [dateRange.start, dateRange.end]);
 
   const loadMetrics = async () => {
-    setLoading(true);
+    const isConfigured = isSupabaseConfigured();
+    setConfigured(isConfigured);
+    
+    if (!isConfigured) {
+      console.log('Supabase non configurato - nessun dato di progresso');
+      setMetrics({
+        sleep: [],
+        energy: [],
+        weight: [],
+        hrv: [],
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
-      const data = await ProgressService.getProgressMetrics(dateRange);
-      setMetrics(data);
+      setLoading(true);
+      const data = await ProgressService.getMetrics(dateRange.start, dateRange.end);
+      setMetrics(data || {
+        sleep: [],
+        energy: [],
+        weight: [],
+        hrv: [],
+      });
     } catch (error) {
       console.log('Error loading progress metrics:', error);
+      setMetrics({
+        sleep: [],
+        energy: [],
+        weight: [],
+        hrv: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -34,6 +74,7 @@ export const useProgress = (dateRange: { start: string; end: string }) => {
   return {
     metrics,
     loading,
+    configured,
     refresh: loadMetrics,
   };
 };

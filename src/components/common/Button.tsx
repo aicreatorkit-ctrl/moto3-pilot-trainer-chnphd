@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
-import { colors, borderRadius, spacing } from '@/styles/commonStyles';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { colors, spacing, typography } from '@/styles/commonStyles';
 
 interface ButtonProps {
   title: string;
@@ -14,9 +14,6 @@ interface ButtonProps {
   textStyle?: TextStyle;
 }
 
-/**
- * Button component con varianti e stati
- */
 export const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
@@ -27,105 +24,70 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const buttonStyle = [
-    styles.button,
-    styles[`button_${variant}`],
-    styles[`button_${size}`],
-    disabled && styles.buttonDisabled,
-    style,
-  ];
+  const getButtonStyle = (): ViewStyle => {
+    const baseStyle: ViewStyle = {
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+    };
 
-  const textStyleCombined = [
-    styles.buttonText,
-    styles[`buttonText_${variant}`],
-    styles[`buttonText_${size}`],
-    disabled && styles.buttonTextDisabled,
-    textStyle,
-  ];
+    // Size
+    const sizeStyles: Record<string, ViewStyle> = {
+      small: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
+      medium: { paddingVertical: spacing.md, paddingHorizontal: spacing.xl },
+      large: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl },
+    };
+
+    // Variant
+    const variantStyles: Record<string, ViewStyle> = {
+      primary: { backgroundColor: colors.primary },
+      secondary: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border },
+      outline: { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.primary },
+      danger: { backgroundColor: colors.error },
+    };
+
+    return {
+      ...baseStyle,
+      ...sizeStyles[size],
+      ...variantStyles[variant],
+      opacity: disabled ? 0.5 : 1,
+    };
+  };
+
+  const getTextStyle = (): TextStyle => {
+    const baseStyle: TextStyle = {
+      ...typography.bodyBold,
+      fontWeight: '700',
+    };
+
+    const variantStyles: Record<string, TextStyle> = {
+      primary: { color: colors.textInverse },
+      secondary: { color: colors.text },
+      outline: { color: colors.primary },
+      danger: { color: colors.textInverse },
+    };
+
+    return {
+      ...baseStyle,
+      ...variantStyles[variant],
+    };
+  };
 
   return (
     <TouchableOpacity
-      style={buttonStyle}
+      style={[getButtonStyle(), style]}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.textInverse : colors.primary} />
+        <ActivityIndicator 
+          color={variant === 'outline' || variant === 'secondary' ? colors.primary : colors.textInverse} 
+        />
       ) : (
-        <Text style={textStyleCombined}>{title}</Text>
+        <Text style={[getTextStyle(), textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  button: {
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  button_primary: {
-    backgroundColor: '#FF4444',
-  },
-  button_secondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  button_outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#FF4444',
-  },
-  button_danger: {
-    backgroundColor: colors.error,
-  },
-  button_small: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  button_medium: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  button_large: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xxl,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  buttonText_primary: {
-    color: colors.textInverse,
-    fontSize: 17,
-  },
-  buttonText_secondary: {
-    color: colors.text,
-    fontSize: 17,
-  },
-  buttonText_outline: {
-    color: '#FF4444',
-    fontSize: 17,
-  },
-  buttonText_danger: {
-    color: colors.textInverse,
-    fontSize: 17,
-  },
-  buttonText_small: {
-    fontSize: 14,
-  },
-  buttonText_medium: {
-    fontSize: 17,
-  },
-  buttonText_large: {
-    fontSize: 19,
-  },
-  buttonTextDisabled: {
-    opacity: 0.7,
-  },
-});

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Card } from '@/src/components/common/Card';
@@ -10,13 +10,16 @@ import { isSupabaseConfigured } from '@/src/config/constants';
 
 /**
  * Home Screen - Dashboard principale
+ * Funziona anche senza Supabase configurato
  */
 export const HomeScreen: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, configured } = useAuth();
   const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
   useEffect(() => {
-    setSupabaseConfigured(isSupabaseConfigured());
+    const isConfigured = isSupabaseConfigured();
+    setSupabaseConfigured(isConfigured);
+    console.log('Supabase configurato:', isConfigured);
   }, []);
 
   const quickActions = [
@@ -50,6 +53,19 @@ export const HomeScreen: React.FC = () => {
     },
   ];
 
+  const handleConfigureSupabase = () => {
+    Alert.alert(
+      '⚙️ Configura Supabase',
+      'Per sincronizzare i dati tra dispositivi:\n\n' +
+      '1. Crea un progetto su supabase.com\n' +
+      '2. Copia il file .env.example in .env\n' +
+      '3. Inserisci SUPABASE_URL e SUPABASE_ANON_KEY\n' +
+      '4. Riavvia l\'app\n\n' +
+      'Senza Supabase, l\'app funziona comunque ma i dati non vengono salvati.',
+      [{ text: 'OK' }]
+    );
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}
@@ -59,6 +75,36 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.subtitle}>Pronto per l&apos;allenamento?</Text>
         </View>
       </View>
+
+      {/* Avviso Supabase non configurato */}
+      {!supabaseConfigured && (
+        <TouchableOpacity 
+          style={styles.warningCard}
+          onPress={handleConfigureSupabase}
+          activeOpacity={0.7}
+        >
+          <View style={styles.warningIcon}>
+            <IconSymbol 
+              ios_icon_name="exclamationmark.triangle.fill" 
+              android_material_icon_name="warning" 
+              size={24} 
+              color="#FF9500" 
+            />
+          </View>
+          <View style={styles.warningContent}>
+            <Text style={styles.warningTitle}>Supabase non configurato</Text>
+            <Text style={styles.warningText}>
+              L&apos;app funziona anche senza Supabase, ma i dati non vengono salvati. Tocca per maggiori info.
+            </Text>
+          </View>
+          <IconSymbol 
+            ios_icon_name="chevron.right" 
+            android_material_icon_name="chevron_right" 
+            size={20} 
+            color={colors.textSecondary} 
+          />
+        </TouchableOpacity>
+      )}
 
       {/* Quick Actions */}
       <View style={styles.section}>
@@ -131,7 +177,23 @@ export const HomeScreen: React.FC = () => {
         </Card>
       </View>
 
-      {/* Info Card - Supabase */}
+      {/* User Info - Solo se Supabase è configurato */}
+      {supabaseConfigured && user && (
+        <Card style={styles.userCard}>
+          <IconSymbol 
+            ios_icon_name="checkmark.circle.fill" 
+            android_material_icon_name="check_circle" 
+            size={24} 
+            color="#00C853" 
+          />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>✅ Connesso a Supabase</Text>
+            <Text style={styles.infoText}>{user.email}</Text>
+          </View>
+        </Card>
+      )}
+
+      {/* Info Card - Modalità Offline */}
       {!supabaseConfigured && (
         <Card style={styles.infoCard}>
           <IconSymbol 
@@ -141,26 +203,10 @@ export const HomeScreen: React.FC = () => {
             color="#00D9FF" 
           />
           <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>Configura Supabase</Text>
+            <Text style={styles.infoTitle}>💡 Modalità Offline</Text>
             <Text style={styles.infoText}>
-              Per sincronizzare i dati tra dispositivi, configura Supabase nel file .env
+              Puoi usare l&apos;app normalmente. Per salvare i dati in modo permanente, configura Supabase.
             </Text>
-          </View>
-        </Card>
-      )}
-
-      {/* User Info */}
-      {supabaseConfigured && user && (
-        <Card style={styles.userCard}>
-          <IconSymbol 
-            ios_icon_name="person.circle.fill" 
-            android_material_icon_name="account_circle" 
-            size={24} 
-            color="#FF4444" 
-          />
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>Connesso</Text>
-            <Text style={styles.infoText}>{user.email}</Text>
           </View>
         </Card>
       )}
@@ -175,8 +221,8 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.xl,
-    paddingTop: 48, // Android notch
-    paddingBottom: 100, // Spazio per bottom tab
+    paddingTop: 48,
+    paddingBottom: 100,
   },
   header: {
     marginBottom: spacing.xxxl,
@@ -188,6 +234,31 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
+    color: colors.textSecondary,
+  },
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF950020',
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.xxl,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9500',
+  },
+  warningIcon: {
+    marginRight: spacing.md,
+  },
+  warningContent: {
+    flex: 1,
+  },
+  warningTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  warningText: {
+    ...typography.caption,
     color: colors.textSecondary,
   },
   section: {
@@ -257,8 +328,8 @@ const styles = StyleSheet.create({
   userCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FF444420',
-    borderLeftColor: '#FF4444',
+    backgroundColor: '#00C85320',
+    borderLeftColor: '#00C853',
   },
   infoContent: {
     flex: 1,

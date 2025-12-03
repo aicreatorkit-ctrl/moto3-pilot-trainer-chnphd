@@ -1,63 +1,103 @@
 
-import { supabase, getCurrentUser } from '@/src/config/supabase';
-import { Database } from '@/src/types/database.types';
-
-type Routine = Database['public']['Tables']['routines']['Row'];
-type RoutineInsert = Database['public']['Tables']['routines']['Insert'];
-type RoutineCompletion = Database['public']['Tables']['routine_completions']['Row'];
-type RoutineCompletionInsert = Database['public']['Tables']['routine_completions']['Insert'];
+import { supabase, isSupabaseConfigured } from '@/src/config/supabase';
 
 /**
- * Service CRUD per Routine Pre/Post Allenamento
+ * Servizio per gestire le routine
+ * Funziona solo se Supabase è configurato
  */
-export class RoutinesService {
-  // Ottieni tutte le routine dell'utente
-  static async getRoutines(type?: 'pre_workout' | 'post_workout'): Promise<Routine[]> {
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
-
-      let query = supabase
-        .from('routines')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (type) {
-        query = query.eq('type', type);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.log('Error fetching routines:', error);
+export const RoutinesService = {
+  /**
+   * Ottiene tutte le routine di un tipo specifico
+   */
+  getRoutines: async (type: 'pre_workout' | 'post_workout') => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile caricare routine');
       return [];
     }
-  }
 
-  // Crea una nuova routine
-  static async createRoutine(routine: RoutineInsert): Promise<Routine | null> {
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
-
       const { data, error } = await supabase
         .from('routines')
-        .insert({ ...routine, user_id: user.id })
+        .select('*')
+        .eq('type', type)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.log('Error fetching routines:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.log('Exception fetching routines:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Ottiene una routine specifica
+   */
+  getRoutine: async (id: string) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile caricare routine');
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('routines')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.log('Error fetching routine:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.log('Exception fetching routine:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Crea una nuova routine
+   */
+  createRoutine: async (routine: any) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile creare routine');
+      return { data: null, error: new Error('Supabase non configurato') };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('routines')
+        .insert(routine)
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.log('Error creating routine:', error);
-      return null;
-    }
-  }
+      if (error) {
+        console.log('Error creating routine:', error);
+      }
 
-  // Aggiorna una routine
-  static async updateRoutine(id: string, updates: Partial<RoutineInsert>): Promise<Routine | null> {
+      return { data, error };
+    } catch (error) {
+      console.log('Exception creating routine:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Aggiorna una routine esistente
+   */
+  updateRoutine: async (id: string, updates: any) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile aggiornare routine');
+      return { data: null, error: new Error('Supabase non configurato') };
+    }
+
     try {
       const { data, error } = await supabase
         .from('routines')
@@ -66,69 +106,40 @@ export class RoutinesService {
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.log('Error updating routine:', error);
-      return null;
-    }
-  }
+      if (error) {
+        console.log('Error updating routine:', error);
+      }
 
-  // Elimina una routine
-  static async deleteRoutine(id: string): Promise<boolean> {
+      return { data, error };
+    } catch (error) {
+      console.log('Exception updating routine:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Elimina una routine
+   */
+  deleteRoutine: async (id: string) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('Supabase non configurato - impossibile eliminare routine');
+      return { error: new Error('Supabase non configurato') };
+    }
+
     try {
       const { error } = await supabase
         .from('routines')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.log('Error deleting routine:', error);
-      return false;
-    }
-  }
-
-  // Registra completamento routine
-  static async completeRoutine(completion: RoutineCompletionInsert): Promise<RoutineCompletion | null> {
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data, error } = await supabase
-        .from('routine_completions')
-        .insert({ ...completion, user_id: user.id })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.log('Error completing routine:', error);
-      return null;
-    }
-  }
-
-  // Ottieni completamenti per una routine
-  static async getCompletions(routineId: string, dateRange?: { start: string; end: string }): Promise<RoutineCompletion[]> {
-    try {
-      let query = supabase
-        .from('routine_completions')
-        .select('*')
-        .eq('routine_id', routineId)
-        .order('date', { ascending: false });
-
-      if (dateRange) {
-        query = query.gte('date', dateRange.start).lte('date', dateRange.end);
+      if (error) {
+        console.log('Error deleting routine:', error);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return { error };
     } catch (error) {
-      console.log('Error fetching completions:', error);
-      return [];
+      console.log('Exception deleting routine:', error);
+      return { error: error as Error };
     }
-  }
-}
+  },
+};

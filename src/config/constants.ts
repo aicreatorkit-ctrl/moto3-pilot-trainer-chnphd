@@ -39,5 +39,10 @@ export const DATETIME_FORMAT = 'DD/MM/YYYY HH:mm';
 export const isSupabaseConfigured = () => {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  return !!(url && key && url !== '' && key !== '');
+  
+  // Verifica che le variabili esistano e non siano i valori di esempio
+  const hasValidUrl = url && url !== '' && !url.includes('your-project');
+  const hasValidKey = key && key !== '' && !key.includes('your-anon');
+  
+  return !!(hasValidUrl && hasValidKey);
 };
