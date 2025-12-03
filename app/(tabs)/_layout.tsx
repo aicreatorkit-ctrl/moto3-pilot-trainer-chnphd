@@ -1,76 +1,100 @@
 
 import React from 'react';
-import { Platform } from 'react-native';
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
-import { Stack } from 'expo-router';
-import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import { Tabs } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
 export default function TabLayout() {
-  const tabs: TabBarItem[] = [
-    {
-      name: '(home)',
-      route: '/(tabs)/(home)/',
-      icon: 'house.fill',
-      label: 'Home',
-    },
-    {
-      name: 'calendar',
-      route: '/(tabs)/calendar',
-      icon: 'calendar',
-      label: 'Calendario',
-    },
-    {
-      name: 'readiness',
-      route: '/(tabs)/readiness',
-      icon: 'heart.fill',
-      label: 'Prontezza',
-    },
-    {
-      name: 'progress',
-      route: '/(tabs)/progress',
-      icon: 'chart.bar.fill',
-      label: 'Progressi',
-    },
-  ];
-
-  if (Platform.OS === 'ios') {
-    return (
-      <NativeTabs>
-        <NativeTabs.Trigger name="(home)">
-          <Icon sf="house.fill" drawable="ic_home" />
-          <Label>Home</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="calendar">
-          <Icon sf="calendar" drawable="ic_calendar" />
-          <Label>Calendario</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="readiness">
-          <Icon sf="heart.fill" drawable="ic_heart" />
-          <Label>Prontezza</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="progress">
-          <Icon sf="chart.bar.fill" drawable="ic_chart" />
-          <Label>Progressi</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs>
-    );
-  }
-
   return (
-    <>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: '#FF4444',
+        tabBarInactiveTintColor: colors.textSecondary,
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.divider,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="(home)"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol 
+              ios_icon_name="house.fill" 
+              android_material_icon_name="home" 
+              size={24} 
+              color={color} 
+            />
+          ),
         }}
-      >
-        <Stack.Screen name="(home)" />
-        <Stack.Screen name="calendar" />
-        <Stack.Screen name="readiness" />
-        <Stack.Screen name="progress" />
-      </Stack>
-      <FloatingTabBar tabs={tabs} />
-    </>
+      />
+      <Tabs.Screen
+        name="routines"
+        options={{
+          title: 'Routine',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol 
+              ios_icon_name="list.bullet" 
+              android_material_icon_name="list" 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          title: 'Nutrizione',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol 
+              ios_icon_name="fork.knife" 
+              android_material_icon_name="restaurant" 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: 'Progressi',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol 
+              ios_icon_name="chart.line.uptrend.xyaxis" 
+              android_material_icon_name="trending_up" 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Altro',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol 
+              ios_icon_name="gearshape.fill" 
+              android_material_icon_name="settings" 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }

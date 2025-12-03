@@ -1,6 +1,7 @@
 
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
+// 🏍️ RACING THEME COLORS
 export const colors = {
   // Main backgrounds
   background: '#F8F9FA',
@@ -12,17 +13,19 @@ export const colors = {
   textLight: '#9CA3AF',
   textInverse: '#FFFFFF',
   
-  // Primary brand colors - Racing inspired
-  primary: '#E10600', // Racing red
-  primaryDark: '#B30500',
-  primaryLight: '#FF1E00',
+  // Racing theme colors (come richiesto)
+  primary: '#FF4444', // Rosso racing
+  primaryDark: '#CC0000',
+  primaryLight: '#FF6666',
   
-  // Accent colors
-  secondary: '#FFD700', // Gold for championship
-  accent: '#00D9FF', // Cyan for tech/data
+  secondary: '#2C2C2C', // Nero carbon
+  accent: '#00D9FF', // Cyan tech
+  
+  // Status colors
+  success: '#00C853',
+  error: '#FF3B30',
   warning: '#FF9500',
   info: '#0A84FF',
-  purple: '#8B5CF6',
   
   // Card and surface colors
   card: '#FFFFFF',
@@ -30,16 +33,12 @@ export const colors = {
   surface: '#F3F4F6',
   surfaceElevated: '#FFFFFF',
   
-  // Status colors
-  success: '#00C853',
-  error: '#FF3B30',
-  
   // Border and divider
   border: '#E5E7EB',
   divider: '#F3F4F6',
   
   // Gradient colors
-  gradientStart: '#E10600',
+  gradientStart: '#FF4444',
   gradientEnd: '#FF6B00',
   
   // Special highlights
@@ -51,11 +50,10 @@ export const colors = {
   highlightGold: '#FFF9C4',
   
   // Racing specific
-  racingRed: '#E10600',
-  racingGold: '#FFD700',
-  racingBlack: '#1A1D29',
+  racingRed: '#FF4444',
+  racingBlack: '#2C2C2C',
+  racingCyan: '#00D9FF',
   racingWhite: '#FFFFFF',
-  racingCarbon: '#2C2C2C',
   
   // Performance zones
   zoneOptimal: '#00C853',
@@ -65,22 +63,14 @@ export const colors = {
 };
 
 export const gradients = {
-  primary: ['#E10600', '#B30500'],
-  racing: ['#E10600', '#FF6B00'],
-  championship: ['#FFD700', '#FFA000'],
+  primary: ['#FF4444', '#CC0000'],
+  racing: ['#FF4444', '#FF6B00'],
   success: ['#00C853', '#00E676'],
   warning: ['#FF9500', '#FF6D00'],
   error: ['#FF3B30', '#D32F2F'],
-  purple: ['#8B5CF6', '#7C3AED'],
   blue: ['#0A84FF', '#0066CC'],
   cyan: ['#00D9FF', '#00B8D4'],
-  sunset: ['#FF6B00', '#E10600'],
-  ocean: ['#0A84FF', '#00D9FF'],
-  forest: ['#00C853', '#00E676'],
   carbon: ['#2C2C2C', '#1A1D29'],
-  gold: ['#FFD700', '#FFA000'],
-  silver: ['#C0C0C0', '#A8A8A8'],
-  bronze: ['#CD7F32', '#B87333'],
 };
 
 export const shadows = {
@@ -113,7 +103,7 @@ export const shadows = {
     elevation: 8,
   }),
   racing: {
-    shadowColor: '#E10600',
+    shadowColor: '#FF4444',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
