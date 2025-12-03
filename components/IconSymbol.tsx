@@ -1,3 +1,4 @@
+
 // This file is a fallback for using MaterialIcons on Android and web.
 
 import React from "react";
@@ -17,7 +18,7 @@ const MAPPING = {
 
   // Navigation & Home
   "house.fill": "home",
-  "house": "home-outlined",
+  "house": "home",
   "arrow.left": "arrow-back",
   "arrow.right": "arrow-forward",
   "arrow.up": "arrow-upward",
@@ -31,11 +32,11 @@ const MAPPING = {
 
   // Communication & Social
   "paperplane.fill": "send",
-  "paperplane": "send-outlined",
+  "paperplane": "send",
   "envelope.fill": "mail",
   "envelope": "mail-outline",
   "phone.fill": "phone",
-  "phone": "phone-outlined",
+  "phone": "phone",
   "message.fill": "chat",
   "message": "chat-bubble-outline",
   "bell.fill": "notifications",
@@ -69,7 +70,7 @@ const MAPPING = {
 
   // Media & Content
   "photo.fill": "image",
-  "photo": "image-outlined",
+  "photo": "image",
   "camera.fill": "camera-alt",
   "camera": "camera-alt",
   "video.fill": "videocam",
@@ -86,14 +87,14 @@ const MAPPING = {
   "gearshape.fill": "settings",
   "slider.horizontal.3": "tune",
   "info.circle.fill": "info",
-  "info.circle": "info-outlined",
+  "info.circle": "info",
   "exclamationmark.triangle.fill": "warning",
-  "exclamationmark.triangle": "warning-amber",
+  "exclamationmark.triangle": "warning",
   "questionmark.circle.fill": "help",
   "questionmark.circle": "help-outline",
 
   // Shapes & Symbols
-  "square": "square",
+  "square": "crop-square",
   "square.grid.3x3": "apps",
   "circle": "circle",
   "triangle.fill": "change-history",
@@ -114,7 +115,7 @@ const MAPPING = {
 
   // Shopping & Commerce
   "cart.fill": "shopping-cart",
-  "cart": "shopping-cart-outlined",
+  "cart": "shopping-cart",
   "creditcard.fill": "credit-card",
   "creditcard": "credit-card",
   "dollarsign.circle.fill": "monetization-on",
@@ -160,7 +161,20 @@ const MAPPING = {
   "eye.slash.fill": "visibility-off",
   "lightbulb.fill": "lightbulb",
   "moon.fill": "dark-mode",
-  "sun.max.fill": "light-mode",
+  "sun.max.fill": "wb-sunny",
+  "moon.stars.fill": "nightlight",
+
+  // Food & Nutrition
+  "fork.knife": "restaurant",
+  
+  // Fire & Energy
+  "flame.fill": "local-fire-department",
+  
+  // Charts & Analytics
+  "chart.line.uptrend.xyaxis": "trending-up",
+  
+  // Lists
+  "list.bullet": "list",
 } as Partial<
   Record<
     import("expo-symbols").SymbolViewProps["name"],
@@ -176,22 +190,33 @@ export type IconSymbolName = keyof typeof MAPPING;
  * Icon `name`s are based on SFSymbols and require manual mapping to MaterialIcons.
  */
 export function IconSymbol({
-  name,
+  ios_icon_name,
+  android_material_icon_name,
   size = 24,
   color,
   style,
 }: {
-  name: IconSymbolName;
+  ios_icon_name?: IconSymbolName;
+  android_material_icon_name?: React.ComponentProps<typeof MaterialIcons>["name"];
+  name?: IconSymbolName;
   size?: number;
   color: string | OpaqueColorValue;
   style?: StyleProp<ViewStyle>;
   weight?: SymbolWeight;
 }) {
+  // Use android_material_icon_name if provided, otherwise fallback to mapping
+  const iconName = android_material_icon_name || (ios_icon_name ? MAPPING[ios_icon_name] : undefined);
+  
+  if (!iconName) {
+    console.warn(`IconSymbol: No icon mapping found for ${ios_icon_name}`);
+    return null;
+  }
+
   return (
     <MaterialIcons
       color={color}
       size={size}
-      name={MAPPING[name]}
+      name={iconName}
       style={style as StyleProp<TextStyle>}
     />
   );

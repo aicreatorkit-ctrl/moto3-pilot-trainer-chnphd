@@ -5,6 +5,8 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
 export default function TabLayout() {
+  console.log('TabLayout rendering');
+  
   return (
     <Tabs
       screenOptions={{
@@ -74,7 +76,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol 
               ios_icon_name="chart.line.uptrend.xyaxis" 
-              android_material_icon_name="trending_up" 
+              android_material_icon_name="trending-up" 
               size={24} 
               color={color} 
             />

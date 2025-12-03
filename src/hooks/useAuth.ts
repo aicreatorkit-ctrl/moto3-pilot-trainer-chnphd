@@ -14,28 +14,32 @@ export const useAuth = () => {
   const [configured, setConfigured] = useState(false);
 
   useEffect(() => {
+    console.log('useAuth: Checking Supabase configuration');
     const checkConfig = isSupabaseConfigured();
     setConfigured(checkConfig);
     
     if (!checkConfig) {
-      console.log('Supabase non configurato - modalità offline');
+      console.log('useAuth: Supabase non configurato - modalità offline');
       setLoading(false);
       return;
     }
 
+    console.log('useAuth: Loading session');
     // Carica sessione iniziale solo se Supabase è configurato
     AuthService.getSession()
       .then(({ session }) => {
+        console.log('useAuth: Session loaded', session ? 'with user' : 'no user');
         setSession(session);
         setLoading(false);
       })
       .catch((error) => {
-        console.log('Error loading session:', error);
+        console.error('useAuth: Error loading session:', error);
         setLoading(false);
       });
 
     // Ascolta cambiamenti
     const { data: { subscription } } = AuthService.onAuthStateChange((_event, session) => {
+      console.log('useAuth: Auth state changed', _event);
       setSession(session);
     });
 

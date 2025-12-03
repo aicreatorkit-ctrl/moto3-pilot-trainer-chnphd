@@ -7,7 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert, View } from "react-native";
+import { useColorScheme, Alert, View, Text } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -30,12 +30,51 @@ export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#0A0E27' }}>
+          <Text style={{ color: '#FF4444', fontSize: 24, fontWeight: 'bold', marginBottom: 16 }}>
+            Errore nell&apos;app
+          </Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
+            {this.state.error?.message || 'Si è verificato un errore'}
+          </Text>
+          <Text style={{ color: '#6B7280', fontSize: 14, textAlign: 'center' }}>
+            Riavvia l&apos;app per continuare
+          </Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
   
   // Carica font Inter
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     Inter_400Regular,
     Inter_600SemiBold,
@@ -45,7 +84,14 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    if (error) {
+      console.error('Font loading error:', error);
+    }
+  }, [error]);
+
+  useEffect(() => {
     if (loaded) {
+      console.log('Fonts loaded successfully');
       SplashScreen.hideAsync();
     }
   }, [loaded]);
@@ -62,7 +108,7 @@ export default function RootLayout() {
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
-  if (!loaded) {
+  if (!loaded && !error) {
     return null;
   }
 
@@ -70,7 +116,7 @@ export default function RootLayout() {
     ...DefaultTheme,
     dark: false,
     colors: {
-      primary: '#FF4444', // Racing red
+      primary: '#FF4444',
       background: '#F8F9FA',
       card: '#FFFFFF',
       text: '#1A1D29',
@@ -92,7 +138,7 @@ export default function RootLayout() {
   };
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="auto" animated />
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
@@ -102,10 +148,7 @@ export default function RootLayout() {
             <View style={{ flex: 1 }}>
               <OfflineIndicator />
               <Stack>
-                {/* Main app with tabs */}
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-                {/* Modal Demo Screens */}
                 <Stack.Screen
                   name="modal"
                   options={{
@@ -136,6 +179,6 @@ export default function RootLayout() {
           </GestureHandlerRootView>
         </WidgetProvider>
       </ThemeProvider>
-    </>
+    </ErrorBoundary>
   );
 }

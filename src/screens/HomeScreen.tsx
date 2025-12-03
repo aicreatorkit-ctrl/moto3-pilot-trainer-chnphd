@@ -17,6 +17,7 @@ export const HomeScreen: React.FC = () => {
   const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
   useEffect(() => {
+    console.log('HomeScreen mounted');
     const isConfigured = isSupabaseConfigured();
     setSupabaseConfigured(isConfigured);
     console.log('Supabase configurato:', isConfigured);
@@ -26,7 +27,7 @@ export const HomeScreen: React.FC = () => {
     {
       title: 'Routine Pre',
       icon: 'flame.fill',
-      androidIcon: 'local_fire_department',
+      androidIcon: 'local-fire-department',
       color: '#FF4444',
       route: '/routines',
     },
@@ -47,7 +48,7 @@ export const HomeScreen: React.FC = () => {
     {
       title: 'Check Mattutina',
       icon: 'sun.max.fill',
-      androidIcon: 'wb_sunny',
+      androidIcon: 'wb-sunny',
       color: '#FFD700',
       route: '/morning-routine',
     },
@@ -65,6 +66,24 @@ export const HomeScreen: React.FC = () => {
       [{ text: 'OK' }]
     );
   };
+
+  const handleNavigate = (route: string) => {
+    console.log('Navigate to:', route);
+    try {
+      router.push(route as any);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Errore', 'Impossibile navigare a questa schermata');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.loadingText}>Caricamento...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -99,7 +118,7 @@ export const HomeScreen: React.FC = () => {
           </View>
           <IconSymbol 
             ios_icon_name="chevron.right" 
-            android_material_icon_name="chevron_right" 
+            android_material_icon_name="chevron-right" 
             size={20} 
             color={colors.textSecondary} 
           />
@@ -114,20 +133,13 @@ export const HomeScreen: React.FC = () => {
             <TouchableOpacity
               key={index}
               style={styles.actionCard}
-              onPress={() => {
-                console.log('Navigate to:', action.route);
-                try {
-                  router.push(action.route as any);
-                } catch (error) {
-                  console.log('Navigation error:', error);
-                }
-              }}
+              onPress={() => handleNavigate(action.route)}
               activeOpacity={0.7}
             >
               <View style={[styles.iconContainer, { backgroundColor: `${action.color}20` }]}>
                 <IconSymbol 
                   ios_icon_name={action.icon as any} 
-                  android_material_icon_name={action.androidIcon} 
+                  android_material_icon_name={action.androidIcon as any} 
                   size={32} 
                   color={action.color} 
                 />
@@ -146,7 +158,7 @@ export const HomeScreen: React.FC = () => {
             <View style={styles.summaryItem}>
               <IconSymbol 
                 ios_icon_name="checkmark.circle.fill" 
-                android_material_icon_name="check_circle" 
+                android_material_icon_name="check-circle" 
                 size={24} 
                 color={colors.success} 
               />
@@ -156,7 +168,7 @@ export const HomeScreen: React.FC = () => {
             <View style={styles.summaryItem}>
               <IconSymbol 
                 ios_icon_name="flame.fill" 
-                android_material_icon_name="local_fire_department" 
+                android_material_icon_name="local-fire-department" 
                 size={24} 
                 color="#FF4444" 
               />
@@ -182,7 +194,7 @@ export const HomeScreen: React.FC = () => {
         <Card style={styles.userCard}>
           <IconSymbol 
             ios_icon_name="checkmark.circle.fill" 
-            android_material_icon_name="check_circle" 
+            android_material_icon_name="check-circle" 
             size={24} 
             color="#00C853" 
           />
@@ -223,6 +235,14 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     paddingTop: 48,
     paddingBottom: 100,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.text,
   },
   header: {
     marginBottom: spacing.xxxl,
