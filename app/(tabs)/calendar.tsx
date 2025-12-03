@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
 const STORAGE_KEY_CALENDAR = '@moto3_custom_calendar';
+const STORAGE_KEY_COMPLETION = '@moto3_completion_data';
 
 const TRAINING_TYPES = {
   FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: '💪' },
@@ -640,10 +641,16 @@ export default function CalendarScreen() {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [weekData, setWeekData] = useState(COMPLETE_TRAINING_DATA);
   const [completionData, setCompletionData] = useState({});
+  const [calendarStartDate, setCalendarStartDate] = useState(new Date('2025-11-16'));
 
   useEffect(() => {
     loadCalendarData();
+    loadCompletionData();
   }, []);
+
+  useEffect(() => {
+    saveCompletionData();
+  }, [completionData]);
 
   const loadCalendarData = async () => {
     try {
@@ -665,6 +672,25 @@ export default function CalendarScreen() {
     }
   };
 
+  const loadCompletionData = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY_COMPLETION);
+      if (stored) {
+        setCompletionData(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading completion data:', error);
+    }
+  };
+
+  const saveCompletionData = async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_COMPLETION, JSON.stringify(completionData));
+    } catch (error) {
+      console.log('Error saving completion data:', error);
+    }
+  };
+
   const importFromMarkdown = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -678,20 +704,15 @@ export default function CalendarScreen() {
 
       const file = result.assets[0];
       
-      // Read file content
       const response = await fetch(file.uri);
       const content = await response.text();
 
-      // Parse markdown content (basic parsing)
-      // You can enhance this to parse your specific MD format
       Alert.alert(
         'File Importato',
         `File: ${file.name}\nDimensione: ${(file.size / 1024).toFixed(2)} KB\n\nIl contenuto è stato caricato. Implementa la logica di parsing per il tuo formato MD specifico.`,
         [{ text: 'OK' }]
       );
 
-      // TODO: Implement your MD parsing logic here
-      // For now, just show the content
       console.log('MD Content:', content);
 
     } catch (error) {
@@ -709,7 +730,10 @@ export default function CalendarScreen() {
         {
           text: 'Ripristina',
           style: 'destructive',
-          onPress: () => saveCalendarData(COMPLETE_TRAINING_DATA),
+          onPress: () => {
+            saveCalendarData(COMPLETE_TRAINING_DATA);
+            setCompletionData({});
+          },
         },
       ]
     );
@@ -732,9 +756,8 @@ export default function CalendarScreen() {
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
   const getWeekDates = (weekNumber) => {
-    const startDate = new Date('2025-11-16');
-    const weekStart = new Date(startDate);
-    weekStart.setDate(startDate.getDate() + (weekNumber - 1) * 7);
+    const weekStart = new Date(calendarStartDate);
+    weekStart.setDate(calendarStartDate.getDate() + (weekNumber - 1) * 7);
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + i);
@@ -787,31 +810,46 @@ export default function CalendarScreen() {
     return { total, completed };
   };
 
+  const getCalendarEndDate = () => {
+    const endDate = new Date(calendarStartDate);
+    endDate.setDate(calendarStartDate.getDate() + (18 * 7));
+    return endDate;
+  };
+
+  const getTotalWeeksUntilEndOfNextYear = () => {
+    const now = new Date();
+    const endOfNextYear = new Date(now.getFullYear() + 1, 11, 31);
+    const diffTime = endOfNextYear.getTime() - calendarStartDate.getTime();
+    const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
+    return diffWeeks;
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>🏍️ Training Moto3</Text>
           <Text style={styles.headerSubtitle}>18 Settimane Complete</Text>
+          <Text style={styles.headerDates}>
+            {calendarStartDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })} - {' '}
+            {getCalendarEndDate().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </Text>
           
-          {/* Import/Export Buttons */}
           <View style={styles.actionButtons}>
             <Pressable style={styles.importButton} onPress={importFromMarkdown}>
-              <IconSymbol name="doc.text.fill" size={20} color="#FFFFFF" />
+              <IconSymbol ios_icon_name="doc.text.fill" android_material_icon_name="description" size={20} color="#FFFFFF" />
               <Text style={styles.importButtonText}>Importa MD</Text>
             </Pressable>
             <Pressable style={styles.resetButton} onPress={resetToDefault}>
-              <IconSymbol name="arrow.clockwise" size={20} color={colors.primary} />
+              <IconSymbol ios_icon_name="arrow.clockwise" android_material_icon_name="refresh" size={20} color={colors.primary} />
               <Text style={styles.resetButtonText}>Reset</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* Week Selector */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Seleziona Settimana</Text>
           <ScrollView 
@@ -855,7 +893,6 @@ export default function CalendarScreen() {
           </ScrollView>
         </View>
 
-        {/* Week View */}
         <View style={styles.card}>
           <View style={styles.weekHeader}>
             <Text style={styles.sectionTitle}>Settimana {selectedWeek}</Text>
@@ -893,7 +930,7 @@ export default function CalendarScreen() {
                   </Text>
                   <View style={[styles.dayIndicator, { backgroundColor: typeColor }]} />
                   {completion.total > 0 && (
-                    <Text style={styles.completionText}>
+                    <Text style={[styles.completionText, isSelected && styles.completionTextSelected]}>
                       {completion.completed}/{completion.total}
                     </Text>
                   )}
@@ -903,7 +940,6 @@ export default function CalendarScreen() {
           </View>
         </View>
 
-        {/* Day Details */}
         {selectedDay !== null && currentDayData && (
           <>
             <View style={styles.card}>
@@ -956,7 +992,6 @@ export default function CalendarScreen() {
               )}
             </View>
 
-            {/* Context Cards */}
             {selectedWeek >= 10 && selectedWeek <= 15 && (
               <View style={styles.card}>
                 <Text style={styles.infoTitle}>🏍️ TRANSFER MOTO3</Text>
@@ -981,7 +1016,6 @@ export default function CalendarScreen() {
           </>
         )}
 
-        {/* Legend */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Legenda Allenamenti</Text>
           {Object.entries(TRAINING_TYPES).map(([key, value]) => (
@@ -993,13 +1027,12 @@ export default function CalendarScreen() {
           ))}
         </View>
 
-        {/* Progress Summary */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>📊 Riepilogo Progressione</Text>
           <View style={styles.progressItem}>
-            <Text style={styles.progressLabel}>Settimane Completate:</Text>
+            <Text style={styles.progressLabel}>Sessioni Completate:</Text>
             <Text style={styles.progressValue}>
-              {Object.keys(completionData).filter(k => completionData[k]).length} sessioni
+              {Object.keys(completionData).filter(k => completionData[k]).length}
             </Text>
           </View>
           <View style={styles.progressItem}>
@@ -1022,9 +1055,14 @@ export default function CalendarScreen() {
               {selectedWeek === 18 && 'Peak Readiness 🏁'}
             </Text>
           </View>
+          <View style={styles.progressItem}>
+            <Text style={styles.progressLabel}>Calendario esteso fino a:</Text>
+            <Text style={styles.progressValue}>
+              {getCalendarEndDate().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </Text>
+          </View>
         </View>
 
-        {/* Milestone Tracker */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>🎯 Milestone Chiave</Text>
           <View style={styles.milestoneItem}>
@@ -1058,7 +1096,6 @@ export default function CalendarScreen() {
         </View>
       </ScrollView>
 
-      {/* Exercise Detail Modal */}
       <Modal
         visible={detailModalVisible}
         animationType="slide"
@@ -1135,7 +1172,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
   header: {
     backgroundColor: '#2196F3',
@@ -1154,6 +1191,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
     opacity: 0.9,
+    marginBottom: 4,
+  },
+  headerDates: {
+    fontSize: 12,
+    color: '#fff',
+    opacity: 0.8,
     marginBottom: 12,
   },
   actionButtons: {
@@ -1311,6 +1354,9 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#666',
     marginTop: 2,
+  },
+  completionTextSelected: {
+    color: '#fff',
   },
   dayDetailHeader: {
     flexDirection: 'row',
