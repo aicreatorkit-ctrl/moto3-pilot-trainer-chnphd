@@ -3,10 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/src/types/database.types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ⚠️ IMPORTANTE: L'utente deve configurare queste variabili
-// Istruzioni: Vai su Supabase Dashboard > Settings > API
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// Use the actual Supabase credentials from the integration folder
+const SUPABASE_URL = 'https://kwtqtrjyzdmgjxezdaof.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dHF0cmp5emRtZ2p4ZXpkYW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3ODk2NDIsImV4cCI6MjA4MDM2NTY0Mn0.BX-coYrewdUFT2VyiIMHwllNZ5edqRRnAiQf4ofKzSk';
 
 // Verifica se Supabase è configurato
 export const isSupabaseConfigured = (): boolean => {
@@ -15,17 +14,15 @@ export const isSupabaseConfigured = (): boolean => {
   return !!(hasUrl && hasKey);
 };
 
-// Crea il client Supabase solo se configurato
-export const supabase = isSupabaseConfigured() 
-  ? createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        storage: AsyncStorage,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-      },
-    })
-  : null;
+// Crea il client Supabase
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
 
 // Helper per verificare la connessione
 export const checkSupabaseConnection = async (): Promise<boolean> => {

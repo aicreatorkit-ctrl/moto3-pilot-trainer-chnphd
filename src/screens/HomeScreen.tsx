@@ -10,11 +10,11 @@ import { isSupabaseConfigured } from '@/src/config/constants';
 
 /**
  * Home Screen - Dashboard principale
- * Funziona anche senza Supabase configurato
+ * Funziona con Supabase configurato
  */
 export const HomeScreen: React.FC = () => {
-  const { user, loading, configured } = useAuth();
-  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+  const { user, loading } = useAuth();
+  const [supabaseConfigured, setSupabaseConfigured] = useState(true);
 
   useEffect(() => {
     console.log('HomeScreen mounted');
@@ -25,47 +25,34 @@ export const HomeScreen: React.FC = () => {
 
   const quickActions = [
     {
-      title: 'Routine Pre',
-      icon: 'flame.fill',
-      androidIcon: 'local-fire-department',
+      title: 'Calendario',
+      icon: 'calendar',
+      androidIcon: 'event',
+      color: '#2196F3',
+      route: '/calendar',
+    },
+    {
+      title: 'Prontezza',
+      icon: 'heart.fill',
+      androidIcon: 'favorite',
       color: '#FF4444',
-      route: '/routines',
+      route: '/readiness',
     },
     {
-      title: 'Routine Post',
-      icon: 'moon.stars.fill',
-      androidIcon: 'nightlight',
-      color: '#00D9FF',
-      route: '/routines',
-    },
-    {
-      title: 'Diario Alimentare',
-      icon: 'fork.knife',
-      androidIcon: 'restaurant',
+      title: 'Progressi',
+      icon: 'chart.line.uptrend.xyaxis',
+      androidIcon: 'trending-up',
       color: '#00C853',
-      route: '/nutrition',
+      route: '/progress',
     },
     {
-      title: 'Check Mattutina',
-      icon: 'sun.max.fill',
-      androidIcon: 'wb-sunny',
-      color: '#FFD700',
-      route: '/morning-routine',
+      title: 'Impostazioni',
+      icon: 'gearshape.fill',
+      androidIcon: 'settings',
+      color: '#9C27B0',
+      route: '/settings',
     },
   ];
-
-  const handleConfigureSupabase = () => {
-    Alert.alert(
-      '⚙️ Configura Supabase',
-      'Per sincronizzare i dati tra dispositivi:\n\n' +
-      '1. Crea un progetto su supabase.com\n' +
-      '2. Copia il file .env.example in .env\n' +
-      '3. Inserisci SUPABASE_URL e SUPABASE_ANON_KEY\n' +
-      '4. Riavvia l\'app\n\n' +
-      'Senza Supabase, l\'app funziona comunque ma i dati non vengono salvati.',
-      [{ text: 'OK' }]
-    );
-  };
 
   const handleNavigate = (route: string) => {
     console.log('Navigate to:', route);
@@ -94,36 +81,6 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.subtitle}>Pronto per l&apos;allenamento?</Text>
         </View>
       </View>
-
-      {/* Avviso Supabase non configurato */}
-      {!supabaseConfigured && (
-        <TouchableOpacity 
-          style={styles.warningCard}
-          onPress={handleConfigureSupabase}
-          activeOpacity={0.7}
-        >
-          <View style={styles.warningIcon}>
-            <IconSymbol 
-              ios_icon_name="exclamationmark.triangle.fill" 
-              android_material_icon_name="warning" 
-              size={24} 
-              color="#FF9500" 
-            />
-          </View>
-          <View style={styles.warningContent}>
-            <Text style={styles.warningTitle}>Supabase non configurato</Text>
-            <Text style={styles.warningText}>
-              L&apos;app funziona anche senza Supabase, ma i dati non vengono salvati. Tocca per maggiori info.
-            </Text>
-          </View>
-          <IconSymbol 
-            ios_icon_name="chevron.right" 
-            android_material_icon_name="chevron-right" 
-            size={20} 
-            color={colors.textSecondary} 
-          />
-        </TouchableOpacity>
-      )}
 
       {/* Quick Actions */}
       <View style={styles.section}>
@@ -189,7 +146,7 @@ export const HomeScreen: React.FC = () => {
         </Card>
       </View>
 
-      {/* User Info - Solo se Supabase è configurato */}
+      {/* User Info - Supabase configurato */}
       {supabaseConfigured && user && (
         <Card style={styles.userCard}>
           <IconSymbol 
@@ -205,23 +162,21 @@ export const HomeScreen: React.FC = () => {
         </Card>
       )}
 
-      {/* Info Card - Modalità Offline */}
-      {!supabaseConfigured && (
-        <Card style={styles.infoCard}>
-          <IconSymbol 
-            ios_icon_name="info.circle.fill" 
-            android_material_icon_name="info" 
-            size={24} 
-            color="#00D9FF" 
-          />
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>💡 Modalità Offline</Text>
-            <Text style={styles.infoText}>
-              Puoi usare l&apos;app normalmente. Per salvare i dati in modo permanente, configura Supabase.
-            </Text>
-          </View>
-        </Card>
-      )}
+      {/* Info Card */}
+      <Card style={styles.infoCard}>
+        <IconSymbol 
+          ios_icon_name="info.circle.fill" 
+          android_material_icon_name="info" 
+          size={24} 
+          color="#00D9FF" 
+        />
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>💡 Benvenuto</Text>
+          <Text style={styles.infoText}>
+            Usa il calendario per pianificare le tue 46 settimane di allenamento. Monitora la tua prontezza quotidiana e traccia i progressi.
+          </Text>
+        </View>
+      </Card>
     </ScrollView>
   );
 };
@@ -254,31 +209,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
-  },
-  warningCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF950020',
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.xxl,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF9500',
-  },
-  warningIcon: {
-    marginRight: spacing.md,
-  },
-  warningContent: {
-    flex: 1,
-  },
-  warningTitle: {
-    ...typography.bodyBold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  warningText: {
-    ...typography.caption,
     color: colors.textSecondary,
   },
   section: {

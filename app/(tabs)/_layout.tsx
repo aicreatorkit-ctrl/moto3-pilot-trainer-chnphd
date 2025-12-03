@@ -42,13 +42,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="routines"
+        name="calendar"
         options={{
-          title: 'Routine',
+          title: 'Calendario',
           tabBarIcon: ({ color }) => (
             <IconSymbol 
-              ios_icon_name="list.bullet" 
-              android_material_icon_name="list" 
+              ios_icon_name="calendar" 
+              android_material_icon_name="event" 
               size={24} 
               color={color} 
             />
@@ -56,13 +56,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="nutrition"
+        name="readiness"
         options={{
-          title: 'Nutrizione',
+          title: 'Prontezza',
           tabBarIcon: ({ color }) => (
             <IconSymbol 
-              ios_icon_name="fork.knife" 
-              android_material_icon_name="restaurant" 
+              ios_icon_name="heart.fill" 
+              android_material_icon_name="favorite" 
               size={24} 
               color={color} 
             />
@@ -95,6 +95,18 @@ export default function TabLayout() {
               color={color} 
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="routines"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

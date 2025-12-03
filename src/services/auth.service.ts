@@ -1,115 +1,97 @@
 
 import { supabase } from '@/src/config/supabase';
 
-/**
- * Servizio per gestire l'autenticazione
- * Funziona solo se Supabase è configurato
- */
-export const AuthService = {
-  /**
-   * Ottieni la sessione corrente
-   */
-  async getSession() {
-    if (!supabase) {
-      console.log('AuthService: Supabase non configurato');
-      return { session: null, error: null };
-    }
-    
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('AuthService: Error getting session:', error);
-      }
-      return { session: data.session, error };
-    } catch (error) {
-      console.error('AuthService: Exception getting session:', error);
-      return { session: null, error };
-    }
-  },
-
-  /**
-   * Accedi con email e password
-   */
-  async signIn(email: string, password: string) {
-    if (!supabase) {
-      console.log('AuthService: Supabase non configurato');
-      return { data: null, error: new Error('Supabase non configurato') };
-    }
-    
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        console.error('AuthService: Error signing in:', error);
-      }
-      return { data, error };
-    } catch (error) {
-      console.error('AuthService: Exception signing in:', error);
-      return { data: null, error };
-    }
-  },
-
-  /**
-   * Registra un nuovo utente
-   */
-  async signUp(email: string, password: string, fullName: string) {
-    if (!supabase) {
-      console.log('AuthService: Supabase non configurato');
-      return { data: null, error: new Error('Supabase non configurato') };
-    }
-    
+export const authService = {
+  async signUp(email: string, password: string) {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-          },
-        },
+          emailRedirectTo: 'https://natively.dev/email-confirmed'
+        }
       });
+      
       if (error) {
-        console.error('AuthService: Error signing up:', error);
+        console.error('Sign up error:', error);
+        return { data: null, error };
       }
-      return { data, error };
+      
+      return { data, error: null };
     } catch (error) {
-      console.error('AuthService: Exception signing up:', error);
+      console.error('Sign up exception:', error);
       return { data: null, error };
     }
   },
 
-  /**
-   * Esci
-   */
-  async signOut() {
-    if (!supabase) {
-      console.log('AuthService: Supabase non configurato');
-      return { error: new Error('Supabase non configurato') };
+  async signIn(email: string, password: string) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        return { data: null, error };
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Sign in exception:', error);
+      return { data: null, error };
     }
-    
+  },
+
+  async signOut() {
     try {
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
-        console.error('AuthService: Error signing out:', error);
+        console.error('Sign out error:', error);
+        return { error };
       }
-      return { error };
+      
+      return { error: null };
     } catch (error) {
-      console.error('AuthService: Exception signing out:', error);
+      console.error('Sign out exception:', error);
       return { error };
     }
   },
 
-  /**
-   * Ascolta i cambiamenti dello stato di autenticazione
-   */
-  onAuthStateChange(callback: (event: string, session: any) => void) {
-    if (!supabase) {
-      console.log('AuthService: Supabase non configurato');
-      return { data: { subscription: { unsubscribe: () => console.log('No subscription to unsubscribe') } } };
+  async getCurrentUser() {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        console.error('Get user error:', error);
+        return { user: null, error };
+      }
+      
+      return { user, error: null };
+    } catch (error) {
+      console.error('Get user exception:', error);
+      return { user: null, error };
     }
-    
+  },
+
+  async getSession() {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Get session error:', error);
+        return { session: null, error };
+      }
+      
+      return { session, error: null };
+    } catch (error) {
+      console.error('Get session exception:', error);
+      return { session: null, error };
+    }
+  },
+
+  onAuthStateChange(callback: (event: string, session: any) => void) {
     return supabase.auth.onAuthStateChange(callback);
   },
 };

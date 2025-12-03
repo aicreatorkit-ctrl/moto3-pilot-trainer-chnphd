@@ -67,7 +67,6 @@ export default function ReadinessScreen() {
 
   const triggerProgressUpdate = async () => {
     try {
-      // Set a timestamp to trigger progress screen update
       const timestamp = new Date().toISOString();
       await AsyncStorage.setItem(UPDATE_TRIGGER_KEY, timestamp);
       console.log('Progress update triggered at:', timestamp);
@@ -77,7 +76,9 @@ export default function ReadinessScreen() {
   };
 
   const handleRatingPress = (value: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const renderRatingScale = (
@@ -85,12 +86,13 @@ export default function ReadinessScreen() {
     value: number,
     setValue: (val: number) => void,
     icon: string,
+    androidIcon: string,
     iconColor: string
   ) => (
     <View style={styles.ratingContainer}>
       <View style={styles.ratingHeader}>
         <View style={[styles.ratingIconContainer, { backgroundColor: iconColor + '20' }]}>
-          <IconSymbol name={icon as any} size={22} color={iconColor} />
+          <IconSymbol ios_icon_name={icon as any} android_material_icon_name={androidIcon} size={22} color={iconColor} />
         </View>
         <View style={styles.ratingLabelContainer}>
           <Text style={styles.ratingLabel}>{label}</Text>
@@ -198,13 +200,14 @@ export default function ReadinessScreen() {
       score: readinessScore,
     };
 
-    const newHistory = [newEntry, ...history].slice(0, 30); // Keep last 30 entries
+    const newHistory = [newEntry, ...history].slice(0, 30);
     await saveHistory(newHistory);
-    
-    // Trigger progress screen update
     await triggerProgressUpdate();
     
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    
     Alert.alert(
       '✅ Salvato', 
       'Valutazione prontezza salvata con successo.\n\nI dati sono stati sincronizzati con la sezione Progressi & Analisi.',
@@ -250,7 +253,6 @@ export default function ReadinessScreen() {
 
     return (
       <Svg width={chartWidth} height={chartHeight}>
-        {/* Grid lines */}
         {[0, 25, 50, 75, 100].map((value) => {
           const y = chartHeight - padding - ((value / maxScore) * (chartHeight - 2 * padding));
           return (
@@ -267,7 +269,6 @@ export default function ReadinessScreen() {
           );
         })}
         
-        {/* Line */}
         <Path
           d={pathData}
           stroke={colors.primary}
@@ -277,7 +278,6 @@ export default function ReadinessScreen() {
           strokeLinejoin="round"
         />
         
-        {/* Points */}
         {points.map((point, index) => (
           <Circle
             key={index}
@@ -306,10 +306,10 @@ export default function ReadinessScreen() {
             headerRight: () => (
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <Pressable onPress={() => setShowTrends(true)}>
-                  <IconSymbol name="chart.line.uptrend.xyaxis" size={22} color={colors.primary} />
+                  <IconSymbol ios_icon_name="chart.line.uptrend.xyaxis" android_material_icon_name="trending-up" size={22} color={colors.primary} />
                 </Pressable>
                 <Pressable onPress={() => setShowHistory(true)}>
-                  <IconSymbol name="clock.fill" size={22} color={colors.primary} />
+                  <IconSymbol ios_icon_name="clock.fill" android_material_icon_name="access-time" size={22} color={colors.primary} />
                 </Pressable>
               </View>
             ),
@@ -326,7 +326,7 @@ export default function ReadinessScreen() {
         >
           {/* Sync Info Banner */}
           <View style={styles.syncBanner}>
-            <IconSymbol name="arrow.triangle.2.circlepath" size={18} color={colors.accent} />
+            <IconSymbol ios_icon_name="arrow.triangle.2.circlepath" android_material_icon_name="sync" size={18} color={colors.accent} />
             <Text style={styles.syncBannerText}>
               I dati salvati vengono automaticamente sincronizzati con Progressi & Analisi
             </Text>
@@ -336,13 +336,14 @@ export default function ReadinessScreen() {
           {history.length > 0 && (
             <View style={styles.quickStatsContainer}>
               <View style={styles.quickStatCard}>
-                <IconSymbol name="calendar" size={20} color={colors.primary} />
+                <IconSymbol ios_icon_name="calendar" android_material_icon_name="event" size={20} color={colors.primary} />
                 <Text style={styles.quickStatValue}>{weeklyAvg}%</Text>
                 <Text style={styles.quickStatLabel}>Media 7gg</Text>
               </View>
               <View style={styles.quickStatCard}>
                 <IconSymbol 
-                  name={trend === 'up' ? 'arrow.up.right' : trend === 'down' ? 'arrow.down.right' : 'arrow.right'} 
+                  ios_icon_name={trend === 'up' ? 'arrow.up.right' : trend === 'down' ? 'arrow.down.right' : 'arrow.right'} 
+                  android_material_icon_name={trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'trending-flat'}
                   size={20} 
                   color={trend === 'up' ? colors.success : trend === 'down' ? colors.error : colors.textSecondary} 
                 />
@@ -352,7 +353,7 @@ export default function ReadinessScreen() {
                 <Text style={styles.quickStatLabel}>Tendenza</Text>
               </View>
               <View style={styles.quickStatCard}>
-                <IconSymbol name="chart.bar.fill" size={20} color={colors.accent} />
+                <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar-chart" size={20} color={colors.accent} />
                 <Text style={styles.quickStatValue}>{history.length}</Text>
                 <Text style={styles.quickStatLabel}>Valutazioni</Text>
               </View>
@@ -384,12 +385,12 @@ export default function ReadinessScreen() {
           {/* Recommendation Card */}
           <View style={[commonStyles.cardRacing, styles.recommendationCard]}>
             <View style={styles.recommendationHeader}>
-              <IconSymbol name="lightbulb.fill" size={24} color={colors.primary} />
+              <IconSymbol ios_icon_name="lightbulb.fill" android_material_icon_name="lightbulb" size={24} color={colors.primary} />
               <Text style={styles.recommendationTitle}>{recommendation.title}</Text>
             </View>
             <Text style={styles.recommendationDescription}>{recommendation.description}</Text>
             <View style={styles.intensityBadge}>
-              <IconSymbol name="bolt.fill" size={16} color={getScoreColor()} />
+              <IconSymbol ios_icon_name="bolt.fill" android_material_icon_name="flash-on" size={16} color={getScoreColor()} />
               <Text style={[styles.intensityText, { color: getScoreColor() }]}>
                 {recommendation.intensity}
               </Text>
@@ -399,7 +400,7 @@ export default function ReadinessScreen() {
           {/* Subjective Assessment */}
           <View style={commonStyles.card}>
             <View style={styles.sectionHeader}>
-              <IconSymbol name="person.fill" size={20} color={colors.primary} />
+              <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Valutazione Soggettiva</Text>
             </View>
             
@@ -408,6 +409,7 @@ export default function ReadinessScreen() {
               sleepQuality,
               setSleepQuality,
               'bed.double.fill',
+              'hotel',
               colors.primary
             )}
             
@@ -416,6 +418,7 @@ export default function ReadinessScreen() {
               muscleSoreness,
               setMuscleSoreness,
               'figure.walk',
+              'directions-walk',
               colors.error
             )}
             
@@ -424,6 +427,7 @@ export default function ReadinessScreen() {
               mood,
               setMood,
               'face.smiling.fill',
+              'sentiment-satisfied',
               colors.warning
             )}
             
@@ -432,6 +436,7 @@ export default function ReadinessScreen() {
               energy,
               setEnergy,
               'bolt.fill',
+              'flash-on',
               colors.success
             )}
             
@@ -440,6 +445,7 @@ export default function ReadinessScreen() {
               motivation,
               setMotivation,
               'flame.fill',
+              'local-fire-department',
               colors.accent
             )}
           </View>
@@ -447,7 +453,7 @@ export default function ReadinessScreen() {
           {/* Objective Data */}
           <View style={commonStyles.card}>
             <View style={styles.sectionHeader}>
-              <IconSymbol name="chart.xyaxis.line" size={20} color={colors.accent} />
+              <IconSymbol ios_icon_name="chart.xyaxis.line" android_material_icon_name="show-chart" size={20} color={colors.accent} />
               <Text style={styles.sectionTitle}>Dati Oggettivi</Text>
             </View>
             
@@ -455,7 +461,7 @@ export default function ReadinessScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Peso (kg)</Text>
                 <View style={styles.inputWrapper}>
-                  <IconSymbol name="scalemass.fill" size={18} color={colors.textSecondary} />
+                  <IconSymbol ios_icon_name="scalemass.fill" android_material_icon_name="monitor-weight" size={18} color={colors.textSecondary} />
                   <TextInput
                     style={styles.input}
                     value={weight}
@@ -470,7 +476,7 @@ export default function ReadinessScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>HRV (ms)</Text>
                 <View style={styles.inputWrapper}>
-                  <IconSymbol name="waveform.path.ecg" size={18} color={colors.textSecondary} />
+                  <IconSymbol ios_icon_name="waveform.path.ecg" android_material_icon_name="favorite" size={18} color={colors.textSecondary} />
                   <TextInput
                     style={styles.input}
                     value={hrv}
@@ -486,7 +492,7 @@ export default function ReadinessScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Frequenza Cardiaca a Riposo (bpm)</Text>
               <View style={styles.inputWrapper}>
-                <IconSymbol name="heart.fill" size={18} color={colors.textSecondary} />
+                <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={18} color={colors.textSecondary} />
                 <TextInput
                   style={styles.input}
                   value={restingHR}
@@ -502,7 +508,7 @@ export default function ReadinessScreen() {
           {/* Notes */}
           <View style={commonStyles.card}>
             <View style={styles.sectionHeader}>
-              <IconSymbol name="note.text" size={20} color={colors.purple} />
+              <IconSymbol ios_icon_name="note.text" android_material_icon_name="note" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Note Personali</Text>
             </View>
             <TextInput
@@ -527,7 +533,7 @@ export default function ReadinessScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.saveButtonGradient}
             >
-              <IconSymbol name="checkmark.circle.fill" size={22} color="#FFFFFF" />
+              <IconSymbol ios_icon_name="checkmark.circle.fill" android_material_icon_name="check-circle" size={22} color="#FFFFFF" />
               <Text style={styles.saveButtonText}>Salva e Sincronizza</Text>
             </LinearGradient>
           </Pressable>
@@ -545,13 +551,13 @@ export default function ReadinessScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Storico Valutazioni</Text>
             <Pressable onPress={() => setShowHistory(false)}>
-              <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+              <IconSymbol ios_icon_name="xmark.circle.fill" android_material_icon_name="cancel" size={28} color={colors.textSecondary} />
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.historyContent}>
             {history.length === 0 ? (
               <View style={styles.emptyState}>
-                <IconSymbol name="clock" size={48} color={colors.textSecondary} />
+                <IconSymbol ios_icon_name="clock" android_material_icon_name="access-time" size={48} color={colors.textSecondary} />
                 <Text style={styles.emptyStateText}>Nessuna valutazione salvata</Text>
               </View>
             ) : (
@@ -571,15 +577,15 @@ export default function ReadinessScreen() {
                   </View>
                   <View style={styles.historyMetrics}>
                     <View style={styles.historyMetric}>
-                      <IconSymbol name="bed.double.fill" size={16} color={colors.textSecondary} />
+                      <IconSymbol ios_icon_name="bed.double.fill" android_material_icon_name="hotel" size={16} color={colors.textSecondary} />
                       <Text style={styles.historyMetricText}>{entry.sleepQuality}/10</Text>
                     </View>
                     <View style={styles.historyMetric}>
-                      <IconSymbol name="bolt.fill" size={16} color={colors.textSecondary} />
+                      <IconSymbol ios_icon_name="bolt.fill" android_material_icon_name="flash-on" size={16} color={colors.textSecondary} />
                       <Text style={styles.historyMetricText}>{entry.energy}/10</Text>
                     </View>
                     <View style={styles.historyMetric}>
-                      <IconSymbol name="face.smiling.fill" size={16} color={colors.textSecondary} />
+                      <IconSymbol ios_icon_name="face.smiling.fill" android_material_icon_name="sentiment-satisfied" size={16} color={colors.textSecondary} />
                       <Text style={styles.historyMetricText}>{entry.mood}/10</Text>
                     </View>
                   </View>
@@ -604,13 +610,13 @@ export default function ReadinessScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Analisi Tendenze</Text>
             <Pressable onPress={() => setShowTrends(false)}>
-              <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
+              <IconSymbol ios_icon_name="xmark.circle.fill" android_material_icon_name="cancel" size={28} color={colors.textSecondary} />
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.trendsContent}>
             {history.length < 2 ? (
               <View style={styles.emptyState}>
-                <IconSymbol name="chart.line.uptrend.xyaxis" size={48} color={colors.textSecondary} />
+                <IconSymbol ios_icon_name="chart.line.uptrend.xyaxis" android_material_icon_name="trending-up" size={48} color={colors.textSecondary} />
                 <Text style={styles.emptyStateText}>Servono almeno 2 valutazioni per vedere le tendenze</Text>
               </View>
             ) : (
@@ -626,19 +632,19 @@ export default function ReadinessScreen() {
                   <Text style={styles.sectionTitle}>Statistiche</Text>
                   <View style={styles.statsGrid}>
                     <View style={styles.statCard}>
-                      <IconSymbol name="chart.bar.fill" size={24} color={colors.primary} />
+                      <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar-chart" size={24} color={colors.primary} />
                       <Text style={styles.statValue}>{weeklyAvg}%</Text>
                       <Text style={styles.statLabel}>Media 7gg</Text>
                     </View>
                     <View style={styles.statCard}>
-                      <IconSymbol name="arrow.up.circle.fill" size={24} color={colors.success} />
+                      <IconSymbol ios_icon_name="arrow.up.circle.fill" android_material_icon_name="arrow-upward" size={24} color={colors.success} />
                       <Text style={styles.statValue}>
                         {Math.max(...history.slice(0, 7).map(e => e.score))}%
                       </Text>
                       <Text style={styles.statLabel}>Massimo</Text>
                     </View>
                     <View style={styles.statCard}>
-                      <IconSymbol name="arrow.down.circle.fill" size={24} color={colors.error} />
+                      <IconSymbol ios_icon_name="arrow.down.circle.fill" android_material_icon_name="arrow-downward" size={24} color={colors.error} />
                       <Text style={styles.statValue}>
                         {Math.min(...history.slice(0, 7).map(e => e.score))}%
                       </Text>
@@ -651,7 +657,8 @@ export default function ReadinessScreen() {
                   <Text style={styles.sectionTitle}>Insights</Text>
                   <View style={styles.insightCard}>
                     <IconSymbol 
-                      name={trend === 'up' ? 'arrow.up.right.circle.fill' : trend === 'down' ? 'arrow.down.right.circle.fill' : 'arrow.right.circle.fill'} 
+                      ios_icon_name={trend === 'up' ? 'arrow.up.right.circle.fill' : trend === 'down' ? 'arrow.down.right.circle.fill' : 'arrow.right.circle.fill'} 
+                      android_material_icon_name={trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'trending-flat'}
                       size={32} 
                       color={trend === 'up' ? colors.success : trend === 'down' ? colors.error : colors.textSecondary} 
                     />
@@ -681,6 +688,7 @@ export default function ReadinessScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
+    paddingTop: 48,
     paddingBottom: 32,
   },
   scrollContentWithTabBar: {
@@ -959,6 +967,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 48,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },

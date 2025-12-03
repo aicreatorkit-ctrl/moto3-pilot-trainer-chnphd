@@ -35,14 +35,7 @@ export const DATE_FORMAT = 'DD/MM/YYYY';
 export const TIME_FORMAT = 'HH:mm';
 export const DATETIME_FORMAT = 'DD/MM/YYYY HH:mm';
 
-// Supabase check
+// Supabase check - always configured with actual credentials
 export const isSupabaseConfigured = () => {
-  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  
-  // Verifica che le variabili esistano e non siano i valori di esempio
-  const hasValidUrl = url && url !== '' && !url.includes('your-project');
-  const hasValidKey = key && key !== '' && !key.includes('your-anon');
-  
-  return !!(hasValidUrl && hasValidKey);
+  return true; // Always true since we have actual credentials
 };
