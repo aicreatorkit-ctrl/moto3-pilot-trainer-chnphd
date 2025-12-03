@@ -17,12 +17,14 @@ interface EmptyStateProps {
 export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description, action }) => {
   return (
     <View style={styles.container}>
-      <IconSymbol 
-        ios_icon_name={icon as any} 
-        android_material_icon_name={icon} 
-        size={64} 
-        color={colors.textLight} 
-      />
+      <View style={styles.iconContainer}>
+        <IconSymbol 
+          ios_icon_name={icon as any} 
+          android_material_icon_name={icon} 
+          size={64} 
+          color={colors.textLight} 
+        />
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
       {action && <View style={styles.action}>{action}</View>}
@@ -35,21 +37,31 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xxxl,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.xxxl * 2,
+  },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xxl,
   },
   title: {
-    ...typography.subtitle,
+    ...typography.title,
     color: colors.text,
-    marginTop: spacing.xl,
     textAlign: 'center',
+    marginBottom: spacing.md,
   },
   description: {
     ...typography.body,
     color: colors.textSecondary,
-    marginTop: spacing.sm,
     textAlign: 'center',
+    marginBottom: spacing.xxl,
   },
   action: {
-    marginTop: spacing.xxl,
+    marginTop: spacing.lg,
   },
 });

@@ -1,43 +1,36 @@
-import * as React from "react";
-import { createContext, useCallback, useContext } from "react";
-import { ExtensionStorage } from "@bacons/apple-targets";
 
-// Initialize storage with your group ID
-const storage = new ExtensionStorage(
-  "group.com.<user_name>.<app_name>"
-);
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type WidgetContextType = {
-  refreshWidget: () => void;
-};
+interface WidgetContextType {
+  widgets: string[];
+  addWidget: (widget: string) => void;
+  removeWidget: (widget: string) => void;
+}
 
-const WidgetContext = createContext<WidgetContextType | null>(null);
+const WidgetContext = createContext<WidgetContextType | undefined>(undefined);
 
-export function WidgetProvider({ children }: { children: React.ReactNode }) {
-  // Update widget state whenever what we want to show changes
-  React.useEffect(() => {
-    // set widget_state to null if we want to reset the widget
-    // storage.set("widget_state", null);
+export const WidgetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [widgets, setWidgets] = useState<string[]>([]);
 
-    // Refresh widget
-    ExtensionStorage.reloadWidget();
-  }, []);
+  const addWidget = (widget: string) => {
+    setWidgets(prev => [...prev, widget]);
+  };
 
-  const refreshWidget = useCallback(() => {
-    ExtensionStorage.reloadWidget();
-  }, []);
+  const removeWidget = (widget: string) => {
+    setWidgets(prev => prev.filter(w => w !== widget));
+  };
 
   return (
-    <WidgetContext.Provider value={{ refreshWidget }}>
+    <WidgetContext.Provider value={{ widgets, addWidget, removeWidget }}>
       {children}
     </WidgetContext.Provider>
   );
-}
+};
 
-export const useWidget = () => {
+export const useWidgets = () => {
   const context = useContext(WidgetContext);
-  if (!context) {
-    throw new Error("useWidget must be used within a WidgetProvider");
+  if (context === undefined) {
+    throw new Error('useWidgets must be used within a WidgetProvider');
   }
   return context;
 };

@@ -8,34 +8,17 @@ type DailyNutrition = Database['public']['Tables']['daily_nutrition']['Row'];
 type DailyNutritionInsert = Database['public']['Tables']['daily_nutrition']['Insert'];
 
 /**
- * Service CRUD per Diario Alimentare
+ * Service CRUD per Nutrizione
  */
 export class NutritionService {
-  // Ottieni tutti i piani nutrizionali
-  static async getPlans(): Promise<NutritionPlan[]> {
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data, error } = await supabase
-        .from('nutrition_plans')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.log('Error fetching nutrition plans:', error);
-      return [];
-    }
-  }
-
   // Ottieni piano attivo
   static async getActivePlan(): Promise<NutritionPlan | null> {
     try {
       const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.log('User not authenticated');
+        return null;
+      }
 
       const { data, error } = await supabase
         .from('nutrition_plans')
@@ -44,10 +27,14 @@ export class NutritionService {
         .eq('is_active', true)
         .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.log('Error fetching active plan:', error);
+        return null;
+      }
+      
       return data;
     } catch (error) {
-      console.log('Error fetching active plan:', error);
+      console.log('Error in getActivePlan:', error);
       return null;
     }
   }
@@ -56,9 +43,12 @@ export class NutritionService {
   static async createPlan(plan: NutritionPlanInsert): Promise<NutritionPlan | null> {
     try {
       const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.log('User not authenticated');
+        return null;
+      }
 
-      // Se il piano è attivo, disattiva gli altri
+      // Disattiva altri piani se questo è attivo
       if (plan.is_active) {
         await supabase
           .from('nutrition_plans')
@@ -72,69 +62,71 @@ export class NutritionService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.log('Error creating plan:', error);
+        return null;
+      }
+      
       return data;
     } catch (error) {
-      console.log('Error creating nutrition plan:', error);
+      console.log('Error in createPlan:', error);
       return null;
     }
   }
 
-  // Aggiorna piano
-  static async updatePlan(id: string, updates: Partial<NutritionPlanInsert>): Promise<NutritionPlan | null> {
-    try {
-      const { data, error } = await supabase
-        .from('nutrition_plans')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.log('Error updating nutrition plan:', error);
-      return null;
-    }
-  }
-
-  // Registra nutrizione giornaliera
-  static async logDailyNutrition(nutrition: DailyNutritionInsert): Promise<DailyNutrition | null> {
+  // Ottieni nutrizione di oggi
+  static async getTodayNutrition(): Promise<DailyNutrition | null> {
     try {
       const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.log('User not authenticated');
+        return null;
+      }
 
-      const { data, error } = await supabase
-        .from('daily_nutrition')
-        .insert({ ...nutrition, user_id: user.id })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.log('Error logging daily nutrition:', error);
-      return null;
-    }
-  }
-
-  // Ottieni nutrizione per data
-  static async getDailyNutrition(date: string): Promise<DailyNutrition | null> {
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('daily_nutrition')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', date)
+        .eq('date', today)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+      if (error && error.code !== 'PGRST116') {
+        console.log('Error fetching today nutrition:', error);
+        return null;
+      }
+      
       return data;
     } catch (error) {
-      console.log('Error fetching daily nutrition:', error);
+      console.log('Error in getTodayNutrition:', error);
+      return null;
+    }
+  }
+
+  // Salva nutrizione giornaliera
+  static async saveDailyNutrition(nutrition: DailyNutritionInsert): Promise<DailyNutrition | null> {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        console.log('User not authenticated');
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('daily_nutrition')
+        .upsert({ ...nutrition, user_id: user.id })
+        .select()
+        .single();
+
+      if (error) {
+        console.log('Error saving daily nutrition:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.log('Error in saveDailyNutrition:', error);
       return null;
     }
   }
@@ -143,7 +135,10 @@ export class NutritionService {
   static async getNutritionHistory(dateRange: { start: string; end: string }): Promise<DailyNutrition[]> {
     try {
       const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.log('User not authenticated');
+        return [];
+      }
 
       const { data, error } = await supabase
         .from('daily_nutrition')
@@ -151,12 +146,16 @@ export class NutritionService {
         .eq('user_id', user.id)
         .gte('date', dateRange.start)
         .lte('date', dateRange.end)
-        .order('date', { ascending: false });
+        .order('date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.log('Error fetching nutrition history:', error);
+        return [];
+      }
+      
       return data || [];
     } catch (error) {
-      console.log('Error fetching nutrition history:', error);
+      console.log('Error in getNutritionHistory:', error);
       return [];
     }
   }

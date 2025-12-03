@@ -1,17 +1,23 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Card } from '@/src/components/common/Card';
 import { colors, spacing, typography } from '@/styles/commonStyles';
 import { useAuth } from '@/src/hooks/useAuth';
+import { isSupabaseConfigured } from '@/src/config/constants';
 
 /**
  * Home Screen - Dashboard principale
  */
 export const HomeScreen: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+
+  useEffect(() => {
+    setSupabaseConfigured(isSupabaseConfigured());
+  }, []);
 
   const quickActions = [
     {
@@ -19,14 +25,14 @@ export const HomeScreen: React.FC = () => {
       icon: 'flame.fill',
       androidIcon: 'local_fire_department',
       color: '#FF4444',
-      route: '/routines/pre',
+      route: '/routines',
     },
     {
       title: 'Routine Post',
       icon: 'moon.stars.fill',
       androidIcon: 'nightlight',
       color: '#00D9FF',
-      route: '/routines/post',
+      route: '/routines',
     },
     {
       title: 'Diario Alimentare',
@@ -40,7 +46,7 @@ export const HomeScreen: React.FC = () => {
       icon: 'sun.max.fill',
       androidIcon: 'wb_sunny',
       color: '#FFD700',
-      route: '/morning-check',
+      route: '/morning-routine',
     },
   ];
 
@@ -62,7 +68,14 @@ export const HomeScreen: React.FC = () => {
             <TouchableOpacity
               key={index}
               style={styles.actionCard}
-              onPress={() => console.log('Navigate to:', action.route)}
+              onPress={() => {
+                console.log('Navigate to:', action.route);
+                try {
+                  router.push(action.route as any);
+                } catch (error) {
+                  console.log('Navigation error:', error);
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={[styles.iconContainer, { backgroundColor: `${action.color}20` }]}>
@@ -118,18 +131,39 @@ export const HomeScreen: React.FC = () => {
         </Card>
       </View>
 
-      {/* Info Card */}
-      <Card style={styles.infoCard}>
-        <IconSymbol 
-          ios_icon_name="info.circle.fill" 
-          android_material_icon_name="info" 
-          size={24} 
-          color="#00D9FF" 
-        />
-        <Text style={styles.infoText}>
-          Connetti Supabase per sincronizzare i tuoi dati tra dispositivi
-        </Text>
-      </Card>
+      {/* Info Card - Supabase */}
+      {!supabaseConfigured && (
+        <Card style={styles.infoCard}>
+          <IconSymbol 
+            ios_icon_name="info.circle.fill" 
+            android_material_icon_name="info" 
+            size={24} 
+            color="#00D9FF" 
+          />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Configura Supabase</Text>
+            <Text style={styles.infoText}>
+              Per sincronizzare i dati tra dispositivi, configura Supabase nel file .env
+            </Text>
+          </View>
+        </Card>
+      )}
+
+      {/* User Info */}
+      {supabaseConfigured && user && (
+        <Card style={styles.userCard}>
+          <IconSymbol 
+            ios_icon_name="person.circle.fill" 
+            android_material_icon_name="account_circle" 
+            size={24} 
+            color="#FF4444" 
+          />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Connesso</Text>
+            <Text style={styles.infoText}>{user.email}</Text>
+          </View>
+        </Card>
+      )}
     </ScrollView>
   );
 };
@@ -141,6 +175,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.xl,
+    paddingTop: 48, // Android notch
     paddingBottom: 100, // Spazio per bottom tab
   },
   header: {
@@ -215,14 +250,27 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#00D9FF20',
     borderLeftColor: '#00D9FF',
   },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FF444420',
+    borderLeftColor: '#FF4444',
+  },
+  infoContent: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  infoTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
   infoText: {
     ...typography.caption,
-    color: colors.text,
-    marginLeft: spacing.md,
-    flex: 1,
+    color: colors.textSecondary,
   },
 });

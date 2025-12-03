@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors, spacing, typography, borderRadius } from '@/styles/commonStyles';
+import { colors, spacing, typography } from '@/styles/commonStyles';
 import { RoutineItem } from '@/src/types/database.types';
 
 interface RoutineChecklistProps {
@@ -12,24 +12,22 @@ interface RoutineChecklistProps {
 }
 
 /**
- * Checklist interattiva per routine
+ * Checklist per completare routine
  */
 export const RoutineChecklist: React.FC<RoutineChecklistProps> = ({ 
   items, 
   completedItems, 
   onToggleItem 
 }) => {
-  const sortedItems = [...items].sort((a, b) => a.order - b.order);
-
   return (
-    <ScrollView style={styles.container}>
-      {sortedItems.map((item, index) => {
+    <View style={styles.container}>
+      {items.map((item, index) => {
         const isCompleted = completedItems.includes(item.id);
         
         return (
           <TouchableOpacity
             key={index}
-            style={[styles.item, isCompleted && styles.itemCompleted]}
+            style={styles.item}
             onPress={() => onToggleItem(item.id)}
             activeOpacity={0.7}
           >
@@ -38,48 +36,43 @@ export const RoutineChecklist: React.FC<RoutineChecklistProps> = ({
                 <IconSymbol 
                   ios_icon_name="checkmark" 
                   android_material_icon_name="check" 
-                  size={18} 
+                  size={20} 
                   color={colors.textInverse} 
                 />
               )}
             </View>
-            <View style={styles.content}>
-              <Text style={[styles.title, isCompleted && styles.titleCompleted]}>
+            <View style={styles.itemContent}>
+              <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
                 {item.title}
               </Text>
               {item.description && (
-                <Text style={styles.description}>{item.description}</Text>
+                <Text style={styles.itemDescription}>{item.description}</Text>
               )}
               {item.duration_seconds && (
-                <Text style={styles.duration}>
-                  ⏱️ {Math.floor(item.duration_seconds / 60)}:{(item.duration_seconds % 60).toString().padStart(2, '0')}
+                <Text style={styles.itemDuration}>
+                  {Math.floor(item.duration_seconds / 60)}:{(item.duration_seconds % 60).toString().padStart(2, '0')} min
                 </Text>
               )}
             </View>
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    gap: spacing.md,
   },
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: spacing.lg,
     backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: colors.border,
-  },
-  itemCompleted: {
-    backgroundColor: colors.highlightGreen,
-    borderColor: colors.success,
   },
   checkbox: {
     width: 28,
@@ -90,29 +83,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    marginTop: 2,
   },
   checkboxCompleted: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: '#FF4444',
+    borderColor: '#FF4444',
   },
-  content: {
+  itemContent: {
     flex: 1,
   },
-  title: {
-    ...typography.bodyBold,
+  itemTitle: {
+    ...typography.body,
     color: colors.text,
+    fontWeight: '600',
     marginBottom: spacing.xs,
   },
-  titleCompleted: {
-    textDecorationLine: 'line-through',
+  itemTitleCompleted: {
     color: colors.textSecondary,
+    textDecorationLine: 'line-through',
   },
-  description: {
+  itemDescription: {
     ...typography.caption,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
-  duration: {
+  itemDuration: {
     ...typography.small,
     color: '#FF4444',
     fontWeight: '600',

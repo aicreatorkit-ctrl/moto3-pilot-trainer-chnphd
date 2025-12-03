@@ -1,66 +1,37 @@
 
-/**
- * Offline mode indicator component
- */
-
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useNetworkState } from 'expo-network';
-import { IconSymbol } from './IconSymbol';
-import { colors, shadows } from '@/styles/commonStyles';
+import { colors, spacing, typography } from '@/styles/commonStyles';
 
-export function OfflineIndicator() {
+/**
+ * Indicatore di connessione offline
+ */
+export const OfflineIndicator: React.FC = () => {
   const networkState = useNetworkState();
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-  const [isOffline, setIsOffline] = useState(false);
 
-  useEffect(() => {
-    const offline = !networkState.isConnected || networkState.isInternetReachable === false;
-    
-    if (offline !== isOffline) {
-      setIsOffline(offline);
-      
-      Animated.spring(slideAnim, {
-        toValue: offline ? 0 : -100,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }).start();
-    }
-  }, [networkState.isConnected, networkState.isInternetReachable]);
+  if (networkState.isConnected !== false) {
+    return null;
+  }
 
   return (
-    <Animated.View 
-      style={[
-        styles.container,
-        { transform: [{ translateY: slideAnim }] }
-      ]}
-    >
-      <IconSymbol name="wifi.slash" size={16} color={colors.racingWhite} />
-      <Text style={styles.text}>Offline Mode - Changes saved locally</Text>
-    </Animated.View>
+    <View style={styles.container}>
+      <Text style={styles.text}>🔌 Modalità Offline</Text>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     backgroundColor: colors.warning,
-    flexDirection: 'row',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-    zIndex: 1000,
-    ...shadows.medium,
   },
   text: {
-    color: colors.racingWhite,
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.caption,
+    color: colors.textInverse,
+    fontWeight: '700',
   },
 });
