@@ -561,26 +561,30 @@ const getRPEColor = (rpe: number) => {
   return '#FF5722';
 };
 
+interface Exercise {
+  name: string;
+  sets?: number;
+  reps?: number | string;
+  weight?: string;
+  tempo?: string;
+  rest?: string;
+  notes?: string;
+  rpe?: number;
+}
+
+interface Session {
+  type: string;
+  rpe?: number;
+  time?: string;
+  description: string;
+  exercises?: Exercise[];
+  notes?: string;
+}
+
 interface SessionCardProps {
-  session: {
-    type: string;
-    rpe?: number;
-    time?: string;
-    description: string;
-    exercises?: Array<{
-      name: string;
-      sets?: number;
-      reps?: number | string;
-      weight?: string;
-      tempo?: string;
-      rest?: string;
-      notes?: string;
-      rpe?: number;
-    }>;
-    notes?: string;
-  };
+  session: Session;
   title: string;
-  onExercisePress: (exercise: any) => void;
+  onExercisePress: (exercise: Exercise) => void;
   onToggleComplete: () => void;
   isCompleted: boolean;
 }
@@ -662,7 +666,7 @@ export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any>(null);
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [weekData, setWeekData] = useState(COMPLETE_TRAINING_DATA);
   const [completionData, setCompletionData] = useState<Record<string, boolean>>({});
   const [calendarStartDate] = useState(new Date('2025-11-16'));
@@ -675,16 +679,7 @@ export default function CalendarScreen() {
     }
   }, [completionData]);
 
-  useEffect(() => {
-    loadCalendarData();
-    loadCompletionData();
-  }, []);
-
-  useEffect(() => {
-    saveCompletionData();
-  }, [completionData, saveCompletionData]);
-
-  const loadCalendarData = async () => {
+  const loadCalendarData = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY_CALENDAR);
       if (stored) {
@@ -693,18 +688,9 @@ export default function CalendarScreen() {
     } catch (error) {
       console.log('Error loading calendar data:', error);
     }
-  };
+  }, []);
 
-  const saveCalendarData = async (data: typeof COMPLETE_TRAINING_DATA) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_CALENDAR, JSON.stringify(data));
-      setWeekData(data);
-    } catch (error) {
-      console.log('Error saving calendar data:', error);
-    }
-  };
-
-  const loadCompletionData = async () => {
+  const loadCompletionData = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY_COMPLETION);
       if (stored) {
@@ -712,6 +698,24 @@ export default function CalendarScreen() {
       }
     } catch (error) {
       console.log('Error loading completion data:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCalendarData();
+    loadCompletionData();
+  }, [loadCalendarData, loadCompletionData]);
+
+  useEffect(() => {
+    saveCompletionData();
+  }, [saveCompletionData]);
+
+  const saveCalendarData = async (data: typeof COMPLETE_TRAINING_DATA) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_CALENDAR, JSON.stringify(data));
+      setWeekData(data);
+    } catch (error) {
+      console.log('Error saving calendar data:', error);
     }
   };
 
@@ -792,7 +796,7 @@ export default function CalendarScreen() {
   const weekDates = getWeekDates(selectedWeek);
   const currentDayData = selectedDay !== null ? weekData[selectedWeek as keyof typeof weekData]?.[selectedDay] : null;
 
-  const openExerciseDetail = (exercise: any) => {
+  const openExerciseDetail = (exercise: Exercise) => {
     setSelectedExercise(exercise);
     setDetailModalVisible(true);
   };
