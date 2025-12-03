@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-nati
 import { Stack } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { cooldownExercises } from '@/data/trainingData';
+import { cooldownExercises, mobilityExercises, stretchingExercises } from '@/data/trainingData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Exercise } from '@/types/training';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +21,9 @@ interface ExerciseCategory {
 }
 
 export default function CooldownScreen() {
-  const [exercises, setExercises] = useState<Exercise[]>(cooldownExercises);
+  const [exercises, setExercises] = useState<Exercise[]>([...cooldownExercises.slice(0, 3)]);
+  const [mobilityExs, setMobilityExs] = useState<Exercise[]>([...mobilityExercises.slice(0, 4)]);
+  const [stretchingExs, setStretchingExs] = useState<Exercise[]>([...stretchingExercises.slice(0, 6)]);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -58,44 +60,38 @@ export default function CooldownScreen() {
 
   const categories: ExerciseCategory[] = [
     {
-      id: 'cardio',
-      title: 'Decelerazione Cardiovascolare',
-      icon: 'heart.fill',
+      id: 'cooldown',
+      title: 'Raffreddamento',
+      icon: 'figure.cooldown',
       gradient: ['#06b6d4', '#0891b2'],
-      exercises: exercises.filter(e => e.id === 'c1'),
+      exercises: exercises,
     },
     {
-      id: 'breathing',
-      title: 'Respirazione e Reset',
-      icon: 'wind',
+      id: 'mobility',
+      title: 'Mobilità',
+      icon: 'figure.flexibility',
       gradient: ['#8b5cf6', '#7c3aed'],
-      exercises: exercises.filter(e => e.id === 'c2'),
+      exercises: mobilityExs,
     },
     {
       id: 'stretching',
-      title: 'Stretching Post-Allenamento',
+      title: 'Stretching',
       icon: 'figure.flexibility',
       gradient: ['#10b981', '#059669'],
-      exercises: exercises.filter(e => e.id === 'c3' || e.id === 'c4' || e.id === 'c5'),
-    },
-    {
-      id: 'recovery',
-      title: 'Recupero Finale',
-      icon: 'bed.double.fill',
-      gradient: ['#f59e0b', '#d97706'],
-      exercises: exercises.filter(e => e.id === 'c6'),
+      exercises: stretchingExs,
     },
   ];
 
+  const allExercises = [...exercises, ...mobilityExs, ...stretchingExs];
   const completedCount = completedExercises.length;
-  const totalCount = exercises.length;
+  const totalCount = allExercises.length;
   const progress = (completedCount / totalCount) * 100;
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Raffreddamento Post-Allenamento',
+          title: 'Post-Allenamento',
           presentation: 'card',
         }}
       />
@@ -114,11 +110,11 @@ export default function CooldownScreen() {
             <View style={styles.headerIconContainer}>
               <IconSymbol name="figure.cooldown" size={52} color="#FFFFFF" />
             </View>
-            <Text style={styles.headerTitle}>Raffreddamento</Text>
-            <Text style={styles.headerSubtitle}>Post-Allenamento</Text>
+            <Text style={styles.headerTitle}>Post-Allenamento</Text>
+            <Text style={styles.headerSubtitle}>Mobilità + Stretching</Text>
             <View style={styles.headerBadge}>
               <IconSymbol name="clock.fill" size={16} color="#FFFFFF" />
-              <Text style={styles.headerBadgeText}>10-15 minuti</Text>
+              <Text style={styles.headerBadgeText}>15-20 minuti</Text>
             </View>
             
             <View style={styles.progressContainer}>
@@ -234,14 +230,26 @@ export default function CooldownScreen() {
                           ]}>
                             {exercise.name}
                           </Text>
-                          {exercise.duration && (
-                            <View style={styles.detailBadge}>
-                              <IconSymbol name="clock.fill" size={14} color={category.gradient[0]} />
-                              <Text style={styles.detailText}>
-                                {Math.floor(exercise.duration / 60)} minuti
-                              </Text>
-                            </View>
-                          )}
+                          <View style={styles.exerciseDetails}>
+                            {exercise.duration && (
+                              <View style={styles.detailBadge}>
+                                <IconSymbol name="clock.fill" size={14} color={category.gradient[0]} />
+                                <Text style={styles.detailText}>
+                                  {exercise.duration >= 60 
+                                    ? `${Math.floor(exercise.duration / 60)} min` 
+                                    : `${exercise.duration} sec`}
+                                </Text>
+                              </View>
+                            )}
+                            {exercise.sets && exercise.reps && (
+                              <View style={styles.detailBadge}>
+                                <IconSymbol name="repeat" size={14} color={category.gradient[0]} />
+                                <Text style={styles.detailText}>
+                                  {exercise.sets} × {exercise.reps}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
 
                         <Pressable 
@@ -296,7 +304,7 @@ export default function CooldownScreen() {
               <Text style={styles.warningTitle}>Mai Saltare il Defaticamento</Text>
             </View>
             <Text style={styles.warningText}>
-              Anche se sei stanco, il defaticamento è fondamentale. Anche solo 5-10 minuti 
+              Anche se sei stanco, il defaticamento è fondamentale. Anche solo 10-15 minuti 
               possono fare una grande differenza nel recupero. È particolarmente importante 
               dopo allenamenti intensi o gare.
             </Text>
@@ -570,6 +578,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: colors.textSecondary,
   },
+  exerciseDetails: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   detailBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,7 +590,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
     gap: 4,
-    alignSelf: 'flex-start',
   },
   detailText: {
     fontSize: 12,

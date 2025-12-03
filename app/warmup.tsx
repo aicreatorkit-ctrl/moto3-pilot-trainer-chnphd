@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-nati
 import { Stack } from 'expo-router';
 import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { warmupExercises } from '@/data/trainingData';
+import { warmupExercises, mobilityExercises } from '@/data/trainingData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Exercise } from '@/types/training';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +21,8 @@ interface ExerciseCategory {
 }
 
 export default function WarmupScreen() {
-  const [exercises, setExercises] = useState<Exercise[]>(warmupExercises);
+  const [exercises, setExercises] = useState<Exercise[]>([...warmupExercises]);
+  const [mobilityExs, setMobilityExs] = useState<Exercise[]>([...mobilityExercises.slice(0, 5)]);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -58,44 +59,31 @@ export default function WarmupScreen() {
 
   const categories: ExerciseCategory[] = [
     {
-      id: 'cardio',
-      title: 'Attivazione Cardiovascolare',
-      icon: 'heart.fill',
-      gradient: ['#ef4444', '#dc2626'],
-      exercises: exercises.filter(e => e.id === 'w1' || e.id === 'w8'),
+      id: 'warmup',
+      title: 'Riscaldamento',
+      icon: 'flame.fill',
+      gradient: ['#f59e0b', '#ef4444'],
+      exercises: exercises,
     },
     {
-      id: 'upper',
-      title: 'Mobilità Parte Superiore',
-      icon: 'figure.arms.open',
-      gradient: ['#3b82f6', '#2563eb'],
-      exercises: exercises.filter(e => e.id === 'w2' || e.id === 'w3'),
-    },
-    {
-      id: 'core',
-      title: 'Core e Bacino',
-      icon: 'figure.core.training',
+      id: 'mobility',
+      title: 'Mobilità Attiva',
+      icon: 'figure.flexibility',
       gradient: ['#8b5cf6', '#7c3aed'],
-      exercises: exercises.filter(e => e.id === 'w4' || e.id === 'w7'),
-    },
-    {
-      id: 'lower',
-      title: 'Attivazione Parte Inferiore',
-      icon: 'figure.walk',
-      gradient: ['#10b981', '#059669'],
-      exercises: exercises.filter(e => e.id === 'w5' || e.id === 'w6'),
+      exercises: mobilityExs,
     },
   ];
 
+  const allExercises = [...exercises, ...mobilityExs];
   const completedCount = completedExercises.length;
-  const totalCount = exercises.length;
+  const totalCount = allExercises.length;
   const progress = (completedCount / totalCount) * 100;
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Riscaldamento Pre-Allenamento',
+          title: 'Pre-Allenamento',
           presentation: 'card',
         }}
       />
@@ -114,11 +102,11 @@ export default function WarmupScreen() {
             <View style={styles.headerIconContainer}>
               <IconSymbol name="flame.fill" size={52} color="#FFFFFF" />
             </View>
-            <Text style={styles.headerTitle}>Riscaldamento</Text>
-            <Text style={styles.headerSubtitle}>Pre-Allenamento</Text>
+            <Text style={styles.headerTitle}>Pre-Allenamento</Text>
+            <Text style={styles.headerSubtitle}>Riscaldamento + Mobilità Attiva</Text>
             <View style={styles.headerBadge}>
               <IconSymbol name="clock.fill" size={16} color="#FFFFFF" />
-              <Text style={styles.headerBadgeText}>15-20 minuti</Text>
+              <Text style={styles.headerBadgeText}>20-25 minuti</Text>
             </View>
             
             <View style={styles.progressContainer}>
@@ -145,13 +133,13 @@ export default function WarmupScreen() {
               >
                 <IconSymbol name="info.circle.fill" size={24} color="#FFFFFF" />
               </LinearGradient>
-              <Text style={styles.infoTitle}>Obiettivi del Riscaldamento</Text>
+              <Text style={styles.infoTitle}>Obiettivi Pre-Allenamento</Text>
             </View>
             <View style={styles.objectivesList}>
               {[
                 { icon: 'thermometer', text: 'Aumentare temperatura corporea di 1-2°C' },
                 { icon: 'bolt.fill', text: 'Attivare sistema cardiovascolare e nervoso' },
-                { icon: 'figure.flexibility', text: 'Preparare articolazioni e muscoli' },
+                { icon: 'figure.flexibility', text: 'Preparare articolazioni con mobilità attiva' },
                 { icon: 'shield.fill', text: 'Ridurre rischio infortuni fino al 50%' },
                 { icon: 'chart.line.uptrend.xyaxis', text: 'Migliorare prestazioni del 10-15%' },
               ].map((item, index) => (
@@ -286,7 +274,7 @@ export default function WarmupScreen() {
                 'Inizia gradualmente e aumenta l\'intensità progressivamente',
                 'Mantieni una respirazione regolare e profonda',
                 'Non forzare i movimenti, ascolta il tuo corpo',
-                'Adatta l\'intensità alla temperatura ambientale',
+                'La mobilità attiva prepara le articolazioni al movimento',
                 'Completa sempre l\'intera sequenza per risultati ottimali',
               ].map((tip, index) => (
                 <View key={index} style={styles.tipItem}>
