@@ -5,7 +5,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
-import PropTypes from 'prop-types';
 
 const STORAGE_KEY_CALENDAR = '@moto3_custom_calendar';
 const STORAGE_KEY_COMPLETION = '@moto3_completion_data';
@@ -554,7 +553,7 @@ const COMPLETE_TRAINING_DATA = {
   },
 };
 
-const getRPEColor = (rpe) => {
+const getRPEColor = (rpe: number) => {
   if (rpe <= 3) return '#4CAF50';
   if (rpe <= 5) return '#8BC34A';
   if (rpe <= 7) return '#FFC107';
@@ -562,10 +561,34 @@ const getRPEColor = (rpe) => {
   return '#FF5722';
 };
 
-const SessionCard = ({ session, title, onExercisePress, onToggleComplete, isCompleted }) => {
+interface SessionCardProps {
+  session: {
+    type: string;
+    rpe?: number;
+    time?: string;
+    description: string;
+    exercises?: Array<{
+      name: string;
+      sets?: number;
+      reps?: number | string;
+      weight?: string;
+      tempo?: string;
+      rest?: string;
+      notes?: string;
+      rpe?: number;
+    }>;
+    notes?: string;
+  };
+  title: string;
+  onExercisePress: (exercise: any) => void;
+  onToggleComplete: () => void;
+  isCompleted: boolean;
+}
+
+const SessionCard: React.FC<SessionCardProps> = ({ session, title, onExercisePress, onToggleComplete, isCompleted }) => {
   if (!session) return null;
 
-  const typeInfo = TRAINING_TYPES[session.type] || TRAINING_TYPES.RIPOSO;
+  const typeInfo = TRAINING_TYPES[session.type as keyof typeof TRAINING_TYPES] || TRAINING_TYPES.RIPOSO;
 
   return (
     <View style={styles.sessionCard}>
@@ -635,38 +658,14 @@ const SessionCard = ({ session, title, onExercisePress, onToggleComplete, isComp
   );
 };
 
-SessionCard.propTypes = {
-  session: PropTypes.shape({
-    type: PropTypes.string,
-    rpe: PropTypes.number,
-    time: PropTypes.string,
-    description: PropTypes.string,
-    exercises: PropTypes.arrayOf(PropTypes.shape({
-      name: PropTypes.string,
-      sets: PropTypes.number,
-      reps: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-      weight: PropTypes.string,
-      tempo: PropTypes.string,
-      rest: PropTypes.string,
-      notes: PropTypes.string,
-      rpe: PropTypes.number,
-    })),
-    notes: PropTypes.string,
-  }),
-  title: PropTypes.string.isRequired,
-  onExercisePress: PropTypes.func.isRequired,
-  onToggleComplete: PropTypes.func.isRequired,
-  isCompleted: PropTypes.bool.isRequired,
-};
-
 export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(1);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState(null);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [weekData, setWeekData] = useState(COMPLETE_TRAINING_DATA);
-  const [completionData, setCompletionData] = useState({});
-  const [calendarStartDate, setCalendarStartDate] = useState(new Date('2025-11-16'));
+  const [completionData, setCompletionData] = useState<Record<string, boolean>>({});
+  const [calendarStartDate] = useState(new Date('2025-11-16'));
 
   const saveCompletionData = useCallback(async () => {
     try {
@@ -696,7 +695,7 @@ export default function CalendarScreen() {
     }
   };
 
-  const saveCalendarData = async (data) => {
+  const saveCalendarData = async (data: typeof COMPLETE_TRAINING_DATA) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY_CALENDAR, JSON.stringify(data));
       setWeekData(data);
@@ -764,7 +763,7 @@ export default function CalendarScreen() {
     );
   };
 
-  const toggleSessionComplete = (week, day, sessionType) => {
+  const toggleSessionComplete = (week: number, day: number, sessionType: string) => {
     const key = `${week}-${day}-${sessionType}`;
     setCompletionData(prev => ({
       ...prev,
@@ -772,7 +771,7 @@ export default function CalendarScreen() {
     }));
   };
 
-  const isSessionComplete = (week, day, sessionType) => {
+  const isSessionComplete = (week: number, day: number, sessionType: string) => {
     const key = `${week}-${day}-${sessionType}`;
     return completionData[key] || false;
   };
@@ -780,7 +779,7 @@ export default function CalendarScreen() {
   const weeks = Array.from({ length: 46 }, (_, i) => i + 1);
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
-  const getWeekDates = (weekNumber) => {
+  const getWeekDates = (weekNumber: number) => {
     const weekStart = new Date(calendarStartDate);
     weekStart.setDate(calendarStartDate.getDate() + (weekNumber - 1) * 7);
     return Array.from({ length: 7 }, (_, i) => {
@@ -791,14 +790,14 @@ export default function CalendarScreen() {
   };
 
   const weekDates = getWeekDates(selectedWeek);
-  const currentDayData = selectedDay !== null ? weekData[selectedWeek]?.[selectedDay] : null;
+  const currentDayData = selectedDay !== null ? weekData[selectedWeek as keyof typeof weekData]?.[selectedDay] : null;
 
-  const openExerciseDetail = (exercise) => {
+  const openExerciseDetail = (exercise: any) => {
     setSelectedExercise(exercise);
     setDetailModalVisible(true);
   };
 
-  const getMesoLabel = (week) => {
+  const getMesoLabel = (week: number) => {
     if (week <= 3) return 'M1A';
     if (week === 4) return 'D1';
     if (week <= 7) return 'M2A';
@@ -826,8 +825,8 @@ export default function CalendarScreen() {
     return 'PEAK';
   };
 
-  const getDayCompletionStatus = (week, day) => {
-    const dayData = weekData[week]?.[day];
+  const getDayCompletionStatus = (week: number, day: number) => {
+    const dayData = weekData[week as keyof typeof weekData]?.[day];
     if (!dayData) return { total: 0, completed: 0 };
 
     let total = 0;
@@ -853,14 +852,6 @@ export default function CalendarScreen() {
     const endDate = new Date(calendarStartDate);
     endDate.setDate(calendarStartDate.getDate() + (46 * 7));
     return endDate;
-  };
-
-  const getTotalWeeksUntilEndOfNextYear = () => {
-    const now = new Date();
-    const endOfNextYear = new Date(now.getFullYear() + 1, 11, 31);
-    const diffTime = endOfNextYear.getTime() - calendarStartDate.getTime();
-    const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-    return diffWeeks;
   };
 
   return (
@@ -948,9 +939,9 @@ export default function CalendarScreen() {
               const date = weekDates[index];
               const isSelected = selectedDay === index;
               const isToday = date.toDateString() === new Date().toDateString();
-              const dayData = weekData[selectedWeek]?.[index];
+              const dayData = weekData[selectedWeek as keyof typeof weekData]?.[index];
               const mainType = dayData?.main?.type || 'RIPOSO';
-              const typeColor = TRAINING_TYPES[mainType]?.color || '#757575';
+              const typeColor = TRAINING_TYPES[mainType as keyof typeof TRAINING_TYPES]?.color || '#757575';
               const completion = getDayCompletionStatus(selectedWeek, index);
               
               return (
@@ -989,7 +980,7 @@ export default function CalendarScreen() {
                   {daysOfWeek[selectedDay]} {weekDates[selectedDay].getDate()} {weekDates[selectedDay].toLocaleDateString('it-IT', { month: 'long' })}
                 </Text>
                 {currentDayData.main && (
-                  <View style={[styles.rpeSmallBadge, { backgroundColor: getRPEColor(currentDayData.main.rpe) }]}>
+                  <View style={[styles.rpeSmallBadge, { backgroundColor: getRPEColor(currentDayData.main.rpe || 0) }]}>
                     <Text style={styles.rpeSmallText}>RPE {currentDayData.main.rpe}</Text>
                   </View>
                 )}

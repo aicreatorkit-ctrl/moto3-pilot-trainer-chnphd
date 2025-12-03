@@ -329,7 +329,8 @@ export default function VirtualCoachScreen() {
               onPress={() => setShowVoiceSettings(true)}
             >
               <IconSymbol 
-                name={voiceEnabled ? 'speaker.wave.3.fill' : 'speaker.slash.fill'} 
+                ios_icon_name={voiceEnabled ? 'speaker.wave.3.fill' : 'speaker.slash.fill'}
+                android_material_icon_name={voiceEnabled ? 'volume_up' : 'volume_off'}
                 size={20} 
                 color={colors.primary} 
               />
@@ -339,7 +340,7 @@ export default function VirtualCoachScreen() {
               style={styles.quickActionButton}
               onPress={() => setShowPlanModal(true)}
             >
-              <IconSymbol name="calendar" size={20} color={colors.accent} />
+              <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar_today" size={20} color={colors.accent} />
               <Text style={styles.quickActionText}>Piano</Text>
             </Pressable>
             <Pressable
@@ -349,7 +350,7 @@ export default function VirtualCoachScreen() {
                 Alert.alert('Statistiche', 'Visualizza le tue statistiche complete');
               }}
             >
-              <IconSymbol name="chart.bar.fill" size={20} color={colors.success} />
+              <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar_chart" size={20} color={colors.success} />
               <Text style={styles.quickActionText}>Stats</Text>
             </Pressable>
           </View>
@@ -363,7 +364,7 @@ export default function VirtualCoachScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.startButtonGradient}
               >
-                <IconSymbol name="play.circle.fill" size={48} color="#FFFFFF" />
+                <IconSymbol ios_icon_name="play.circle.fill" android_material_icon_name="play_circle" size={48} color="#FFFFFF" />
                 <View style={styles.startButtonContent}>
                   <Text style={styles.startButtonText}>Inizia Sessione</Text>
                   <Text style={styles.startButtonSubtext}>Con feedback AI real-time</Text>
@@ -383,17 +384,17 @@ export default function VirtualCoachScreen() {
               {/* Real-time Metrics */}
               <View style={styles.metricsGrid}>
                 <View style={styles.metricCard}>
-                  <IconSymbol name="heart.fill" size={24} color={colors.error} />
+                  <IconSymbol ios_icon_name="heart.fill" android_material_icon_name="favorite" size={24} color={colors.error} />
                   <Text style={styles.metricValue}>{metrics.heartRate}</Text>
                   <Text style={styles.metricLabel}>BPM</Text>
                 </View>
                 <View style={styles.metricCard}>
-                  <IconSymbol name="speedometer" size={24} color={colors.primary} />
+                  <IconSymbol ios_icon_name="speedometer" android_material_icon_name="speed" size={24} color={colors.primary} />
                   <Text style={styles.metricValue}>{metrics.speed}</Text>
                   <Text style={styles.metricLabel}>km/h</Text>
                 </View>
                 <View style={styles.metricCard}>
-                  <IconSymbol name="timer" size={24} color={colors.accent} />
+                  <IconSymbol ios_icon_name="timer" android_material_icon_name="timer" size={24} color={colors.accent} />
                   <Text style={styles.metricValue}>{metrics.lapTime}</Text>
                   <Text style={styles.metricLabel}>Giro</Text>
                 </View>
@@ -477,7 +478,7 @@ export default function VirtualCoachScreen() {
               </View>
 
               <Pressable style={styles.stopButton} onPress={stopSession}>
-                <IconSymbol name="stop.circle.fill" size={20} color="#FFFFFF" />
+                <IconSymbol ios_icon_name="stop.circle.fill" android_material_icon_name="stop_circle" size={20} color="#FFFFFF" />
                 <Text style={styles.stopButtonText}>Termina Sessione</Text>
               </Pressable>
             </View>
@@ -488,27 +489,27 @@ export default function VirtualCoachScreen() {
             <Text style={styles.sectionTitle}>Funzionalità AI Avanzate</Text>
             <View style={styles.featuresList}>
               <View style={styles.featureItem}>
-                <IconSymbol name="brain.head.profile" size={20} color={colors.purple} />
+                <IconSymbol ios_icon_name="brain.head.profile" android_material_icon_name="psychology" size={20} color={colors.purple} />
                 <Text style={styles.featureText}>Analisi predittiva performance</Text>
               </View>
               <View style={styles.featureItem}>
-                <IconSymbol name="waveform.path.ecg" size={20} color={colors.error} />
+                <IconSymbol ios_icon_name="waveform.path.ecg" android_material_icon_name="monitor_heart" size={20} color={colors.error} />
                 <Text style={styles.featureText}>Monitoraggio biometrico real-time</Text>
               </View>
               <View style={styles.featureItem}>
-                <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color={colors.primary} />
+                <IconSymbol ios_icon_name="chart.line.uptrend.xyaxis" android_material_icon_name="trending_up" size={20} color={colors.primary} />
                 <Text style={styles.featureText}>Feedback contestuale intelligente</Text>
               </View>
               <View style={styles.featureItem}>
-                <IconSymbol name="speaker.wave.3.fill" size={20} color={colors.accent} />
+                <IconSymbol ios_icon_name="speaker.wave.3.fill" android_material_icon_name="volume_up" size={20} color={colors.accent} />
                 <Text style={styles.featureText}>Coaching vocale personalizzato</Text>
               </View>
               <View style={styles.featureItem}>
-                <IconSymbol name="calendar.badge.clock" size={20} color={colors.warning} />
+                <IconSymbol ios_icon_name="calendar.badge.clock" android_material_icon_name="event" size={20} color={colors.warning} />
                 <Text style={styles.featureText}>Piano allenamento adattivo</Text>
               </View>
               <View style={styles.featureItem}>
-                <IconSymbol name="shield.checkered" size={20} color={colors.success} />
+                <IconSymbol ios_icon_name="shield.checkered" android_material_icon_name="shield" size={20} color={colors.success} />
                 <Text style={styles.featureText}>Sistema allerta sicurezza</Text>
               </View>
             </View>
@@ -526,7 +527,7 @@ export default function VirtualCoachScreen() {
                     setFeedbackHistory([]);
                   }}
                 >
-                  <IconSymbol name="trash.fill" size={16} color={colors.error} />
+                  <IconSymbol ios_icon_name="trash.fill" android_material_icon_name="delete" size={16} color={colors.error} />
                   <Text style={styles.clearButtonText}>Pulisci</Text>
                 </Pressable>
               </View>
@@ -540,7 +541,14 @@ export default function VirtualCoachScreen() {
                       ]}
                     >
                       <IconSymbol
-                        name={getFeedbackIcon(feedback.type) as any}
+                        ios_icon_name={getFeedbackIcon(feedback.type)}
+                        android_material_icon_name={
+                          feedback.type === 'technique' ? 'build' :
+                          feedback.type === 'performance' ? 'trending_up' :
+                          feedback.type === 'safety' ? 'warning' :
+                          feedback.type === 'motivation' ? 'bolt' :
+                          'psychology'
+                        }
                         size={20}
                         color={getFeedbackColor(feedback.priority)}
                       />
@@ -566,7 +574,7 @@ export default function VirtualCoachScreen() {
 
           {/* Info Card */}
           <View style={[commonStyles.card, styles.infoCard]}>
-            <IconSymbol name="info.circle.fill" size={24} color={colors.info} />
+            <IconSymbol ios_icon_name="info.circle.fill" android_material_icon_name="info" size={24} color={colors.info} />
             <Text style={styles.infoText}>
               Il Coach Virtuale AI analizza i tuoi dati in tempo reale utilizzando algoritmi di 
               machine learning per fornire feedback personalizzato, adattare il piano di allenamento 
@@ -593,7 +601,14 @@ export default function VirtualCoachScreen() {
               >
                 <View style={styles.modalIcon}>
                   <IconSymbol
-                    name={getFeedbackIcon(currentFeedback.type) as any}
+                    ios_icon_name={getFeedbackIcon(currentFeedback.type)}
+                    android_material_icon_name={
+                      currentFeedback.type === 'technique' ? 'build' :
+                      currentFeedback.type === 'performance' ? 'trending_up' :
+                      currentFeedback.type === 'safety' ? 'warning' :
+                      currentFeedback.type === 'motivation' ? 'bolt' :
+                      'psychology'
+                    }
                     size={32}
                     color={getFeedbackColor(currentFeedback.priority)}
                   />
@@ -690,7 +705,7 @@ export default function VirtualCoachScreen() {
                   <Text style={styles.planSectionTitle}>Obiettivi</Text>
                   {trainingPlan.goals.map((goal, index) => (
                     <View key={index} style={styles.planItem}>
-                      <IconSymbol name="checkmark.circle.fill" size={16} color={colors.success} />
+                      <IconSymbol ios_icon_name="checkmark.circle.fill" android_material_icon_name="check_circle" size={16} color={colors.success} />
                       <Text style={styles.planItemText}>{goal}</Text>
                     </View>
                   ))}
@@ -701,7 +716,7 @@ export default function VirtualCoachScreen() {
                     <Text style={styles.planSectionTitle}>Adattamenti AI</Text>
                     {trainingPlan.adaptations.map((adaptation, index) => (
                       <View key={index} style={styles.planItem}>
-                        <IconSymbol name="sparkles" size={16} color={colors.purple} />
+                        <IconSymbol ios_icon_name="sparkles" android_material_icon_name="auto_awesome" size={16} color={colors.purple} />
                         <Text style={styles.planItemText}>{adaptation}</Text>
                       </View>
                     ))}
