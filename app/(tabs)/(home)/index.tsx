@@ -6,7 +6,7 @@ import { useTheme } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Animated } from 'react-native';
 import { colors, commonStyles, shadows, gradients, spacing, borderRadius, typography } from '@/styles/commonStyles';
 import { Stack, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { haptics } from '@/utils/haptics';
 
 interface QuickActionCard {
   title: string;
@@ -48,7 +48,7 @@ export default function HomeScreen() {
   }, [pulseAnim]);
 
   const handlePress = (route: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptics.medium();
     router.push(route as any);
   };
 
@@ -297,7 +297,7 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: 'Moto3 Training',
-          headerLargeTitle: true,
+          headerLargeTitle: Platform.OS === 'ios',
           headerRight: renderHeaderRight,
         }}
       />

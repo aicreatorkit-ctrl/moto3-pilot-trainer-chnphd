@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import { Stack } from 'expo-router';
@@ -27,7 +26,7 @@ const MOBILITY_12MIN_ROUTINE: RoutineItem[] = [
     completed: false,
     category: 'mobilità',
     sets: '2×15 reps',
-    description: `TIMING: 90 secondi totali | 3" per fase
+    description: `TIMING: 90 secondi totali | 2×15 reps, 3"/fase
 
 SETUP:
 • Posizione quadrupedia
@@ -35,6 +34,7 @@ SETUP:
 • Schiena neutra iniziale
 
 ESECUZIONE:
+
 COW (Estensione):
 • INSPIRA 3": Pancia giù, petto avanti, testa su
 • Focus mobilità TORACICA (NO iperestensione lombare)
@@ -50,7 +50,16 @@ Box 4-0-4: Inspira 3" nasale, espira 3" bocca
 FOCUS:
 • Retroversione CAT massimale (obiettivo primario)
 • Movimento fluido vertebra per vertebra
-• Velocità costante 3" per fase`
+• Velocità costante 3" per fase
+
+ERRORI DA EVITARE:
+✗ Iperestensione lombare eccessiva (Cow)
+✗ Movimento troppo veloce
+✗ Apnea
+
+TRACKING:
+Serie 1: ___/15 | Serie 2: ___/15
+Retroversione percepita: ___/10`
   },
   {
     id: 'childs-pose',
@@ -59,7 +68,7 @@ FOCUS:
     completed: false,
     category: 'mobilità',
     sets: '2×45"',
-    description: `TIMING: 90 secondi totali | 2×45" hold
+    description: `TIMING: 90 secondi totali | 2×45"
 
 SETUP:
 • Seduto su talloni
@@ -71,7 +80,22 @@ ESECUZIONE:
 • Hold statico 45"
 • Respirazione Box 4-2-4
 • Ogni espira: Sink più profondo
-• Focus decompressione lombare`
+• Focus decompressione lombare
+
+RESPIRAZIONE:
+INSPIRA 4": Riempi torace
+HOLD 2": Pausa
+ESPIRA 4": Rilassa, scendi più profondo
+Ripeti 6-7 cicli
+
+FOCUS:
+• Allungamento estensori lombari passivo
+• Stretch intensità 5-6/10
+• Zero tensione spalle/collo
+
+TRACKING:
+Serie 1: ___" | Serie 2: ___"
+Stretch intensità: ___/10`
   },
   {
     id: 'glute-bridge',
@@ -80,23 +104,50 @@ ESECUZIONE:
     completed: false,
     category: 'mobilità',
     sets: '2×12 reps',
-    description: `TIMING: 90 secondi totali | Hold 2" per rep
+    description: `TIMING: 90 secondi totali | 2×12, hold 2"
 
 SETUP:
 • Supino, piedi vicino glutei
 • Ginocchia 90°
-• Schiena PIATTA
+• Schiena PIATTA (test mano sotto lombare = zero spazio)
 
 ESECUZIONE:
-FASE 1 - Retroversione PRE-movimento
-FASE 2 - Salita (2"): Glutei guidano
-FASE 3 - Hold top (2"): Glutei squeeze MASSIMO
-FASE 4 - Discesa (2"): Controllato
+
+FASE 1 - Retroversione PRE-movimento:
+• Attiva retroversione PRIMA di sollevare
+• Schiaccia lombare a terra
+• Glutei squeeze
+
+FASE 2 - Salita (2"):
+• Glutei guidano (NO lombari)
+• Sali fino linea retta spalle-anche-ginocchia
+• NO iperestensione
+
+FASE 3 - Hold top (2"):
+• Glutei squeeze MASSIMO
+• Espira forzata
+• Lombari rilassati
+
+FASE 4 - Discesa (2"):
+• Controllato, vertebra per vertebra
+
+RESPIRAZIONE:
+• INSPIRA: Durante retroversione + salita
+• ESPIRA: Durante hold (forzata)
 
 FOCUS:
 • Glutei attivazione 9/10
 • Lombari OFF (deprogrammazione estensori)
-• Retroversione costante`
+• Retroversione costante
+
+TEST:
+"Sento glutei bruciare?" → SI
+"Sento lombari lavorare?" → NO
+
+TRACKING:
+Serie 1: ___/12 | Serie 2: ___/12
+Glutei activation: ___/10
+Lombari sentiti: SI/NO (deve essere NO)`
   },
   {
     id: 'psoas-stretch',
@@ -105,7 +156,7 @@ FOCUS:
     completed: false,
     category: 'mobilità',
     sets: '2×40"/lato',
-    description: `TIMING: 160 secondi totali | 40" per lato × 2 serie
+    description: `TIMING: 160 secondi totali | 2×40"/lato
 
 SETUP:
 • Affondo, ginocchio posteriore a terra
@@ -116,11 +167,26 @@ ESECUZIONE:
 • Spingi bacino AVANTI e BASSO
 • Mantieni retroversione (CRITICO!)
 • Hold 40" con respirazione 4-2-4
+• Stretch front anca posteriore
+
+RESPIRAZIONE:
+• Box 4-2-4 continuo
+• Ogni espira: Sink più profondo
 
 FOCUS:
 • Psoas stretch gamba posteriore
-• Retroversione ATTIVA
-• Intensità 6-7/10`
+• Retroversione ATTIVA (NO iperestensione lombare)
+• Intensità 6-7/10
+
+ERRORI:
+✗ Iperestensione lombare (perdi 80% beneficio)
+✗ Torso inclinato avanti
+
+TRACKING:
+DX: ___" (target 40") | Stretch: ___/10
+SX: ___" (target 40") | Stretch: ___/10
+Lato più tight: DX/SX
+Retroversione mantenuta: SI/NO`
   },
   {
     id: 'plank-hold',
@@ -129,7 +195,7 @@ FOCUS:
     completed: false,
     category: 'core',
     sets: '2×40" rec 45"',
-    description: `TIMING: 125 secondi totali | 2×40" + recupero 45"
+    description: `TIMING: 125 secondi totali | 2×40", rec 45"
 
 SETUP:
 • Avambracci, gomiti sotto spalle
@@ -137,6 +203,7 @@ SETUP:
 • Piedi larghezza anche
 
 ESECUZIONE:
+
 FASE 1 - Attivazione:
 • Retroversione bacino MASSIMA
 • Glutei squeeze 9/10
@@ -145,10 +212,31 @@ FASE 1 - Attivazione:
 FASE 2 - Hold 40":
 • Retroversione LOCKED
 • Glutei costanti 8-9/10
+• Schiena PIATTA (zero arch)
 • Respirazione Box 4-2-4
 
+RESPIRAZIONE:
+Box 4-2-4 continua:
+INSPIRA 4": Nasale
+HOLD 2": Mantieni tensione
+ESPIRA 4": Bocca forzata
+NO apnea
+
+FOCUS:
+• Anti-estensione (gravità vs core)
+• Retroversione costante
+• Glutei squeeze non rilasciare
+
 STOP SE:
-• Lombare estende → STOP immediato`
+• Lombare estende → STOP immediato
+• Glutei rilassano
+• Apnea >5"
+
+TRACKING:
+Serie 1: ___" | Forma OK: SI/NO
+Serie 2: ___" | Forma OK: SI/NO
+Retroversione: ___/10
+Glutei activation: ___/10`
   },
   {
     id: 'dead-bug',
@@ -157,22 +245,43 @@ STOP SE:
     completed: false,
     category: 'core',
     sets: '2×8/lato rec 45"',
-    description: `TIMING: 100 secondi totali | 2×8 per lato + recupero 45"
+    description: `TIMING: 100 secondi totali | 2×8/lato, rec 45"
 
 SETUP:
 • Supino, schiena PIATTA
 • Ginocchia 90°, braccia estese su
+• Test mano sotto lombare = zero spazio
 
 ESECUZIONE:
+
+Rep 1:
 • INSPIRA: Setup lombare piatta
 • ESPIRA 4": Extend braccio DX + gamba SX
 • Lombare RESTA PIATTA (critico)
 • INSPIRA: Return
 
+Rep 2:
+• Opposite: Braccio SX + gamba DX
+• Alternate × 8 per lato = 16 totali
+
+RESPIRAZIONE:
+• ESPIRA FORZATA durante extend (come spegnere candela)
+• Coordinazione respiro-movimento essenziale
+
 FOCUS:
 • Dissociazione anca-colonna
 • Lombare piatta 100% reps
-• Espirazione forzata`
+• Espirazione forzata = attivazione diaframma
+
+SE LOMBARE SI SOLLEVA:
+• RIDURRE ROM 50%
+• Gamba scende solo 45° (vs 0°)
+• Progressione graduale
+
+TRACKING:
+Serie 1: ___/8 per lato | Lombare piatta: SI/NO
+Serie 2: ___/8 per lato | Lombare piatta: SI/NO
+Respirazione coordinata: SI/NO`
   },
   {
     id: 'bird-dog',
@@ -181,7 +290,7 @@ FOCUS:
     completed: false,
     category: 'core',
     sets: '2×6/lato rec 45"',
-    description: `TIMING: 125 secondi totali | 2×6 per lato + recupero 45"
+    description: `TIMING: 125 secondi totali | 2×6/lato, rec 45"
 
 SETUP:
 • Quadrupedia
@@ -189,14 +298,38 @@ SETUP:
 • Core pre-attivato
 
 ESECUZIONE:
-FASE 1 - Extend (4"): Simultaneo braccio + gamba opposta
-FASE 2 - Hold (2"): Linea retta
-FASE 3 - Return (4"): Controllato
+
+FASE 1 - Extend (4"):
+• Simultaneo braccio DX + gamba SX
+• Schiena RIGIDA piatta (zero movimento)
+• ESPIRA durante extend
+
+FASE 2 - Hold (2"):
+• Linea retta mano-spalla-anca-tallone
+• Core bloccato isometrico
+
+FASE 3 - Return (4"):
+• Controllato, mantieni core tight
+• INSPIRA
+
+Opposite side:
+• Braccio SX + gamba DX
+• Alternate × 6 per lato
 
 FOCUS:
-• Schiena RIGIDA
+• Schiena RIGIDA (movimento arti ≠ movimento colonna)
 • Stabilità anti-rotazione
-• Controllo massimo`
+• Controllo massimo
+
+ERRORI:
+✗ Rotazione bacino
+✗ Movimento lombare
+✗ Velocità eccessiva
+
+TRACKING:
+Serie 1: ___/6 per lato | Schiena rigida: SI/NO
+Serie 2: ___/6 per lato | Zero rotazione: SI/NO
+Stabilità hold: ___/10`
   }
 ];
 
@@ -311,6 +444,9 @@ export default function MorningRoutineScreen() {
             <Text style={styles.infoText}>
               Routine specifica correzione iperlordosi lombare SEVERA. 
               Enfasi retroversione bacino, attivazione glutei, deprogrammazione estensori lombari.
+            </Text>
+            <Text style={styles.infoTextBold}>
+              Orario: 06:00-06:12 • Frequenza: 6 giorni/settimana (Lun-Sab)
             </Text>
           </View>
         </View>
@@ -475,6 +611,40 @@ export default function MorningRoutineScreen() {
           </Text>
         </View>
 
+        {/* Target Mensili */}
+        <View style={styles.targetCard}>
+          <View style={styles.targetHeader}>
+            <Text style={styles.targetIcon}>🎯</Text>
+            <Text style={styles.targetTitle}>Target Rigidità Mensili</Text>
+          </View>
+          <View style={styles.targetGrid}>
+            <View style={styles.targetItem}>
+              <Text style={styles.targetMonth}>Nov 2025</Text>
+              <Text style={styles.targetValue}>&lt;3.5/10</Text>
+            </View>
+            <View style={styles.targetItem}>
+              <Text style={styles.targetMonth}>Dic 2025</Text>
+              <Text style={styles.targetValue}>&lt;3/10</Text>
+            </View>
+            <View style={styles.targetItem}>
+              <Text style={styles.targetMonth}>Gen 2026</Text>
+              <Text style={styles.targetValue}>&lt;2.5/10</Text>
+            </View>
+            <View style={styles.targetItem}>
+              <Text style={styles.targetMonth}>Feb 2026</Text>
+              <Text style={styles.targetValue}>&lt;2.2/10</Text>
+            </View>
+            <View style={styles.targetItem}>
+              <Text style={styles.targetMonth}>Mar 2026</Text>
+              <Text style={styles.targetValue}>&lt;2/10</Text>
+            </View>
+            <View style={styles.targetItem}>
+              <Text style={styles.targetMonth}>Apr 2026</Text>
+              <Text style={styles.targetValue}>&lt;1.8/10</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Complete Button */}
         <Pressable
           style={[
@@ -529,7 +699,10 @@ export default function MorningRoutineScreen() {
                   </View>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false}>
+                <ScrollView 
+                  showsVerticalScrollIndicator={true}
+                  style={styles.modalScrollView}
+                >
                   <Text style={styles.modalDescription}>
                     {selectedItem.description}
                   </Text>
@@ -642,6 +815,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
+    marginBottom: 8,
+  },
+  infoTextBold: {
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '700',
+    lineHeight: 18,
   },
   section: {
     marginBottom: 32,
@@ -800,6 +980,51 @@ const styles = StyleSheet.create({
   principleBold: {
     fontWeight: '700',
   },
+  targetCard: {
+    backgroundColor: '#DBEAFE',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+  },
+  targetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  targetIcon: {
+    fontSize: 32,
+  },
+  targetTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  targetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  targetItem: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    minWidth: '30%',
+    alignItems: 'center',
+  },
+  targetMonth: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  targetValue: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '800',
+  },
   completeButton: {
     padding: 18,
     borderRadius: 16,
@@ -873,10 +1098,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#3b82f6',
   },
+  modalScrollView: {
+    flex: 1,
+  },
   modalDescription: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#374151',
     lineHeight: 22,
     fontFamily: 'monospace',
+    paddingBottom: 20,
   },
-});
+}); 

@@ -1,7 +1,8 @@
+
 {
   "expo": {
-    "name": "Natively",
-    "slug": "Natively",
+    "name": "Moto3 Pilot Trainer",
+    "slug": "Moto3 Pilot Trainer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -29,7 +30,13 @@
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "build": {
+        "babel": {
+          "include": ["@expo/vector-icons"]
+        }
+      }
     },
     "plugins": [
       "expo-font",
@@ -43,5 +50,6 @@
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "Moto3 Pilot Trainer"
 }

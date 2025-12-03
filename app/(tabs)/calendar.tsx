@@ -1,12 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert } from 'react-native';
-import { Stack } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, commonStyles, shadows } from '@/styles/commonStyles';
-import * as Haptics from 'expo-haptics';
-
-const STORAGE_KEY = '@calendar_completion_data';
 
 const TRAINING_TYPES = {
   FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: '💪' },
@@ -241,45 +234,318 @@ const COMPLETE_TRAINING_DATA = {
     6: { main: { type: 'RECUPERO', description: 'Core Volume 55min', exercises: [{ name: 'Core Circuit', reps: '55min', rpe: 6 }], rpe: 6 }},
   },
 
-  // Settimane 3-18 con dati semplificati per brevità
+  // SETTIMANA 3 - Peak Meso 1A
   3: {
-    0: { main: { type: 'FORZA_MAX', description: 'Lower Peak Meso 1A', rpe: 7, notes: '🔥 PEAK settimana Meso 1A' }},
-    1: { main: { type: 'FORZA_MAX', description: 'Upper Peak', rpe: 7 }},
+    0: {
+      main: {
+        type: 'FORZA_MAX',
+        description: 'Lower Peak Meso 1A',
+        exercises: [
+          { name: 'Goblet Squat', sets: 4, reps: 10, weight: '20kg', notes: 'PEAK M1A', rpe: 7 },
+          { name: 'Trap-Bar', sets: 4, reps: 8, weight: '50kg', notes: 'PEAK', rpe: 7 },
+          { name: 'Ab Wheel', sets: 4, reps: 12, notes: 'Consolidamento', rpe: 7 },
+          { name: 'Weighted Plank', sets: 4, reps: '45"', weight: '5kg', notes: '+2.5kg', rpe: 7 },
+        ],
+        rpe: 7,
+        notes: '🔥 PEAK settimana Meso 1A'
+      }
+    },
+    1: { main: { type: 'FORZA_MAX', description: 'Upper Peak', exercises: [{ name: 'Panca', weight: '12kg/mano', rpe: 7 }, { name: 'Pull', weight: '45kg', rpe: 7 }], rpe: 7 }},
     2: { main: { type: 'RESISTENZA', description: 'Bike 85min', rpe: 6 }},
-    3: { main: { type: 'RESISTENZA', description: 'Wall Sit 3×55"', rpe: 7 }},
+    3: { main: { type: 'RESISTENZA', description: 'Wall Sit 3×55"', exercises: [{ name: 'Wall Sit', reps: '55"', notes: 'Peak', rpe: 7 }], rpe: 7 }},
     4: { main: { type: 'RESISTENZA', description: 'Push-Ups 170', rpe: 7 }},
     5: { main: { type: 'RESISTENZA', description: 'Bike 100min PEAK + +600', notes: '🍌 +600 KCAL', rpe: 6 }},
     6: { main: { type: 'RECUPERO', description: 'Core Volume 60min PEAK', rpe: 6 }},
   },
 
+  // SETTIMANA 4 - DELOAD 1
   4: {
-    0: { main: { type: 'DELOAD', description: 'Lower Deload -50% volume', rpe: 4, notes: '🔄 DELOAD Week' }},
-    1: { main: { type: 'DELOAD', description: 'Upper Deload', rpe: 4 }},
+    0: { main: { type: 'DELOAD', description: 'Lower Deload -50% volume', exercises: [{ name: 'Goblet', weight: '14kg', sets: 3, reps: 8, notes: '-30% carico', rpe: 4 }], rpe: 4, notes: '🔄 DELOAD Week' }},
+    1: { main: { type: 'DELOAD', description: 'Upper Deload', exercises: [{ name: 'Panca', weight: '8kg', sets: 3, reps: 8, rpe: 4 }], rpe: 4 }},
     2: { main: { type: 'RECUPERO', description: 'Bike Z1 55min Recovery', rpe: 3 }},
-    3: { main: { type: 'DELOAD', description: 'Lower Light', rpe: 4 }},
+    3: { main: { type: 'DELOAD', description: 'Lower Light', exercises: [{ name: 'Wall Sit', reps: '50"', rpe: 4 }], rpe: 4 }},
     4: { main: { type: 'RECUPERO', description: 'Upper Light O OFF', rpe: 3 }},
     5: { main: { type: 'RECUPERO', description: 'Bike Z1 65min O Walk', rpe: 3, notes: 'NO +600 kcal' }},
     6: { main: { type: 'RIPOSO', description: 'OFF O Yoga 45min', rpe: 0, notes: '✅ DELOAD 1 completato' }},
   },
 
-  // Settimane 5-18 con struttura simile...
-  5: { 0: { main: { type: 'FORZA_MAX', description: 'Lower Hypertrophy Start', rpe: 7 }}, 1: { main: { type: 'FORZA_MAX', rpe: 7 }}, 2: { main: { type: 'RESISTENZA', rpe: 6 }}, 3: { main: { type: 'RESISTENZA', rpe: 7 }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  6: { 0: { main: { type: 'FORZA_MAX', rpe: 7 }}, 1: { main: { type: 'FORZA_MAX', rpe: 7 }}, 2: { main: { type: 'RESISTENZA', rpe: 6 }}, 3: { main: { type: 'RESISTENZA', rpe: 7 }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  7: { 0: { main: { type: 'FORZA_MAX', rpe: 8, notes: '🔥 Peak Hypertrophy' }}, 1: { main: { type: 'FORZA_MAX', rpe: 8 }}, 2: { main: { type: 'RESISTENZA', rpe: 6 }}, 3: { main: { type: 'RESISTENZA', rpe: 8 }}, 4: { main: { type: 'RESISTENZA', rpe: 8 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 7 }}},
-  8: { 0: { main: { type: 'DELOAD', rpe: 4, notes: '🔄 DELOAD 2' }}, 1: { main: { type: 'DELOAD', rpe: 4 }}, 2: { main: { type: 'RECUPERO', rpe: 3 }}, 3: { main: { type: 'DELOAD', rpe: 4 }}, 4: { main: { type: 'RECUPERO', rpe: 3 }}, 5: { main: { type: 'RECUPERO', rpe: 3 }}, 6: { main: { type: 'RIPOSO', rpe: 0, notes: '✅ M2A completato' }}},
-  9: { 0: { main: { type: 'FORZA_MAX', description: 'Lower Strength Start', rpe: 8, notes: '💪 Strength phase start' }}, 1: { main: { type: 'FORZA_MAX', rpe: 8 }}, 2: { main: { type: 'RESISTENZA', rpe: 6 }}, 3: { main: { type: 'RESISTENZA', rpe: 7 }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  10: { 0: { main: { type: 'POTENZA', description: 'Lower Power + 🏍️ Plank Casco', rpe: 8.5, notes: '🏍️ TRANSFER PROTOCOLS START!' }}, 1: { main: { type: 'POTENZA', rpe: 8.5 }}, 2: { main: { type: 'TECNICO', description: '🏍️ RSA Intervals', rpe: 9 }}, 3: { main: { type: 'RESISTENZA', rpe: 7 }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  11: { 0: { main: { type: 'POTENZA', rpe: 9 }}, 1: { main: { type: 'POTENZA', rpe: 9 }}, 2: { main: { type: 'TECNICO', rpe: 9 }}, 3: { main: { type: 'RESISTENZA', rpe: 8 }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  12: { 0: { main: { type: 'DELOAD', rpe: 4, notes: '🔄 DELOAD 3 pre-peak' }}, 1: { main: { type: 'DELOAD', rpe: 4 }}, 2: { main: { type: 'RECUPERO', rpe: 3 }}, 3: { main: { type: 'DELOAD', rpe: 4 }}, 4: { main: { type: 'RECUPERO', rpe: 3 }}, 5: { main: { type: 'RECUPERO', rpe: 3 }}, 6: { main: { type: 'RIPOSO', rpe: 0, notes: '✅ Ready Meso 3B Peak' }}},
-  13: { 0: { main: { type: 'POTENZA', description: 'Lower PEAK + 🏍️ Plank Casco 70"', rpe: 9, notes: '🔥 PEAK TRANSFER start' }}, 1: { main: { type: 'POTENZA', rpe: 9 }}, 2: { main: { type: 'TECNICO', rpe: 9 }}, 3: { main: { type: 'TECNICO', description: '🔥 METABOLIC CORE CIRCUIT', rpe: 9.5, notes: '🏍️🔥 MAJOR MILESTONE DAY!' }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  14: { 0: { main: { type: 'POTENZA', rpe: 9 }}, 1: { main: { type: 'POTENZA', rpe: 9 }}, 2: { main: { type: 'TECNICO', rpe: 9 }}, 3: { main: { type: 'TECNICO', rpe: 9.5 }}, 4: { main: { type: 'RESISTENZA', rpe: 7 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RECUPERO', rpe: 6 }}},
-  15: { 0: { main: { type: 'POTENZA', description: '🏆 ABSOLUTE PEAK', rpe: 10, notes: '🏆🏆🏆 ABSOLUTE PEAK DAY!' }}, 1: { main: { type: 'POTENZA', description: '🏆 Upper PEAK', rpe: 9.5, notes: '🏆 Grip + Neck peak achieved' }}, 2: { main: { type: 'TECNICO', rpe: 9 }}, 3: { main: { type: 'TECNICO', description: '🏆 METABOLIC <36min', rpe: 10, notes: '🏆🏆🏆 FINALE TARGETS ACHIEVED!' }}, 4: { main: { type: 'RECUPERO', rpe: 5 }}, 5: { main: { type: 'RESISTENZA', notes: '🍌', rpe: 6 }}, 6: { main: { type: 'RIPOSO', rpe: 0, notes: '✅ MESO 3 COMPLETATO!' }}},
-  16: { 0: { main: { type: 'DELOAD', rpe: 7, notes: '🏁 TAPER START' }}, 1: { main: { type: 'DELOAD', rpe: 7 }}, 2: { main: { type: 'RECUPERO', rpe: 4 }}, 3: { main: { type: 'DELOAD', rpe: 5 }}, 4: { main: { type: 'RIPOSO', rpe: 0 }}, 5: { main: { type: 'RECUPERO', rpe: 3 }}, 6: { main: { type: 'RIPOSO', rpe: 0, notes: '✅ Freshness building' }}},
-  17: { 0: { main: { type: 'DELOAD', rpe: 7, notes: '🏁 Taper deep -65%' }}, 1: { main: { type: 'DELOAD', rpe: 7 }}, 2: { main: { type: 'RECUPERO', rpe: 3 }}, 3: { main: { type: 'DELOAD', rpe: 5 }}, 4: { main: { type: 'RIPOSO', rpe: 0 }}, 5: { main: { type: 'RECUPERO', rpe: 3 }}, 6: { main: { type: 'RIPOSO', rpe: 0, notes: '✅ Ultra fresh' }}},
-  18: { 0: { main: { type: 'MOBILITA', rpe: 4, notes: '🏁 PEAK READINESS WEEK' }}, 1: { main: { type: 'RIPOSO', rpe: 0 }}, 2: { main: { type: 'RECUPERO', rpe: 3 }}, 3: { main: { type: 'GARA', description: '🏆 KPI FINALI TEST', rpe: 9, notes: '🏆 GIORNO DELLA VERITÀ - KPI TEST' }}, 4: { main: { type: 'RIPOSO', rpe: 0 }}, 5: { main: { type: 'RECUPERO', rpe: 3 }}, 6: { main: { type: 'RIPOSO', rpe: 0, notes: '🏁🏁🏁 READY TO RACE!' }}},
+  // SETTIMANA 5-7: MESOCICLO 2A HYPERTROPHY
+  5: {
+    0: {
+      main: {
+        type: 'FORZA_MAX',
+        description: 'Lower Hypertrophy Start',
+        exercises: [
+          { name: 'Goblet Squat', sets: 5, reps: 12, weight: '18kg', tempo: '3-1-1', notes: 'Volume ↑', rpe: 7 },
+          { name: 'Trap-Bar', sets: 5, reps: 10, weight: '48kg', rpe: 7 },
+          { name: 'Bulgarian', sets: 4, reps: '12/g', weight: '8kg/m', notes: 'Hypertrophy range', rpe: 7 },
+          { name: 'Nordic', sets: 4, reps: 8, rpe: 7 },
+          { name: 'Calf Raise Weighted', sets: 4, reps: 20, weight: '60kg', notes: '🆕 Added', rpe: 7 },
+          { name: "Farmer's Walk", sets: 4, reps: '50m', weight: '20kg/m', notes: '🆕 Programmed', rpe: 7 },
+        ],
+        rpe: 7,
+        notes: '🆕 Hypertrophy start + Farmer walks'
+      }
+    },
+    1: { main: { type: 'FORZA_MAX', description: 'Upper Hypertrophy', exercises: [{ name: 'Panca', sets: 5, reps: 12, weight: '11kg/m', rpe: 7 }], rpe: 7 }},
+    2: { main: { type: 'RESISTENZA', description: 'Bike 85min + 🆕 Propriocezione 15min', notes: '🆕 Balance training', rpe: 6 }},
+    3: { main: { type: 'RESISTENZA', description: 'Lower Endurance', rpe: 7 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 105min + +600', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core Volume 65min', rpe: 6 }},
+  },
+
+  6: {
+    0: { main: { type: 'FORZA_MAX', description: 'Hypertrophy Progression', exercises: [{ name: 'Goblet', weight: '20kg', sets: 5, reps: 12, rpe: 7 }], rpe: 7 }},
+    1: { main: { type: 'FORZA_MAX', description: 'Upper Hypertrophy', rpe: 7 }},
+    2: { main: { type: 'RESISTENZA', description: 'Bike + Proprio', rpe: 6 }},
+    3: { main: { type: 'RESISTENZA', description: 'Lower End', rpe: 7 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 110min +600', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core 70min', rpe: 6 }},
+  },
+
+  7: {
+    0: { main: { type: 'FORZA_MAX', description: 'Hypertrophy PEAK', exercises: [{ name: 'Goblet', weight: '22kg', notes: 'PEAK M2A', rpe: 8 }], rpe: 8, notes: '🔥 Peak Hypertrophy' }},
+    1: { main: { type: 'FORZA_MAX', description: 'Upper Peak', rpe: 8 }},
+    2: { main: { type: 'RESISTENZA', description: 'Bike 115min PEAK', rpe: 6 }},
+    3: { main: { type: 'RESISTENZA', description: 'Lower Peak', rpe: 8 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper Peak', rpe: 8 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 115min +600', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core 75min PEAK', rpe: 7 }},
+  },
+
+  // SETTIMANA 8 - DELOAD 2
+  8: {
+    0: { main: { type: 'DELOAD', description: 'Lower Deload', rpe: 4, notes: '🔄 DELOAD 2' }},
+    1: { main: { type: 'DELOAD', description: 'Upper Deload', rpe: 4 }},
+    2: { main: { type: 'RECUPERO', description: 'Bike Recovery', rpe: 3 }},
+    3: { main: { type: 'DELOAD', description: 'Lower Light', rpe: 4 }},
+    4: { main: { type: 'RECUPERO', description: 'Upper Light', rpe: 3 }},
+    5: { main: { type: 'RECUPERO', description: 'Bike Easy', rpe: 3 }},
+    6: { main: { type: 'RIPOSO', description: 'OFF Completo', rpe: 0, notes: '✅ M2A completato' }},
+  },
+
+  // SETTIMANA 9 - MESOCICLO 2B STRENGTH BASE
+  9: {
+    0: {
+      main: {
+        type: 'FORZA_MAX',
+        description: 'Lower Strength Start',
+        exercises: [
+          { name: 'Front Squat', sets: 5, reps: 6, weight: '32kg', notes: '🆕 Strength phase', rpe: 8 },
+          { name: 'Trap-Bar', sets: 5, reps: 5, weight: '62kg', notes: 'Heavy 5s', rpe: 8 },
+          { name: 'Box Jump', sets: 5, reps: 3, weight: '50cm', notes: '🆕 Power', rpe: 7 },
+        ],
+        rpe: 8,
+        notes: '💪 Strength phase start'
+      }
+    },
+    1: { main: { type: 'FORZA_MAX', description: 'Upper Strength', exercises: [{ name: 'Panca', weight: '14kg/m', sets: 5, reps: 6, rpe: 8 }], rpe: 8 }},
+    2: { main: { type: 'RESISTENZA', description: 'Bike 100min', rpe: 6 }},
+    3: { main: { type: 'RESISTENZA', description: 'Wall Sit 3×70"', exercises: [{ name: 'Wall Sit', reps: '70"', rpe: 7 }], rpe: 7 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 115min +600', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core 50min', rpe: 6 }},
+  },
+
+  // SETTIMANE 10-11: MESOCICLO 3 TRANSFER MOTO3
+  10: {
+    0: {
+      main: {
+        type: 'POTENZA',
+        description: 'Lower Power + 🏍️ Plank Casco',
+        exercises: [
+          { name: 'Front Squat PAP', sets: 5, reps: 3, weight: '40kg', notes: '85% 1RM', rpe: 8.5 },
+          { name: 'Box Jump', sets: 5, reps: 2, weight: '60cm', notes: 'PAP complex', rpe: 8 },
+          { name: 'Ab Wheel Piedi 70% ROM', sets: 4, reps: '8-10', notes: '🆕 Da piedi', rpe: 9 },
+          { name: '🏍️ Plank con Casco', sets: 4, reps: '45"', notes: '🆕 Transfer Moto3!', rpe: 8 },
+        ],
+        rpe: 8.5,
+        notes: '🏍️ TRANSFER PROTOCOLS START!'
+      }
+    },
+    1: { main: { type: 'POTENZA', description: 'Upper Power + Neck', rpe: 8.5 }},
+    2: {
+      main: {
+        type: 'TECNICO',
+        description: '🏍️ RSA Intervals 8×30" Z4-Z5',
+        exercises: [
+          { name: 'RSA Intervals', sets: 8, reps: '30"', weight: '155-165bpm', notes: '🆕 Race simulation', rpe: 9 },
+        ],
+        rpe: 9,
+        notes: '🏍️ RSA + Dual-Task Cognitive'
+      }
+    },
+    3: { main: { type: 'RESISTENZA', description: 'Lower + 🏍️ Plank Casco', exercises: [{ name: 'Wall Sit', reps: '80"', rpe: 7 }, { name: '🏍️ Plank Casco', reps: '50"', rpe: 8 }], rpe: 7 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 120min + 🏍️ Plank Casco 3×55"', notes: '🍌 +600', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core Volume 55min', rpe: 6 }},
+  },
+
+  11: {
+    0: { main: { type: 'POTENZA', description: 'Lower Power Peak', exercises: [{ name: 'Front Squat', weight: '42kg', rpe: 9 }, { name: '🏍️ Plank Casco', reps: '55"', rpe: 8 }], rpe: 9 }},
+    1: { main: { type: 'POTENZA', description: 'Upper Power Peak', rpe: 9 }},
+    2: { main: { type: 'TECNICO', description: '🏍️ RSA 10×30" Z5', notes: 'Progression +2 intervals', rpe: 9 }},
+    3: { main: { type: 'RESISTENZA', description: 'Lower + 🏍️ Plank 60"', exercises: [{ name: 'Wall Sit', reps: '90"', notes: 'Approaching 120"', rpe: 9 }], rpe: 8 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip Test 75"', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 120min + 🏍️ Plank 65" PEAK', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core Volume 55min', rpe: 6 }},
+  },
+
+  // SETTIMANA 12 - DELOAD 3
+  12: {
+    0: { main: { type: 'DELOAD', description: 'Lower Deload', rpe: 4, notes: '🔄 DELOAD 3 pre-peak' }},
+    1: { main: { type: 'DELOAD', description: 'Upper Deload', rpe: 4 }},
+    2: { main: { type: 'RECUPERO', description: 'Bike Z1 55min', rpe: 3 }},
+    3: { main: { type: 'DELOAD', description: 'Lower Maintenance', rpe: 4 }},
+    4: { main: { type: 'RECUPERO', description: 'OFF O Upper Light', rpe: 3 }},
+    5: { main: { type: 'RECUPERO', description: 'Bike Z1 O Walk', rpe: 3 }},
+    6: { main: { type: 'RIPOSO', description: 'OFF O Yoga', rpe: 0, notes: '✅ Ready Meso 3B Peak' }},
+  },
+
+  // SETTIMANE 13-15: MESOCICLO 3B PEAK TRANSFER
+  13: {
+    0: {
+      main: {
+        type: 'POTENZA',
+        description: 'Lower PEAK + 🏍️ Plank Casco 70"',
+        exercises: [
+          { name: 'Front Squat', sets: 5, reps: 3, weight: '45kg', notes: 'PEAK 88-90% 1RM', rpe: 9 },
+          { name: 'Box Jump', sets: 5, reps: 2, weight: '70cm', notes: 'PEAK height', rpe: 9 },
+          { name: 'Ab Wheel Piedi 85% ROM', sets: 4, reps: 10, notes: 'Progression', rpe: 9 },
+          { name: '🏍️ Plank Casco', sets: 4, reps: '70"', notes: 'Target 90"', rpe: 8.5 },
+        ],
+        rpe: 9,
+        notes: '🔥 PEAK TRANSFER start'
+      }
+    },
+    1: { main: { type: 'POTENZA', description: 'Upper PEAK', exercises: [{ name: 'Panca', weight: '17kg/m', rpe: 9 }, { name: 'Pull-Up', weight: '+7kg', rpe: 9 }], rpe: 9 }},
+    2: { main: { type: 'TECNICO', description: '🏍️ RSA 6×30" Z5 PEAK', notes: 'Quality over quantity', rpe: 9 }},
+    3: {
+      main: {
+        type: 'TECNICO',
+        description: '🔥 METABOLIC CORE CIRCUIT + Wall Sit 3×120"',
+        exercises: [
+          { name: '🏍️ Metabolic Circuit', sets: 5, reps: '5 giri', notes: '🆕 Race simulation!', rpe: 9.5 },
+          { name: 'Wall Sit', sets: 3, reps: '120"', notes: '🎯 TARGET = 6 min!', rpe: 9 },
+        ],
+        rpe: 9.5,
+        notes: '🏍️🔥 MAJOR MILESTONE DAY!'
+      }
+    },
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip Test 80"', notes: 'Dead-hang milestone', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 120min + 🏍️ Plank 80"', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core Volume 60min PEAK', rpe: 6 }},
+  },
+
+  14: {
+    0: { main: { type: 'POTENZA', description: 'Lower Consolidamento', exercises: [{ name: 'Front Squat', weight: '46kg', rpe: 9 }, { name: '🏍️ Plank Casco', reps: '75"', rpe: 9 }], rpe: 9 }},
+    1: { main: { type: 'POTENZA', description: 'Upper Peak + Neck 9kg', rpe: 9 }},
+    2: { main: { type: 'TECNICO', description: '🏍️ RSA Consolidamento', rpe: 9 }},
+    3: { main: { type: 'TECNICO', description: '🔥 Metabolic <38min + Wall Sit 3×150"', notes: '7.5 min total!', rpe: 9.5 }},
+    4: { main: { type: 'RESISTENZA', description: 'Upper + Grip Test 85"', rpe: 7 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 120min + 🏍️ Plank 85"', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RECUPERO', description: 'Core Volume 60min', rpe: 6 }},
+  },
+
+  15: {
+    0: {
+      main: {
+        type: 'POTENZA',
+        description: '🏆 ABSOLUTE PEAK + 🏍️ Plank 4×90"',
+        exercises: [
+          { name: 'Front Squat', sets: 5, reps: 3, weight: '48kg', notes: '🏆 PEAK ASSOLUTO', rpe: 9.5 },
+          { name: 'Box Jump', sets: 5, reps: 2, weight: '75cm', notes: '🏆 PEAK', rpe: 9 },
+          { name: 'Ab Wheel Piedi FULL ROM', sets: 4, reps: 10, notes: '🏆 100% ROM!', rpe: 10 },
+          { name: '🏍️ Plank Casco', sets: 4, reps: '90"', notes: '🏆 TARGET FINALE!', rpe: 10 },
+        ],
+        rpe: 10,
+        notes: '🏆🏆🏆 ABSOLUTE PEAK DAY!'
+      }
+    },
+    1: {
+      main: {
+        type: 'POTENZA',
+        description: '🏆 Upper PEAK + Grip 90"',
+        exercises: [
+          { name: 'Panca', sets: 5, reps: 4, weight: '18kg/m', notes: '🏆 PEAK', rpe: 9.5 },
+          { name: 'Pull-Up', sets: 5, reps: 4, weight: '+8kg', notes: '🏆 PEAK', rpe: 9.5 },
+          { name: 'Neck Harness', sets: 4, reps: 10, weight: '10kg', notes: '🏆 TARGET!', rpe: 9 },
+          { name: 'Dead-Hang', sets: 3, reps: '90"+', notes: '🏆 TARGET FINALE!', rpe: 10 },
+        ],
+        rpe: 9.5,
+        notes: '🏆 Grip + Neck peak achieved'
+      }
+    },
+    2: { main: { type: 'TECNICO', description: '🏍️ RSA PEAK <4% drop', rpe: 9 }},
+    3: {
+      main: {
+        type: 'TECNICO',
+        description: '🏆 METABOLIC <36min + Wall Sit 3×180"',
+        exercises: [
+          { name: 'Metabolic Circuit', reps: '<36min', notes: '🏆 PEAK tempo', rpe: 10 },
+          { name: 'Wall Sit', sets: 3, reps: '180"', notes: '🏆 9 MINUTI TOTALI!', rpe: 10 },
+        ],
+        rpe: 10,
+        notes: '🏆🏆🏆 FINALE TARGETS ACHIEVED!'
+      }
+    },
+    4: { main: { type: 'RECUPERO', description: 'Recovery Active', rpe: 5 }},
+    5: { main: { type: 'RESISTENZA', description: 'Bike 120min + 🏍️ Plank 90" consolidamento', notes: '🍌', rpe: 6 }},
+    6: { main: { type: 'RIPOSO', description: 'OFF O Core Light 30min', rpe: 0, notes: '✅ MESO 3 COMPLETATO!' }},
+  },
+
+  // SETTIMANA 16 - DELOAD 4 + TAPER START
+  16: {
+    0: { main: { type: 'DELOAD', description: 'Lower Deload/Taper -40%', exercises: [{ name: 'Front Squat', weight: '45kg', sets: 3, reps: 3, notes: 'Intensità mantenuta', rpe: 7 }], rpe: 7, notes: '🏁 TAPER START' }},
+    1: { main: { type: 'DELOAD', description: 'Upper Taper', exercises: [{ name: 'Panca', weight: '17kg', sets: 3, reps: 4, rpe: 7 }], rpe: 7 }},
+    2: { main: { type: 'RECUPERO', description: 'Bike Z1 60min', rpe: 4 }},
+    3: { main: { type: 'DELOAD', description: 'Lower Maintenance', exercises: [{ name: 'Wall Sit', reps: '80"', rpe: 5 }], rpe: 5 }},
+    4: { main: { type: 'RIPOSO', description: 'OFF O Upper Very Light', rpe: 0 }},
+    5: { main: { type: 'RECUPERO', description: 'Bike Z1 70min + Proprio', notes: 'NO +600 kcal', rpe: 3 }},
+    6: { main: { type: 'RIPOSO', description: 'OFF Completo', rpe: 0, notes: '✅ Freshness building' }},
+  },
+
+  // SETTIMANA 17 - TAPER DEEP
+  17: {
+    0: { main: { type: 'DELOAD', description: 'Lower Spot Check', exercises: [{ name: 'Front Squat', weight: '46kg', sets: 2, reps: 2, notes: 'Speed check', rpe: 7 }], rpe: 7, notes: '🏁 Taper deep -65%' }},
+    1: { main: { type: 'DELOAD', description: 'Upper Spot Check', exercises: [{ name: 'Panca', weight: '17kg', sets: 2, reps: 3, rpe: 7 }], rpe: 7 }},
+    2: { main: { type: 'RECUPERO', description: 'Bike Z1 45min O OFF', rpe: 3 }},
+    3: { main: { type: 'DELOAD', description: 'Lower Light + Core 15min', rpe: 5 }},
+    4: { main: { type: 'RIPOSO', description: 'OFF O Walk 30min', rpe: 0 }},
+    5: { main: { type: 'RECUPERO', description: 'Bike Z1 60min + Proprio 10min', rpe: 3 }},
+    6: { main: { type: 'RIPOSO', description: 'OFF Completo', rpe: 0, notes: '✅ Ultra fresh' }},
+  },
+
+  // SETTIMANA 18 - PEAK READINESS FINALE
+  18: {
+    0: { main: { type: 'MOBILITA', description: 'Movement Quality 30min', rpe: 4, notes: '🏁 PEAK READINESS WEEK' }},
+    1: { main: { type: 'RIPOSO', description: 'OFF O Walk', rpe: 0 }},
+    2: { main: { type: 'RECUPERO', description: 'Bike Short 40min', rpe: 3 }},
+    3: {
+      main: {
+        type: 'GARA',
+        description: '🏆 KPI FINALI TEST (22 items)',
+        exercises: [
+          { name: 'Wall Sit 3×180"', notes: '🎯 9 min target', rpe: 9 },
+          { name: '🏍️ Plank Casco 4×90"', notes: '🎯 Target', rpe: 9 },
+          { name: 'Dead-Hang >90"', notes: '🎯 Milestone', rpe: 9 },
+          { name: 'Ab Wheel Piedi Full ROM', notes: '🎯 10 reps', rpe: 9 },
+          { name: 'Front Squat 52kg×5', notes: 'Strength check', rpe: 8 },
+          { name: 'Grip + Balance Tests', notes: 'Complete checklist', rpe: 8 },
+        ],
+        rpe: 9,
+        notes: '🏆 GIORNO DELLA VERITÀ - KPI TEST'
+      }
+    },
+    4: { main: { type: 'RIPOSO', description: 'OFF post-test', rpe: 0 }},
+    5: { main: { type: 'RECUPERO', description: 'Bike Gentle 50min + Visualization', rpe: 3 }},
+    6: { main: { type: 'RIPOSO', description: 'OFF + Prep Race Week', rpe: 0, notes: '🏁🏁🏁 READY TO RACE!' }},
+  },
 };
 
-const getRPEColor = (rpe: number) => {
+const getRPEColor = (rpe) => {
   if (rpe <= 3) return '#4CAF50';
   if (rpe <= 5) return '#8BC34A';
   if (rpe <= 7) return '#FFC107';
@@ -287,18 +553,10 @@ const getRPEColor = (rpe: number) => {
   return '#FF5722';
 };
 
-interface SessionCardProps {
-  session: any;
-  title: string;
-  onExercisePress: (exercise: any) => void;
-  onToggleComplete: () => void;
-  isCompleted: boolean;
-}
-
-const SessionCard: React.FC<SessionCardProps> = ({ session, title, onExercisePress, onToggleComplete, isCompleted }) => {
+const SessionCard = ({ session, title, onExercisePress, onToggleComplete, isCompleted }) => {
   if (!session) return null;
 
-  const typeInfo = TRAINING_TYPES[session.type as keyof typeof TRAINING_TYPES] || TRAINING_TYPES.RIPOSO;
+  const typeInfo = TRAINING_TYPES[session.type] || TRAINING_TYPES.RIPOSO;
 
   return (
     <View style={styles.sessionCard}>
@@ -322,8 +580,10 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, title, onExercisePre
 
       {session.exercises && session.exercises.length > 0 && (
         <View style={styles.exercisesList}>
-          <Text style={styles.exercisesTitle}>Esercizi ({session.exercises.length}):</Text>
-          {session.exercises.slice(0, 3).map((exercise: any, index: number) => (
+          <Text style={styles.exercisesTitle}>
+            Esercizi ({session.exercises.length}):
+          </Text>
+          {session.exercises.map((exercise, index) => (
             <Pressable
               key={index}
               style={styles.exerciseItem}
@@ -334,15 +594,14 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, title, onExercisePre
                 <Text style={styles.exerciseDetails}>
                   {exercise.sets}×{exercise.reps}
                   {exercise.weight && ` @ ${exercise.weight}`}
+                  {exercise.rpe && ` - RPE ${exercise.rpe}`}
                 </Text>
+              )}
+              {exercise.notes && (
+                <Text style={styles.exerciseNotes}>  → {exercise.notes}</Text>
               )}
             </Pressable>
           ))}
-          {session.exercises.length > 3 && (
-            <Text style={styles.moreExercises}>
-              +{session.exercises.length - 3} altri esercizi
-            </Text>
-          )}
         </View>
       )}
 
@@ -369,43 +628,21 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, title, onExercisePre
 
 export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(1);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any>(null);
-  const [completionData, setCompletionData] = useState<{ [key: string]: boolean }>({});
+  const [selectedExercise, setSelectedExercise] = useState(null);
+  const [weekData] = useState(COMPLETE_TRAINING_DATA);
+  const [completionData, setCompletionData] = useState({});
 
-  useEffect(() => {
-    loadCompletionData();
-  }, []);
-
-  const loadCompletionData = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setCompletionData(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.log('Error loading completion data:', error);
-    }
-  };
-
-  const saveCompletionData = async (data: { [key: string]: boolean }) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.log('Error saving completion data:', error);
-    }
-  };
-
-  const toggleSessionComplete = (week: number, day: number, sessionType: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const toggleSessionComplete = (week, day, sessionType) => {
     const key = `${week}-${day}-${sessionType}`;
-    const newData = { ...completionData, [key]: !completionData[key] };
-    setCompletionData(newData);
-    saveCompletionData(newData);
+    setCompletionData(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   };
 
-  const isSessionComplete = (week: number, day: number, sessionType: string) => {
+  const isSessionComplete = (week, day, sessionType) => {
     const key = `${week}-${day}-${sessionType}`;
     return completionData[key] || false;
   };
@@ -413,7 +650,7 @@ export default function CalendarScreen() {
   const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
-  const getWeekDates = (weekNumber: number) => {
+  const getWeekDates = (weekNumber) => {
     const startDate = new Date('2025-11-16');
     const weekStart = new Date(startDate);
     weekStart.setDate(startDate.getDate() + (weekNumber - 1) * 7);
@@ -425,14 +662,14 @@ export default function CalendarScreen() {
   };
 
   const weekDates = getWeekDates(selectedWeek);
-  const currentDayData = selectedDay !== null ? COMPLETE_TRAINING_DATA[selectedWeek as keyof typeof COMPLETE_TRAINING_DATA]?.[selectedDay] : null;
+  const currentDayData = selectedDay !== null ? weekData[selectedWeek]?.[selectedDay] : null;
 
-  const openExerciseDetail = (exercise: any) => {
+  const openExerciseDetail = (exercise) => {
     setSelectedExercise(exercise);
     setDetailModalVisible(true);
   };
 
-  const getMesoLabel = (week: number) => {
+  const getMesoLabel = (week) => {
     if (week <= 3) return 'M1A';
     if (week === 4) return 'D1';
     if (week <= 7) return 'M2A';
@@ -446,8 +683,8 @@ export default function CalendarScreen() {
     return 'PEAK';
   };
 
-  const getDayCompletionStatus = (week: number, day: number) => {
-    const dayData = COMPLETE_TRAINING_DATA[week as keyof typeof COMPLETE_TRAINING_DATA]?.[day];
+  const getDayCompletionStatus = (week, day) => {
+    const dayData = weekData[week]?.[day];
     if (!dayData) return { total: 0, completed: 0 };
 
     let total = 0;
@@ -471,14 +708,6 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{
-          title: 'Calendario Training',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTintColor: '#fff',
-        }} 
-      />
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -512,7 +741,6 @@ export default function CalendarScreen() {
                     isTaper && styles.weekButtonTaper,
                   ]}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setSelectedWeek(week);
                     setSelectedDay(null);
                   }}
@@ -549,9 +777,9 @@ export default function CalendarScreen() {
               const date = weekDates[index];
               const isSelected = selectedDay === index;
               const isToday = date.toDateString() === new Date().toDateString();
-              const dayData = COMPLETE_TRAINING_DATA[selectedWeek as keyof typeof COMPLETE_TRAINING_DATA]?.[index];
+              const dayData = weekData[selectedWeek]?.[index];
               const mainType = dayData?.main?.type || 'RIPOSO';
-              const typeColor = TRAINING_TYPES[mainType as keyof typeof TRAINING_TYPES]?.color || '#757575';
+              const typeColor = TRAINING_TYPES[mainType]?.color || '#757575';
               const completion = getDayCompletionStatus(selectedWeek, index);
               
               return (
@@ -562,10 +790,7 @@ export default function CalendarScreen() {
                     isSelected && styles.dayCardSelected,
                     isToday && styles.dayCardToday,
                   ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedDay(index);
-                  }}
+                  onPress={() => setSelectedDay(index)}
                 >
                   <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
                     {day}
@@ -637,6 +862,29 @@ export default function CalendarScreen() {
                 </View>
               )}
             </View>
+
+            {/* Context Cards */}
+            {selectedWeek >= 10 && selectedWeek <= 15 && (
+              <View style={styles.card}>
+                <Text style={styles.infoTitle}>🏍️ TRANSFER MOTO3</Text>
+                <Text style={styles.infoText}>
+                  {selectedWeek <= 11 && '• PAP Complexes\n• Plank con casco introduced\n• RSA intervals start'}
+                  {selectedWeek === 12 && '• DELOAD pre-peak transfer\n• Recovery priority'}
+                  {selectedWeek >= 13 && selectedWeek <= 15 && '• Metabolic Core Circuit\n• Wall Sit 3×120-180"\n• RSA PEAK protocols\n• Plank casco 90" target'}
+                </Text>
+              </View>
+            )}
+
+            {selectedWeek >= 16 && (
+              <View style={styles.card}>
+                <Text style={styles.infoTitle}>🏁 TAPER + PEAK</Text>
+                <Text style={styles.infoText}>
+                  {selectedWeek === 16 && '• Volume -40%, Intensità mantenuta\n• Freshness building start'}
+                  {selectedWeek === 17 && '• Volume -65%, Spot checks\n• Deep taper'}
+                  {selectedWeek === 18 && '• PEAK READINESS\n• KPI finali test Giovedì\n• Mental prep\n• Ready to race!'}
+                </Text>
+              </View>
+            )}
           </>
         )}
 
@@ -650,6 +898,70 @@ export default function CalendarScreen() {
               <Text style={styles.legendText}>{value.label}</Text>
             </View>
           ))}
+        </View>
+
+        {/* Progress Summary */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>📊 Riepilogo Progressione</Text>
+          <View style={styles.progressItem}>
+            <Text style={styles.progressLabel}>Settimane Completate:</Text>
+            <Text style={styles.progressValue}>
+              {Object.keys(completionData).filter(k => completionData[k]).length} sessioni
+            </Text>
+          </View>
+          <View style={styles.progressItem}>
+            <Text style={styles.progressLabel}>Mesociclo Attuale:</Text>
+            <Text style={styles.progressValue}>{getMesoLabel(selectedWeek)}</Text>
+          </View>
+          <View style={styles.progressItem}>
+            <Text style={styles.progressLabel}>Focus Periodo:</Text>
+            <Text style={styles.progressValue}>
+              {selectedWeek <= 3 && 'Anatomical Adaptation'}
+              {selectedWeek === 4 && 'Deload Recovery'}
+              {selectedWeek >= 5 && selectedWeek <= 7 && 'Hypertrophy'}
+              {selectedWeek === 8 && 'Deload Recovery'}
+              {selectedWeek === 9 && 'Strength Base'}
+              {selectedWeek >= 10 && selectedWeek <= 11 && 'Transfer + Power'}
+              {selectedWeek === 12 && 'Deload Pre-Peak'}
+              {selectedWeek >= 13 && selectedWeek <= 15 && 'Peak Transfer Moto3 🏍️'}
+              {selectedWeek === 16 && 'Deload + Taper Start'}
+              {selectedWeek === 17 && 'Taper Deep'}
+              {selectedWeek === 18 && 'Peak Readiness 🏁'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Milestone Tracker */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>🎯 Milestone Chiave</Text>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S1:</Text>
+            <Text style={styles.milestoneText}>Baseline tecnica (16kg Goblet, 40kg Trap-Bar)</Text>
+          </View>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S3:</Text>
+            <Text style={styles.milestoneText}>Peak M1A (20kg Goblet, 50kg Trap-Bar)</Text>
+          </View>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S7:</Text>
+            <Text style={styles.milestoneText}>Peak Hypertrophy (22kg Goblet, 58kg Trap-Bar)</Text>
+          </View>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S10:</Text>
+            <Text style={styles.milestoneText}>🏍️ Transfer Start: Plank Casco + RSA</Text>
+          </View>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S13:</Text>
+            <Text style={styles.milestoneText}>🔥 Metabolic Circuit + Wall Sit 6min</Text>
+          </View>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S15:</Text>
+            <Text style={styles.milestoneText}>🏆 ABSOLUTE PEAK: Wall Sit 9min, Plank Casco 90"</Text>
+          </View>
+          <View style={styles.milestoneItem}>
+            <Text style={styles.milestoneWeek}>S18:</Text>
+            <Text style={styles.milestoneText}>🏁 KPI Test + Ready to Race!</Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -755,7 +1067,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    ...shadows.medium,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionTitle: {
     fontSize: 18,
@@ -937,17 +1253,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     marginBottom: 2,
+    fontWeight: '600',
   },
   exerciseDetails: {
     fontSize: 12,
     color: '#666',
     marginLeft: 12,
   },
-  moreExercises: {
-    fontSize: 12,
-    color: '#2196F3',
-    marginTop: 4,
+  exerciseNotes: {
+    fontSize: 11,
+    color: '#999',
+    marginLeft: 12,
     fontStyle: 'italic',
+    marginTop: 2,
   },
   sessionNotes: {
     marginTop: 12,
@@ -1008,6 +1326,17 @@ const styles = StyleSheet.create({
     color: '#1976D2',
     lineHeight: 20,
   },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2196F3',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1025,6 +1354,40 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 14,
     color: '#333',
+  },
+  progressItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  progressLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  progressValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2196F3',
+  },
+  milestoneItem: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  milestoneWeek: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2196F3',
+    width: 40,
+  },
+  milestoneText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
@@ -1101,4 +1464,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-});
+}); 
