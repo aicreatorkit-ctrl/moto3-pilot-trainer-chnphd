@@ -192,7 +192,7 @@ export default function VirtualCoachScreen() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isSessionActive, feedbackFrequency]);
+  }, [isSessionActive, feedbackFrequency, generateAIFeedback]);
 
   const startSession = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);

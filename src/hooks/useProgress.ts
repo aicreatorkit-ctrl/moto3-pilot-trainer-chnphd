@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProgressService } from '@/src/services/progress.service';
 import { isSupabaseConfigured } from '@/src/config/constants';
 
@@ -9,10 +9,10 @@ interface DateRange {
 }
 
 interface ProgressMetrics {
-  sleep: Array<{ date: string; value: number }>;
-  energy: Array<{ date: string; value: number }>;
-  weight: Array<{ date: string; value: number }>;
-  hrv: Array<{ date: string; value: number }>;
+  sleep: { date: string; value: number }[];
+  energy: { date: string; value: number }[];
+  weight: { date: string; value: number }[];
+  hrv: { date: string; value: number }[];
 }
 
 /**
@@ -29,11 +29,7 @@ export const useProgress = (dateRange: DateRange) => {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(false);
 
-  useEffect(() => {
-    loadMetrics();
-  }, [dateRange.start, dateRange.end]);
-
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
     const isConfigured = isSupabaseConfigured();
     setConfigured(isConfigured);
     
@@ -69,7 +65,11 @@ export const useProgress = (dateRange: DateRange) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange.start, dateRange.end]);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
 
   return {
     metrics,

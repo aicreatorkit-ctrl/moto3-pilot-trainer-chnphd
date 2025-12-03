@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RoutinesService } from '@/src/services/routines.service';
 import { isSupabaseConfigured } from '@/src/config/constants';
 
@@ -12,11 +12,7 @@ export const useRoutines = (type: 'pre_workout' | 'post_workout') => {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(false);
 
-  useEffect(() => {
-    loadRoutines();
-  }, [type]);
-
-  const loadRoutines = async () => {
+  const loadRoutines = useCallback(async () => {
     const isConfigured = isSupabaseConfigured();
     setConfigured(isConfigured);
     
@@ -37,7 +33,11 @@ export const useRoutines = (type: 'pre_workout' | 'post_workout') => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [type]);
+
+  useEffect(() => {
+    loadRoutines();
+  }, [loadRoutines]);
 
   const refresh = () => {
     loadRoutines();

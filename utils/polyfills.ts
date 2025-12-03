@@ -7,13 +7,13 @@
 
 // Polyfill for window object in React Native
 if (typeof window === 'undefined') {
-  // @ts-ignore - Create a minimal window object
+  // @ts-expect-error - Create a minimal window object
   global.window = global as any;
 }
 
 // Polyfill for document object
 if (typeof document === 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - Create a minimal document object
   global.document = {
     createElement: () => ({}),
     createElementNS: () => ({}),
@@ -27,7 +27,7 @@ if (typeof document === 'undefined') {
 
 // Polyfill for localStorage if needed
 if (typeof localStorage === 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - Create a minimal localStorage object
   global.localStorage = {
     getItem: () => null,
     setItem: () => {},
@@ -40,7 +40,7 @@ if (typeof localStorage === 'undefined') {
 
 // Polyfill for sessionStorage if needed
 if (typeof sessionStorage === 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - Create a minimal sessionStorage object
   global.sessionStorage = {
     getItem: () => null,
     setItem: () => {},
@@ -53,7 +53,7 @@ if (typeof sessionStorage === 'undefined') {
 
 // Polyfill for location object
 if (typeof location === 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - Create a minimal location object
   global.location = {
     href: '',
     origin: '',
@@ -69,7 +69,7 @@ if (typeof location === 'undefined') {
 
 // Polyfill for navigator object
 if (typeof navigator === 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - Create a minimal navigator object
   global.navigator = {
     userAgent: 'ReactNative',
     product: 'ReactNative',

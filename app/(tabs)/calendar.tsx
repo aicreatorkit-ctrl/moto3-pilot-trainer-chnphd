@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
+import PropTypes from 'prop-types';
 
 const STORAGE_KEY_CALENDAR = '@moto3_custom_calendar';
 const STORAGE_KEY_COMPLETION = '@moto3_completion_data';
@@ -634,6 +635,30 @@ const SessionCard = ({ session, title, onExercisePress, onToggleComplete, isComp
   );
 };
 
+SessionCard.propTypes = {
+  session: PropTypes.shape({
+    type: PropTypes.string,
+    rpe: PropTypes.number,
+    time: PropTypes.string,
+    description: PropTypes.string,
+    exercises: PropTypes.arrayOf(PropTypes.shape({
+      name: PropTypes.string,
+      sets: PropTypes.number,
+      reps: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+      weight: PropTypes.string,
+      tempo: PropTypes.string,
+      rest: PropTypes.string,
+      notes: PropTypes.string,
+      rpe: PropTypes.number,
+    })),
+    notes: PropTypes.string,
+  }),
+  title: PropTypes.string.isRequired,
+  onExercisePress: PropTypes.func.isRequired,
+  onToggleComplete: PropTypes.func.isRequired,
+  isCompleted: PropTypes.bool.isRequired,
+};
+
 export default function CalendarScreen() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -643,6 +668,14 @@ export default function CalendarScreen() {
   const [completionData, setCompletionData] = useState({});
   const [calendarStartDate, setCalendarStartDate] = useState(new Date('2025-11-16'));
 
+  const saveCompletionData = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_COMPLETION, JSON.stringify(completionData));
+    } catch (error) {
+      console.log('Error saving completion data:', error);
+    }
+  }, [completionData]);
+
   useEffect(() => {
     loadCalendarData();
     loadCompletionData();
@@ -650,7 +683,7 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     saveCompletionData();
-  }, [completionData]);
+  }, [completionData, saveCompletionData]);
 
   const loadCalendarData = async () => {
     try {
@@ -680,14 +713,6 @@ export default function CalendarScreen() {
       }
     } catch (error) {
       console.log('Error loading completion data:', error);
-    }
-  };
-
-  const saveCompletionData = async () => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_COMPLETION, JSON.stringify(completionData));
-    } catch (error) {
-      console.log('Error saving completion data:', error);
     }
   };
 
