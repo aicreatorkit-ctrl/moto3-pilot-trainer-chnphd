@@ -14,25 +14,48 @@ export const isSupabaseConfigured = (): boolean => {
   return !!(hasUrl && hasKey);
 };
 
-// Crea il client Supabase
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
+// Lazy initialization of Supabase client to avoid "window is not defined" errors
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+
+export const getSupabase = () => {
+  if (!supabaseInstance) {
+    console.log('Initializing Supabase client...');
+    try {
+      supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          storage: AsyncStorage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      });
+      console.log('Supabase client initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Supabase client:', error);
+      throw error;
+    }
+  }
+  return supabaseInstance;
+};
+
+// Export a getter for the supabase client
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
+  get: (target, prop) => {
+    const client = getSupabase();
+    return client[prop as keyof typeof client];
+  }
 });
 
 // Helper per verificare la connessione
 export const checkSupabaseConnection = async (): Promise<boolean> => {
-  if (!supabase) {
+  if (!isSupabaseConfigured()) {
     console.log('Supabase non configurato');
     return false;
   }
   
   try {
-    const { error } = await supabase.from('profiles').select('count').limit(1);
+    const client = getSupabase();
+    const { error } = await client.from('profiles').select('count').limit(1);
     return !error;
   } catch (error) {
     console.log('Supabase connection error:', error);
@@ -42,13 +65,14 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
 
 // Helper per ottenere l'utente corrente
 export const getCurrentUser = async () => {
-  if (!supabase) {
+  if (!isSupabaseConfigured()) {
     console.log('Supabase non configurato - nessun utente');
     return null;
   }
   
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const client = getSupabase();
+    const { data: { user }, error } = await client.auth.getUser();
     if (error) {
       console.log('Error getting current user:', error);
       return null;
