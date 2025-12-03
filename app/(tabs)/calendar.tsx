@@ -1,5 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { IconSymbol } from '@/components/IconSymbol';
+import { colors } from '@/styles/commonStyles';
+
+const STORAGE_KEY_CALENDAR = '@moto3_custom_calendar';
 
 const TRAINING_TYPES = {
   FORZA_MAX: { label: 'Forza Massimale', color: '#FF4444', icon: '💪' },
@@ -13,7 +20,7 @@ const TRAINING_TYPES = {
   GARA: { label: 'Gara', color: '#FFD700', icon: '🏁' },
 };
 
-// Dati completi 18 settimane
+// Dati completi 18 settimane (mantengo i dati originali come default)
 const COMPLETE_TRAINING_DATA = {
   // SETTIMANA 1
   1: {
@@ -631,8 +638,82 @@ export default function CalendarScreen() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
-  const [weekData] = useState(COMPLETE_TRAINING_DATA);
+  const [weekData, setWeekData] = useState(COMPLETE_TRAINING_DATA);
   const [completionData, setCompletionData] = useState({});
+
+  useEffect(() => {
+    loadCalendarData();
+  }, []);
+
+  const loadCalendarData = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY_CALENDAR);
+      if (stored) {
+        setWeekData(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error loading calendar data:', error);
+    }
+  };
+
+  const saveCalendarData = async (data) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_CALENDAR, JSON.stringify(data));
+      setWeekData(data);
+    } catch (error) {
+      console.log('Error saving calendar data:', error);
+    }
+  };
+
+  const importFromMarkdown = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'text/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const file = result.assets[0];
+      
+      // Read file content
+      const response = await fetch(file.uri);
+      const content = await response.text();
+
+      // Parse markdown content (basic parsing)
+      // You can enhance this to parse your specific MD format
+      Alert.alert(
+        'File Importato',
+        `File: ${file.name}\nDimensione: ${(file.size / 1024).toFixed(2)} KB\n\nIl contenuto è stato caricato. Implementa la logica di parsing per il tuo formato MD specifico.`,
+        [{ text: 'OK' }]
+      );
+
+      // TODO: Implement your MD parsing logic here
+      // For now, just show the content
+      console.log('MD Content:', content);
+
+    } catch (error) {
+      console.log('Error importing markdown:', error);
+      Alert.alert('Errore', 'Impossibile importare il file MD');
+    }
+  };
+
+  const resetToDefault = () => {
+    Alert.alert(
+      'Ripristina Calendario',
+      'Vuoi ripristinare il calendario ai valori predefiniti? Tutti i dati personalizzati verranno persi.',
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Ripristina',
+          style: 'destructive',
+          onPress: () => saveCalendarData(COMPLETE_TRAINING_DATA),
+        },
+      ]
+    );
+  };
 
   const toggleSessionComplete = (week, day, sessionType) => {
     const key = `${week}-${day}-${sessionType}`;
@@ -716,6 +797,18 @@ export default function CalendarScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>🏍️ Training Moto3</Text>
           <Text style={styles.headerSubtitle}>18 Settimane Complete</Text>
+          
+          {/* Import/Export Buttons */}
+          <View style={styles.actionButtons}>
+            <Pressable style={styles.importButton} onPress={importFromMarkdown}>
+              <IconSymbol name="doc.text.fill" size={20} color="#FFFFFF" />
+              <Text style={styles.importButtonText}>Importa MD</Text>
+            </Pressable>
+            <Pressable style={styles.resetButton} onPress={resetToDefault}>
+              <IconSymbol name="arrow.clockwise" size={20} color={colors.primary} />
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Week Selector */}
@@ -1061,6 +1154,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
     opacity: 0.9,
+    marginBottom: 12,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  importButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  importButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  resetButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  resetButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
   },
   card: {
     backgroundColor: '#fff',
@@ -1464,4 +1595,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-}); 
+});
