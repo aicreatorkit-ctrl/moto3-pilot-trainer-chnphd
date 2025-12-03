@@ -671,14 +671,6 @@ export default function CalendarScreen() {
   const [completionData, setCompletionData] = useState<Record<string, boolean>>({});
   const [calendarStartDate] = useState(new Date('2025-11-16'));
 
-  const saveCompletionData = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_COMPLETION, JSON.stringify(completionData));
-    } catch (error) {
-      console.log('Error saving completion data:', error);
-    }
-  }, [completionData]);
-
   const loadCalendarData = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY_CALENDAR);
@@ -700,6 +692,14 @@ export default function CalendarScreen() {
       console.log('Error loading completion data:', error);
     }
   }, []);
+
+  const saveCompletionData = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_COMPLETION, JSON.stringify(completionData));
+    } catch (error) {
+      console.log('Error saving completion data:', error);
+    }
+  }, [completionData]);
 
   useEffect(() => {
     loadCalendarData();
