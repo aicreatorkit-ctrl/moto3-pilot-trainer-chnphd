@@ -752,7 +752,7 @@ export default function CalendarScreen() {
     return completionData[key] || false;
   };
 
-  const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
+  const weeks = Array.from({ length: 46 }, (_, i) => i + 1);
   const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
   const getWeekDates = (weekNumber) => {
@@ -784,6 +784,20 @@ export default function CalendarScreen() {
     if (week <= 15) return 'M3B';
     if (week === 16) return 'D4';
     if (week === 17) return 'TAP';
+    if (week === 18) return 'PEAK';
+    
+    // Ciclo 2: Settimane 19-36 (ripete la struttura)
+    const cycleWeek = ((week - 19) % 18) + 1;
+    if (cycleWeek <= 3) return 'M1A';
+    if (cycleWeek === 4) return 'D1';
+    if (cycleWeek <= 7) return 'M2A';
+    if (cycleWeek === 8) return 'D2';
+    if (cycleWeek === 9) return 'M2B';
+    if (cycleWeek <= 11) return 'M3';
+    if (cycleWeek === 12) return 'D3';
+    if (cycleWeek <= 15) return 'M3B';
+    if (cycleWeek === 16) return 'D4';
+    if (cycleWeek === 17) return 'TAP';
     return 'PEAK';
   };
 
@@ -812,7 +826,7 @@ export default function CalendarScreen() {
 
   const getCalendarEndDate = () => {
     const endDate = new Date(calendarStartDate);
-    endDate.setDate(calendarStartDate.getDate() + (18 * 7));
+    endDate.setDate(calendarStartDate.getDate() + (46 * 7));
     return endDate;
   };
 
@@ -832,7 +846,7 @@ export default function CalendarScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>🏍️ Training Moto3</Text>
-          <Text style={styles.headerSubtitle}>18 Settimane Complete</Text>
+          <Text style={styles.headerSubtitle}>46 Settimane Complete</Text>
           <Text style={styles.headerDates}>
             {calendarStartDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })} - {' '}
             {getCalendarEndDate().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -859,8 +873,10 @@ export default function CalendarScreen() {
           >
             {weeks.map((week) => {
               const mesoLabel = getMesoLabel(week);
-              const isDeload = [4, 8, 12, 16].includes(week);
-              const isTaper = week >= 17;
+              // Deload weeks: 4, 8, 12, 16, 22, 26, 30, 34, 40, 44
+              const isDeload = [4, 8, 12, 16, 22, 26, 30, 34, 40, 44].includes(week);
+              // Taper weeks: 17-18, 35-36
+              const isTaper = (week >= 17 && week <= 18) || (week >= 35 && week <= 36);
 
               return (
                 <Pressable
