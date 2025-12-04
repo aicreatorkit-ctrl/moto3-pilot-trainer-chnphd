@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '@/src/config/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import { isSupabaseConfigured } from '@/src/config/supabase';
 import { AuthService } from '@/src/services/auth.service';
 import { Session } from '@supabase/supabase-js';
 
@@ -14,63 +14,88 @@ export const useAuth = () => {
   const [configured, setConfigured] = useState(false);
 
   useEffect(() => {
-    console.log('useAuth: Checking Supabase configuration');
-    const checkConfig = isSupabaseConfigured();
-    setConfigured(checkConfig);
-    
-    if (!checkConfig) {
-      console.log('useAuth: Supabase non configurato - modalità offline');
-      setLoading(false);
-      return;
-    }
+    let mounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    console.log('useAuth: Loading session');
-    // Carica sessione iniziale solo se Supabase è configurato
-    AuthService.getSession()
-      .then(({ session }) => {
-        console.log('useAuth: Session loaded', session ? 'with user' : 'no user');
-        setSession(session);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error('useAuth: Error loading session:', error);
-        setLoading(false);
-      });
+    const initAuth = async () => {
+      try {
+        console.log('useAuth: Checking Supabase configuration');
+        const checkConfig = isSupabaseConfigured();
+        
+        if (!mounted) return;
+        
+        setConfigured(checkConfig);
+        
+        if (!checkConfig) {
+          console.log('useAuth: Supabase non configurato - modalità offline');
+          setLoading(false);
+          return;
+        }
 
-    // Ascolta cambiamenti
-    const { data: { subscription } } = AuthService.onAuthStateChange((_event, session) => {
-      console.log('useAuth: Auth state changed', _event);
-      setSession(session);
-    });
+        console.log('useAuth: Loading session');
+        // Carica sessione iniziale solo se Supabase è configurato
+        const { session: initialSession, error } = await AuthService.getSession();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('useAuth: Error loading session:', error);
+        } else {
+          console.log('useAuth: Session loaded', initialSession ? 'with user' : 'no user');
+          setSession(initialSession);
+        }
+        
+        setLoading(false);
+
+        // Ascolta cambiamenti
+        const { data } = AuthService.onAuthStateChange((_event, newSession) => {
+          if (!mounted) return;
+          console.log('useAuth: Auth state changed', _event);
+          setSession(newSession);
+        });
+        
+        subscription = data.subscription;
+      } catch (error) {
+        console.error('useAuth: Initialization error:', error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     if (!configured) {
       return { data: null, error: new Error('Supabase non configurato') };
     }
     const { data, error } = await AuthService.signIn(email, password);
     return { data, error };
-  };
+  }, [configured]);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
     if (!configured) {
       return { data: null, error: new Error('Supabase non configurato') };
     }
-    const { data, error } = await AuthService.signUp(email, password, fullName);
+    const { data, error } = await AuthService.signUp(email, password);
     return { data, error };
-  };
+  }, [configured]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!configured) {
       return { error: new Error('Supabase non configurato') };
     }
     const { error } = await AuthService.signOut();
     return { error };
-  };
+  }, [configured]);
 
   return {
     session,

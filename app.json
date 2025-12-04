@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "Moto3 Pilot Trainer",
@@ -52,5 +51,6 @@
       "router": {}
     },
     "scheme": "natively"
-  }
+  },
+  "scheme": "Moto3 Pilot Trainer"
 }

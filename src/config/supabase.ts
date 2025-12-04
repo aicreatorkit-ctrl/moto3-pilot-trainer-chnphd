@@ -21,6 +21,24 @@ export const getSupabase = () => {
   if (!supabaseInstance) {
     console.log('Initializing Supabase client...');
     try {
+      if (!isSupabaseConfigured()) {
+        console.warn('Supabase not configured, creating dummy client');
+        // Return a dummy client that won't crash
+        return {
+          auth: {
+            getSession: async () => ({ data: { session: null }, error: null }),
+            getUser: async () => ({ data: { user: null }, error: null }),
+            signUp: async () => ({ data: null, error: new Error('Supabase not configured') }),
+            signInWithPassword: async () => ({ data: null, error: new Error('Supabase not configured') }),
+            signOut: async () => ({ error: new Error('Supabase not configured') }),
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+          },
+          from: () => ({
+            select: () => ({ limit: () => ({ error: new Error('Supabase not configured') }) }),
+          }),
+        } as any;
+      }
+      
       supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           storage: AsyncStorage,
@@ -38,11 +56,23 @@ export const getSupabase = () => {
   return supabaseInstance;
 };
 
-// Export a getter for the supabase client
+// Export a direct reference that gets initialized on first access
 export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
-  get: (target, prop) => {
-    const client = getSupabase();
-    return client[prop as keyof typeof client];
+  get: (_target, prop) => {
+    try {
+      const client = getSupabase();
+      const value = client[prop as keyof typeof client];
+      
+      // If it's a function, bind it to the client
+      if (typeof value === 'function') {
+        return value.bind(client);
+      }
+      
+      return value;
+    } catch (error) {
+      console.error('Error accessing Supabase client property:', prop, error);
+      throw error;
+    }
   }
 });
 

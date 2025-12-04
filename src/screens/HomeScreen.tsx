@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -13,14 +13,21 @@ import { isSupabaseConfigured } from '@/src/config/constants';
  * Funziona con Supabase configurato
  */
 export const HomeScreen: React.FC = () => {
-  const { user, loading } = useAuth();
   const [supabaseConfigured, setSupabaseConfigured] = useState(true);
+  
+  // Always call hooks unconditionally
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     console.log('HomeScreen mounted');
-    const isConfigured = isSupabaseConfigured();
-    setSupabaseConfigured(isConfigured);
-    console.log('Supabase configurato:', isConfigured);
+    try {
+      const isConfigured = isSupabaseConfigured();
+      setSupabaseConfigured(isConfigured);
+      console.log('Supabase configurato:', isConfigured);
+    } catch (error) {
+      console.error('HomeScreen: Error checking Supabase config:', error);
+      setSupabaseConfigured(false);
+    }
   }, []);
 
   const quickActions = [
@@ -54,7 +61,7 @@ export const HomeScreen: React.FC = () => {
     },
   ];
 
-  const handleNavigate = (route: string) => {
+  const handleNavigate = useCallback((route: string) => {
     console.log('Navigate to:', route);
     try {
       router.push(route as any);
@@ -62,7 +69,7 @@ export const HomeScreen: React.FC = () => {
       console.error('Navigation error:', error);
       Alert.alert('Errore', 'Impossibile navigare a questa schermata');
     }
-  };
+  }, []);
 
   if (loading) {
     return (

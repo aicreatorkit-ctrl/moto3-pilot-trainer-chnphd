@@ -1,7 +1,7 @@
 
 import { supabase } from '@/src/config/supabase';
 
-export const authService = {
+export const AuthService = {
   async signUp(email: string, password: string) {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -95,3 +95,6 @@ export const authService = {
     return supabase.auth.onAuthStateChange(callback);
   },
 };
+
+// Export lowercase alias for backward compatibility
+export const authService = AuthService;

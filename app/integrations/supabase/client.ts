@@ -32,8 +32,20 @@ const getSupabaseClient = () => {
 
 // Export a proxy that lazily initializes the client
 export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
-  get: (target, prop) => {
-    const client = getSupabaseClient();
-    return client[prop as keyof typeof client];
+  get: (_target, prop) => {
+    try {
+      const client = getSupabaseClient();
+      const value = client[prop as keyof typeof client];
+      
+      // If it's a function, bind it to the client
+      if (typeof value === 'function') {
+        return value.bind(client);
+      }
+      
+      return value;
+    } catch (error) {
+      console.error('Error accessing Supabase client (integrations) property:', prop, error);
+      throw error;
+    }
   }
 });
