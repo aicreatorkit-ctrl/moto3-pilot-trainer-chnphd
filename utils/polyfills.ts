@@ -11,6 +11,30 @@ if (typeof window === 'undefined') {
   global.window = global as any;
 }
 
+// Add addEventListener and removeEventListener to window if they don't exist
+if (typeof window !== 'undefined') {
+  if (typeof window.addEventListener === 'undefined') {
+    // @ts-expect-error - Add addEventListener polyfill
+    window.addEventListener = () => {
+      // No-op for React Native
+    };
+  }
+  
+  if (typeof window.removeEventListener === 'undefined') {
+    // @ts-expect-error - Add removeEventListener polyfill
+    window.removeEventListener = () => {
+      // No-op for React Native
+    };
+  }
+
+  if (typeof window.dispatchEvent === 'undefined') {
+    // @ts-expect-error - Add dispatchEvent polyfill
+    window.dispatchEvent = () => {
+      return true;
+    };
+  }
+}
+
 // Polyfill for document object
 if (typeof document === 'undefined') {
   // @ts-expect-error - Create a minimal document object
@@ -22,6 +46,7 @@ if (typeof document === 'undefined') {
     querySelectorAll: () => [],
     addEventListener: () => {},
     removeEventListener: () => {},
+    dispatchEvent: () => true,
   } as any;
 }
 
@@ -64,6 +89,9 @@ if (typeof location === 'undefined') {
     pathname: '',
     search: '',
     hash: '',
+    reload: () => {},
+    replace: () => {},
+    assign: () => {},
   } as any;
 }
 
@@ -73,7 +101,45 @@ if (typeof navigator === 'undefined') {
   global.navigator = {
     userAgent: 'ReactNative',
     product: 'ReactNative',
+    platform: 'ReactNative',
+    language: 'en-US',
+    languages: ['en-US'],
+    onLine: true,
   } as any;
 }
+
+// Polyfill for CustomEvent if needed
+if (typeof CustomEvent === 'undefined') {
+  // @ts-expect-error - Create a minimal CustomEvent constructor
+  global.CustomEvent = function CustomEvent(event: string, params?: any) {
+    const evt = {
+      type: event,
+      detail: params?.detail,
+      bubbles: params?.bubbles || false,
+      cancelable: params?.cancelable || false,
+    };
+    return evt;
+  } as any;
+}
+
+// Polyfill for Event if needed
+if (typeof Event === 'undefined') {
+  // @ts-expect-error - Create a minimal Event constructor
+  global.Event = function Event(type: string, eventInitDict?: any) {
+    return {
+      type,
+      bubbles: eventInitDict?.bubbles || false,
+      cancelable: eventInitDict?.cancelable || false,
+      composed: eventInitDict?.composed || false,
+      target: null,
+      currentTarget: null,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      stopImmediatePropagation: () => {},
+    };
+  } as any;
+}
+
+console.log('Polyfills loaded successfully');
 
 export {};
