@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Moto3 Pilot Trainer",
@@ -36,6 +37,29 @@
           "include": [
             "@expo/vector-icons"
           ]
+        }
+      },
+      "name": "Moto3 Pilot Trainer",
+      "shortName": "Moto3 Trainer",
+      "description": "Sistema completo di preparazione fisica e mentale per piloti professionisti Moto3",
+      "themeColor": "#E10600",
+      "backgroundColor": "#000000",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "scope": "/",
+      "lang": "it",
+      "dir": "ltr",
+      "preferRelatedApplications": false,
+      "relatedApplications": [],
+      "splash": {
+        "backgroundColor": "#000000",
+        "resizeMode": "contain",
+        "image": "./assets/images/natively-dark.png"
+      },
+      "config": {
+        "firebase": {
+          "measurementId": ""
         }
       }
     },

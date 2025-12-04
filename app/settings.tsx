@@ -1,352 +1,422 @@
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { router } from 'expo-router';
+import { colors, spacing, borderRadius, typography } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors, commonStyles, shadows, gradients } from '@/styles/commonStyles';
-import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
-
-interface Setting {
-  title: string;
-  description: string;
-  icon: string;
-  color: string;
-  route?: string;
-  action?: () => void;
-  isDanger?: boolean;
-}
+import { useDataExport } from '@/hooks/useDataExport';
 
 export default function SettingsScreen() {
-  const router = useRouter();
+  const {
+    isExporting,
+    isImporting,
+    error,
+    exportData,
+    importData,
+    clearError,
+  } = useDataExport();
 
-  const handlePress = (route?: string, action?: () => void) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (action) {
-      action();
-    } else if (route) {
-      router.push(route as any);
+  const [fileInputKey, setFileInputKey] = useState(0);
+
+  const handleExport = async () => {
+    try {
+      await exportData();
+      if (Platform.OS === 'web') {
+        Alert.alert(
+          'Esportazione Completata',
+          'I tuoi dati sono stati esportati con successo.'
+        );
+      }
+    } catch (err) {
+      Alert.alert(
+        'Errore',
+        'Si è verificato un errore durante l\'esportazione dei dati.'
+      );
     }
   };
 
-  const clearAllData = async () => {
-    Alert.alert(
-      'Cancella Tutti i Dati',
-      'Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.',
-      [
-        {
-          text: 'Annulla',
-          style: 'cancel',
-        },
-        {
-          text: 'Cancella',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await AsyncStorage.clear();
-              console.log('All data cleared successfully');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Successo', 'Tutti i dati sono stati cancellati');
-            } catch (error) {
-              console.log('Error clearing data:', error);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Errore', 'Errore durante la cancellazione dei dati');
-            }
-          },
-        },
-      ]
-    );
+  const handleImport = () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Non Supportato',
+        'L\'importazione è disponibile solo nella versione web.'
+      );
+      return;
+    }
+
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e: any) => {
+      const file = e.target?.files?.[0];
+      if (file) {
+        try {
+          await importData(file);
+          Alert.alert(
+            'Importazione Completata',
+            'I tuoi dati sono stati importati con successo. L\'app verrà ricaricata.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  if (Platform.OS === 'web') {
+                    window.location.reload();
+                  }
+                },
+              },
+            ]
+          );
+        } catch (err) {
+          Alert.alert(
+            'Errore',
+            'Si è verificato un errore durante l\'importazione dei dati.'
+          );
+        }
+      }
+    };
+    input.click();
+    setFileInputKey(prev => prev + 1);
   };
 
-  const contentManagement: Setting[] = [
+  const settingsSections = [
     {
-      title: 'Modifica Dati da File',
-      description: 'Aggiorna sezioni caricando file .txt',
-      icon: 'arrow.up.doc.fill',
-      color: colors.primary,
-      route: '/edit-data',
+      title: 'Dati',
+      items: [
+        {
+          icon: 'arrow.down.doc',
+          androidIcon: 'download',
+          label: 'Esporta Dati',
+          subtitle: 'Salva tutti i tuoi dati',
+          onPress: handleExport,
+          loading: isExporting,
+        },
+        {
+          icon: 'arrow.up.doc',
+          androidIcon: 'upload',
+          label: 'Importa Dati',
+          subtitle: 'Ripristina i tuoi dati',
+          onPress: handleImport,
+          loading: isImporting,
+          disabled: Platform.OS !== 'web',
+        },
+      ],
     },
     {
-      title: 'Aggiornamento Automatico',
-      description: 'Gestisci e aggiorna contenuti automaticamente',
-      icon: 'doc.text.fill',
-      color: colors.primary,
-      route: '/content-manager',
+      title: 'Allenamento',
+      items: [
+        {
+          icon: 'calendar',
+          androidIcon: 'calendar_today',
+          label: 'Calendario 18 Settimane',
+          subtitle: 'Visualizza il programma completo',
+          onPress: () => router.push('/(tabs)/calendar'),
+        },
+        {
+          icon: 'flag.fill',
+          androidIcon: 'flag',
+          label: 'Sistema Bandiera Rossa',
+          subtitle: 'Monitora i segnali di allarme',
+          onPress: () => router.push('/red-flags'),
+        },
+      ],
+    },
+    {
+      title: 'Strumenti',
+      items: [
+        {
+          icon: 'timer',
+          androidIcon: 'timer',
+          label: 'Timer Multi-Intervallo',
+          subtitle: 'Gestisci i tempi di allenamento',
+          onPress: () => router.push('/timer'),
+        },
+        {
+          icon: 'heart.text.square',
+          androidIcon: 'favorite',
+          label: 'Monitor HRV',
+          subtitle: 'Variabilità frequenza cardiaca',
+          onPress: () => router.push('/hrv-monitor'),
+        },
+        {
+          icon: 'figure.walk',
+          androidIcon: 'accessibility',
+          label: 'Valutazione Postura',
+          subtitle: 'Analisi posturale',
+          onPress: () => router.push('/posture-assessment'),
+        },
+      ],
+    },
+    {
+      title: 'Contenuti',
+      items: [
+        {
+          icon: 'book.fill',
+          androidIcon: 'book',
+          label: 'Riferimento Rapido',
+          subtitle: 'Guide e protocolli',
+          onPress: () => router.push('/quick-reference'),
+        },
+        {
+          icon: 'list.bullet.clipboard',
+          androidIcon: 'checklist',
+          label: 'Checklist Stampabili',
+          subtitle: 'Liste di controllo',
+          onPress: () => router.push('/printable-checklists'),
+        },
+      ],
     },
   ];
-
-  const dataSettings: Setting[] = [
-    {
-      title: 'Routine Mattutina',
-      description: 'Modifica gli elementi della routine',
-      icon: 'sunrise.fill',
-      color: '#FF9500',
-      route: '/edit-morning-routine',
-    },
-    {
-      title: 'Esercizi Riscaldamento',
-      description: 'Personalizza gli esercizi di warmup',
-      icon: 'flame.fill',
-      color: '#FF3B30',
-      route: '/edit-warmup',
-    },
-    {
-      title: 'Esercizi Raffreddamento',
-      description: 'Modifica gli esercizi di cooldown',
-      icon: 'figure.cooldown',
-      color: '#5AC8FA',
-      route: '/edit-cooldown',
-    },
-    {
-      title: 'Esercizi Stretching',
-      description: 'Personalizza gli esercizi di stretching',
-      icon: 'figure.flexibility',
-      color: '#34C759',
-      route: '/edit-stretching',
-    },
-    {
-      title: 'Foam Rolling',
-      description: 'Modifica il protocollo foam rolling',
-      icon: 'cylinder.fill',
-      color: '#AF52DE',
-      route: '/edit-foam-rolling',
-    },
-    {
-      title: 'Riferimento Rapido',
-      description: 'Modifica le linee guida rapide',
-      icon: 'book.fill',
-      color: '#0A84FF',
-      route: '/edit-quick-reference',
-    },
-  ];
-
-  const renderSettingCard = (setting: Setting, index: number) => (
-    <Pressable
-      key={index}
-      style={[
-        styles.settingCard,
-        setting.isDanger && styles.dangerCard,
-      ]}
-      onPress={() => handlePress(setting.route, setting.action)}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: setting.color + '20' }]}>
-        <IconSymbol name={setting.icon as any} size={24} color={setting.color} />
-      </View>
-      <View style={styles.settingInfo}>
-        <Text style={[styles.settingTitle, setting.isDanger && styles.dangerText]}>
-          {setting.title}
-        </Text>
-        <Text style={styles.settingDescription}>{setting.description}</Text>
-      </View>
-      <IconSymbol 
-        name="chevron.right" 
-        size={20} 
-        color={setting.isDanger ? '#FF3B30' : colors.textSecondary} 
-      />
-    </Pressable>
-  );
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'Impostazioni',
-          presentation: 'card',
-        }}
-      />
-      <View style={commonStyles.container}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
         >
-          {/* Header Card */}
-          <LinearGradient
-            colors={gradients.racing}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerCard}
-          >
-            <View style={styles.headerIconContainer}>
-              <IconSymbol name="gearshape.fill" size={40} color="#FFFFFF" />
-            </View>
-            <Text style={styles.headerTitle}>Impostazioni</Text>
-            <Text style={styles.headerDescription}>
-              Personalizza e gestisci i contenuti dell&apos;app
-            </Text>
-          </LinearGradient>
-
-          {/* Content Management Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <IconSymbol name="doc.text.fill" size={22} color={colors.primary} />
-              <Text style={styles.sectionTitle}>Gestione Contenuti</Text>
-            </View>
-            {contentManagement.map((setting, index) => renderSettingCard(setting, index))}
-          </View>
-
-          {/* Data Editing Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <IconSymbol name="pencil.circle.fill" size={22} color={colors.info} />
-              <Text style={styles.sectionTitle}>Modifica Dati</Text>
-            </View>
-            {dataSettings.map((setting, index) => renderSettingCard(setting, index))}
-          </View>
-
-          {/* Data Management Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <IconSymbol name="externaldrive.fill" size={22} color={colors.warning} />
-              <Text style={styles.sectionTitle}>Gestione Dati</Text>
-            </View>
-            {renderSettingCard({
-              title: 'Cancella Tutti i Dati',
-              description: 'Rimuovi tutti i dati salvati dall&apos;app',
-              icon: 'trash.fill',
-              color: '#FF3B30',
-              action: clearAllData,
-              isDanger: true,
-            }, 0)}
-          </View>
-
-          {/* Info Card */}
-          <View style={[commonStyles.card, styles.infoCard]}>
-            <View style={styles.infoIconContainer}>
-              <IconSymbol name="info.circle.fill" size={28} color={colors.info} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>Suggerimento</Text>
-              <Text style={styles.infoText}>
-                Puoi aggiornare i contenuti caricando file di testo o modificando direttamente i dati esistenti
-              </Text>
-            </View>
-          </View>
-
-          {/* Bottom Spacing */}
-          <View style={{ height: 32 }} />
-        </ScrollView>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow_back"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Impostazioni</Text>
+        <View style={styles.headerSpacer} />
       </View>
-    </>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error.message}</Text>
+            <TouchableOpacity onPress={clearError}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="cancel"
+                size={20}
+                color={colors.textInverse}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {settingsSections.map((section, sectionIndex) => (
+          <View key={sectionIndex} style={styles.section}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <View style={styles.sectionContent}>
+              {section.items.map((item, itemIndex) => (
+                <TouchableOpacity
+                  key={itemIndex}
+                  style={[
+                    styles.settingItem,
+                    itemIndex === section.items.length - 1 && styles.settingItemLast,
+                    item.disabled && styles.settingItemDisabled,
+                  ]}
+                  onPress={item.onPress}
+                  disabled={item.disabled || item.loading}
+                >
+                  <View style={styles.settingIcon}>
+                    <IconSymbol
+                      ios_icon_name={item.icon}
+                      android_material_icon_name={item.androidIcon}
+                      size={24}
+                      color={item.disabled ? colors.textLight : colors.primary}
+                    />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text
+                      style={[
+                        styles.settingLabel,
+                        item.disabled && styles.settingLabelDisabled,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                    <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
+                  </View>
+                  {item.loading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <IconSymbol
+                      ios_icon_name="chevron.right"
+                      android_material_icon_name="chevron_right"
+                      size={20}
+                      color={colors.textLight}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {Platform.OS === 'web' && (
+          <View style={styles.webInfo}>
+            <IconSymbol
+              ios_icon_name="info.circle"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.info}
+            />
+            <Text style={styles.webInfoText}>
+              Stai usando la versione web. I dati vengono salvati nel browser.
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Moto3 Pilot Trainer</Text>
+          <Text style={styles.footerVersion}>Versione 1.0.0</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: Platform.OS === 'android' ? 48 : spacing.xl,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    padding: spacing.sm,
+    marginLeft: -spacing.sm,
+  },
+  headerTitle: {
+    ...typography.title,
+    color: colors.text,
+  },
+  headerSpacer: {
+    width: 40,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: spacing.xl,
+    paddingBottom: 100,
   },
-  headerCard: {
-    borderRadius: 24,
-    padding: 28,
-    marginBottom: 24,
+  errorBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    ...shadows.large,
+    justifyContent: 'space-between',
+    backgroundColor: colors.error,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xl,
   },
-  headerIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 10,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
-  headerDescription: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.95)',
-    lineHeight: 22,
-    textAlign: 'center',
-    fontWeight: '500',
+  errorText: {
+    flex: 1,
+    color: colors.textInverse,
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: spacing.md,
   },
   section: {
-    marginBottom: 28,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    paddingHorizontal: 4,
-    gap: 10,
+    marginBottom: spacing.xxxl,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    ...typography.heading,
     color: colors.text,
-    letterSpacing: -0.3,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
-  settingCard: {
+  sectionContent: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    ...shadows.medium,
+    padding: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  dangerCard: {
-    backgroundColor: '#FF3B3010',
-    borderWidth: 1,
-    borderColor: '#FF3B3040',
+  settingItemLast: {
+    borderBottomWidth: 0,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+  settingItemDisabled: {
+    opacity: 0.5,
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: spacing.lg,
   },
-  settingInfo: {
+  settingContent: {
     flex: 1,
   },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  settingLabel: {
+    ...typography.bodyBold,
     color: colors.text,
-    marginBottom: 4,
-    letterSpacing: -0.2,
+    marginBottom: spacing.xs,
   },
-  dangerText: {
-    color: '#FF3B30',
+  settingLabelDisabled: {
+    color: colors.textLight,
   },
-  settingDescription: {
-    fontSize: 13,
+  settingSubtitle: {
+    ...typography.caption,
     color: colors.textSecondary,
-    lineHeight: 18,
   },
-  infoCard: {
+  webInfo: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: colors.highlightBlue,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.xl,
   },
-  infoIconContainer: {
-    marginRight: 14,
-  },
-  infoContent: {
+  webInfoText: {
     flex: 1,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  infoText: {
+    marginLeft: spacing.md,
     fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
+    color: colors.info,
     fontWeight: '500',
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: spacing.xxxl,
+    paddingTop: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  footerText: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  footerVersion: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
 });

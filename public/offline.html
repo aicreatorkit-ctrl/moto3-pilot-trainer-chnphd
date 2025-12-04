@@ -1,0 +1,124 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Moto3 Trainer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #E10600 0%, #B30500 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 500px;
+    }
+
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.9;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    p {
+      font-size: 18px;
+      line-height: 1.6;
+      opacity: 0.9;
+      margin-bottom: 32px;
+    }
+
+    .button {
+      display: inline-block;
+      background: white;
+      color: #E10600;
+      padding: 16px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .status {
+      margin-top: 24px;
+      font-size: 14px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>Sei Offline</h1>
+    <p>
+      Non è possibile connettersi al server in questo momento. 
+      Controlla la tua connessione internet e riprova.
+    </p>
+    <a href="/" class="button" onclick="window.location.reload(); return false;">
+      Riprova
+    </a>
+    <div class="status" id="status">
+      Controllo connessione...
+    </div>
+  </div>
+
+  <script>
+    // Check connection status
+    function updateStatus() {
+      const status = document.getElementById('status');
+      if (navigator.onLine) {
+        status.textContent = 'Connessione ripristinata! Clicca Riprova.';
+        status.style.color = '#90EE90';
+      } else {
+        status.textContent = 'Nessuna connessione internet';
+        status.style.color = 'rgba(255, 255, 255, 0.7)';
+      }
+    }
+
+    // Update status on load
+    updateStatus();
+
+    // Listen for online/offline events
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+
+    // Auto-reload when back online
+    window.addEventListener('online', () => {
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
