@@ -9,30 +9,33 @@
 if (typeof window === 'undefined') {
   // @ts-expect-error - Create a minimal window object
   global.window = global as any;
+  console.log('[Polyfills] Created global.window');
 }
 
 // Add addEventListener and removeEventListener to window if they don't exist
 if (typeof window !== 'undefined') {
   if (typeof window.addEventListener === 'undefined') {
     // @ts-expect-error - Add addEventListener polyfill
-    window.addEventListener = (event: string, handler: any) => {
-      console.log('addEventListener polyfill called for:', event);
+    window.addEventListener = (event: string, handler: any, options?: any) => {
+      // Silent polyfill - do nothing
     };
+    console.log('[Polyfills] Added window.addEventListener');
   }
   
   if (typeof window.removeEventListener === 'undefined') {
     // @ts-expect-error - Add removeEventListener polyfill
-    window.removeEventListener = (event: string, handler: any) => {
-      console.log('removeEventListener polyfill called for:', event);
+    window.removeEventListener = (event: string, handler: any, options?: any) => {
+      // Silent polyfill - do nothing
     };
+    console.log('[Polyfills] Added window.removeEventListener');
   }
 
   if (typeof window.dispatchEvent === 'undefined') {
     // @ts-expect-error - Add dispatchEvent polyfill
     window.dispatchEvent = (event: any) => {
-      console.log('dispatchEvent polyfill called');
       return true;
     };
+    console.log('[Polyfills] Added window.dispatchEvent');
   }
 }
 
@@ -48,7 +51,10 @@ if (typeof document === 'undefined') {
     addEventListener: () => {},
     removeEventListener: () => {},
     dispatchEvent: () => true,
+    body: {},
+    head: {},
   } as any;
+  console.log('[Polyfills] Created global.document');
 }
 
 // Polyfill for localStorage if needed
@@ -62,6 +68,7 @@ if (typeof localStorage === 'undefined') {
     length: 0,
     key: () => null,
   };
+  console.log('[Polyfills] Created global.localStorage');
 }
 
 // Polyfill for sessionStorage if needed
@@ -75,6 +82,7 @@ if (typeof sessionStorage === 'undefined') {
     length: 0,
     key: () => null,
   };
+  console.log('[Polyfills] Created global.sessionStorage');
 }
 
 // Polyfill for location object
@@ -83,7 +91,7 @@ if (typeof location === 'undefined') {
   global.location = {
     href: '',
     origin: '',
-    protocol: '',
+    protocol: 'https:',
     host: '',
     hostname: '',
     port: '',
@@ -94,6 +102,7 @@ if (typeof location === 'undefined') {
     replace: () => {},
     assign: () => {},
   } as any;
+  console.log('[Polyfills] Created global.location');
 }
 
 // Polyfill for navigator object
@@ -107,6 +116,7 @@ if (typeof navigator === 'undefined') {
     languages: ['en-US'],
     onLine: true,
   } as any;
+  console.log('[Polyfills] Created global.navigator');
 }
 
 // Polyfill for CustomEvent if needed
@@ -121,6 +131,7 @@ if (typeof CustomEvent === 'undefined') {
     };
     return evt;
   } as any;
+  console.log('[Polyfills] Created global.CustomEvent');
 }
 
 // Polyfill for Event if needed
@@ -139,8 +150,9 @@ if (typeof Event === 'undefined') {
       stopImmediatePropagation: () => {},
     };
   } as any;
+  console.log('[Polyfills] Created global.Event');
 }
 
-console.log('Polyfills loaded successfully');
+console.log('[Polyfills] ✅ All polyfills loaded successfully');
 
 export {};

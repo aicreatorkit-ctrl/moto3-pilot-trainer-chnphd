@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Moto3 Pilot Trainer",
@@ -7,6 +8,7 @@
     "icon": "./assets/images/natively-dark.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "scheme": "natively",
     "splash": {
       "image": "./assets/images/natively-dark.png",
       "resizeMode": "contain",
@@ -72,8 +74,6 @@
     },
     "extra": {
       "router": {}
-    },
-    "scheme": "natively"
-  },
-  "scheme": "Moto3 Pilot Trainer"
+    }
+  }
 }

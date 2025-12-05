@@ -3,7 +3,7 @@
  * Enhanced storage utilities with caching and performance optimizations
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from './asyncStoragePolyfill';
 import { errorLogger } from './errorLogger';
 
 /**
@@ -234,5 +234,47 @@ export const storage = {
    */
   clearCache(): void {
     cache.clear();
+  },
+
+  /**
+   * Export all data as JSON (useful for backup/export)
+   */
+  async exportData(): Promise<StorageResult<Record<string, unknown>>> {
+    try {
+      const { data: keys } = await this.getAllKeys();
+      if (!keys) {
+        return { success: true, data: {} };
+      }
+
+      const exportData: Record<string, unknown> = {};
+      
+      for (const key of keys) {
+        const { data } = await this.getItem(key);
+        if (data !== undefined) {
+          exportData[key] = data;
+        }
+      }
+
+      return { success: true, data: exportData };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, 'Storage exportData', 'high');
+      return { success: false, error: err };
+    }
+  },
+
+  /**
+   * Import data from JSON (useful for restore/import)
+   */
+  async importData(data: Record<string, unknown>): Promise<StorageResult<void>> {
+    try {
+      const entries = Object.entries(data);
+      await this.multiSet(entries);
+      return { success: true };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorLogger.log(err, 'Storage importData', 'high');
+      return { success: false, error: err };
+    }
   },
 };
