@@ -46,6 +46,9 @@ export default function FloatingTabBar({
   const pathname = usePathname();
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
+  
+  // Use regular state for container width instead of shared value
+  const [measuredWidth, setMeasuredWidth] = React.useState(containerWidth);
 
   // Extract primitive values from theme for use in worklets
   const isDark = theme.dark;
@@ -101,9 +104,12 @@ export default function FloatingTabBar({
     router.push(route);
   };
 
-  // Calculate tab width and tabs length as primitive values BEFORE the worklet
-  const tabWidth = React.useMemo(() => (containerWidth - 16) / tabs.length, [containerWidth, tabs.length]);
-  const tabsLength = React.useMemo(() => tabs.length, [tabs.length]);
+  // Calculate tab width as a primitive number using regular state
+  const tabWidth = React.useMemo(() => {
+    return (measuredWidth - 16) / tabs.length;
+  }, [measuredWidth, tabs.length]);
+  
+  const tabsLength = tabs.length;
 
   // Use only primitive values in the animated style
   const indicatorStyle = useAnimatedStyle(() => {
@@ -162,15 +168,26 @@ export default function FloatingTabBar({
   const inactiveIconColor = isDark ? '#98989D' : '#8E8E93';
   const inactiveLabelColor = isDark ? '#98989D' : '#8E8E93';
 
+  // Handle layout measurement
+  const handleLayout = (event: any) => {
+    const { width } = event.nativeEvent.layout;
+    if (width > 0 && width !== measuredWidth) {
+      setMeasuredWidth(width);
+    }
+  };
+
   // Web-specific wrapper to avoid SafeAreaView issues
   const TabBarContent = () => (
-    <View style={[
-      styles.container,
-      {
-        width: containerWidth,
-        marginBottom: bottomMargin ?? (Platform.OS === 'ios' ? 10 : 20)
-      }
-    ]}>
+    <View 
+      style={[
+        styles.container,
+        {
+          width: containerWidth,
+          marginBottom: bottomMargin ?? (Platform.OS === 'ios' ? 10 : 20)
+        }
+      ]}
+      onLayout={handleLayout}
+    >
       <BlurView
         intensity={Platform.OS === 'web' ? 0 : 80}
         style={[blurContainerStyle, { borderRadius }]}
