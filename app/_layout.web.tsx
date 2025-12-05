@@ -1,12 +1,12 @@
 
 import "react-native-reanimated";
-import "@/utils/polyfills";
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
+import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, View } from "react-native";
+import { useColorScheme, View, Text } from "react-native";
 import {
   DarkTheme,
   DefaultTheme,
@@ -27,19 +27,71 @@ export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#0A0E27' }}>
+          <Text style={{ color: '#FF4444', fontSize: 24, fontWeight: 'bold', marginBottom: 16 }}>
+            Errore nell&apos;app
+          </Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
+            {this.state.error?.message || 'Si è verificato un errore'}
+          </Text>
+          <Text style={{ color: '#6B7280', fontSize: 14, textAlign: 'center' }}>
+            Riavvia l&apos;app per continuare
+          </Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
+  
+  const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
   });
 
   useEffect(() => {
+    if (error) {
+      console.error('Font loading error:', error);
+    }
+  }, [error]);
+
+  useEffect(() => {
     if (loaded) {
+      console.log('Fonts loaded successfully');
       SplashScreen.hideAsync();
     }
   }, [loaded]);
 
-  if (!loaded) {
+  if (!loaded && !error) {
     return null;
   }
 
@@ -47,29 +99,29 @@ export default function RootLayout() {
     ...DefaultTheme,
     dark: false,
     colors: {
-      primary: "rgb(0, 122, 255)",
-      background: "rgb(242, 242, 247)",
-      card: "rgb(255, 255, 255)",
-      text: "rgb(0, 0, 0)",
-      border: "rgb(216, 216, 220)",
-      notification: "rgb(255, 59, 48)",
+      primary: '#FF4444',
+      background: '#F8F9FA',
+      card: '#FFFFFF',
+      text: '#1A1D29',
+      border: '#E5E7EB',
+      notification: '#FF3B30',
     },
   };
 
   const CustomDarkTheme: Theme = {
     ...DarkTheme,
     colors: {
-      primary: "rgb(10, 132, 255)",
-      background: "rgb(1, 1, 1)",
-      card: "rgb(28, 28, 30)",
-      text: "rgb(255, 255, 255)",
-      border: "rgb(44, 44, 46)",
-      notification: "rgb(255, 69, 58)",
+      primary: '#FF4444',
+      background: '#0A0E27',
+      card: '#1F2937',
+      text: '#FFFFFF',
+      border: '#2C2C2C',
+      notification: '#FF3B30',
     },
   };
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="auto" animated />
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
@@ -78,10 +130,7 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <View style={{ flex: 1 }}>
               <Stack>
-                {/* Main app with tabs */}
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-                {/* Modal Demo Screens */}
                 <Stack.Screen
                   name="modal"
                   options={{
@@ -108,6 +157,6 @@ export default function RootLayout() {
           </GestureHandlerRootView>
         </WidgetProvider>
       </ThemeProvider>
-    </>
+    </ErrorBoundary>
   );
 }

@@ -15,21 +15,22 @@ if (typeof window === 'undefined') {
 if (typeof window !== 'undefined') {
   if (typeof window.addEventListener === 'undefined') {
     // @ts-expect-error - Add addEventListener polyfill
-    window.addEventListener = () => {
-      // No-op for React Native
+    window.addEventListener = (event: string, handler: any) => {
+      console.log('addEventListener polyfill called for:', event);
     };
   }
   
   if (typeof window.removeEventListener === 'undefined') {
     // @ts-expect-error - Add removeEventListener polyfill
-    window.removeEventListener = () => {
-      // No-op for React Native
+    window.removeEventListener = (event: string, handler: any) => {
+      console.log('removeEventListener polyfill called for:', event);
     };
   }
 
   if (typeof window.dispatchEvent === 'undefined') {
     // @ts-expect-error - Add dispatchEvent polyfill
-    window.dispatchEvent = () => {
+    window.dispatchEvent = (event: any) => {
+      console.log('dispatchEvent polyfill called');
       return true;
     };
   }

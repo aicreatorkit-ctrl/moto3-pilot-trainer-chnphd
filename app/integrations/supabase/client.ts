@@ -49,3 +49,6 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>
     }
   }
 });
+
+// Default export to satisfy Expo Router
+export default supabase;

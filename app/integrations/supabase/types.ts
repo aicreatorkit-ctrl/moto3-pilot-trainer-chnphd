@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -136,3 +137,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// Default export to satisfy Expo Router
+export default {};
