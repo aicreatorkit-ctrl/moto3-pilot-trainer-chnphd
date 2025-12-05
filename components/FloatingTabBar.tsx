@@ -17,7 +17,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
-  interpolate,
+  useDerivedValue,
 } from 'react-native-reanimated';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -114,30 +114,40 @@ export default function FloatingTabBar({
   // Store tabs length as a primitive
   const tabsLength = React.useMemo(() => tabs.length, [tabs.length]);
 
-  // Create animated style using ONLY primitive values
-  // NO theme objects, NO complex calculations inside worklet
+  // Create shared values for worklet-safe access
+  const tabWidthShared = useSharedValue(tabWidth);
+  const tabsLengthShared = useSharedValue(tabsLength);
+
+  // Update shared values when primitives change
+  React.useEffect(() => {
+    tabWidthShared.value = tabWidth;
+  }, [tabWidth, tabWidthShared]);
+
+  React.useEffect(() => {
+    tabsLengthShared.value = tabsLength;
+  }, [tabsLength, tabsLengthShared]);
+
+  // Create animated style using ONLY shared values
+  // NO dependencies array needed - shared values are reactive
   const indicatorStyle = useAnimatedStyle(() => {
     'worklet';
     
-    // All values used here MUST be primitives
     const currentIndex = animatedIndex.value;
-    const width = tabWidth;
-    const length = tabsLength;
+    const width = tabWidthShared.value;
+    const length = tabsLengthShared.value;
     
-    const translateX = interpolate(
-      currentIndex,
-      [0, length - 1],
-      [0, width * (length - 1)]
-    );
+    const translateX = (width * currentIndex);
     
     return {
-      transform: [{ translateX: withSpring(translateX, {
-        damping: 20,
-        stiffness: 120,
-        mass: 1,
-      }) }],
+      transform: [{ 
+        translateX: withSpring(translateX, {
+          damping: 20,
+          stiffness: 120,
+          mass: 1,
+        }) 
+      }],
     };
-  }, [tabWidth, tabsLength]);
+  });
 
   // All dynamic styles calculated outside of worklets
   const blurContainerStyle = React.useMemo(() => ({
