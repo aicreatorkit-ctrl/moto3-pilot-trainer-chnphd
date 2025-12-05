@@ -1,42 +1,108 @@
 
 /**
- * AsyncStorage polyfill wrapper
- * Ensures window is defined before AsyncStorage is used
- * This file should only be imported AFTER polyfills are loaded
+ * AsyncStorage polyfill that ensures window exists before any operations
  */
-
-console.log('[AsyncStorage Polyfill] Module loading...');
-console.log('[AsyncStorage Polyfill] window type:', typeof window);
-
-// Double-check that window exists (should be created by index.ts polyfills)
-if (typeof window === 'undefined') {
-  console.warn('[AsyncStorage Polyfill] window is undefined, creating it now');
-  // @ts-expect-error - Create minimal window
-  global.window = global as any;
-}
-
-// Add required window methods if they don't exist
-if (typeof window !== 'undefined') {
-  if (typeof window.addEventListener === 'undefined') {
-    console.log('[AsyncStorage Polyfill] Adding window.addEventListener');
-    // @ts-expect-error - Add addEventListener
-    window.addEventListener = () => {};
-  }
-  if (typeof window.removeEventListener === 'undefined') {
-    console.log('[AsyncStorage Polyfill] Adding window.removeEventListener');
-    // @ts-expect-error - Add removeEventListener
-    window.removeEventListener = () => {};
-  }
-  if (typeof window.dispatchEvent === 'undefined') {
-    console.log('[AsyncStorage Polyfill] Adding window.dispatchEvent');
-    // @ts-expect-error - Add dispatchEvent
-    window.dispatchEvent = () => true;
-  }
-}
-
-// Now safely import AsyncStorage
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-console.log('[AsyncStorage Polyfill] AsyncStorage imported successfully');
+// Ensure window exists
+const ensureWindow = () => {
+  if (typeof window === 'undefined') {
+    console.warn('[AsyncStorage Polyfill] window undefined, creating it');
+    // @ts-expect-error - Create window
+    global.window = global as any;
+  }
+  
+  if (typeof window !== 'undefined') {
+    if (!window.addEventListener) {
+      // @ts-expect-error - Polyfill
+      window.addEventListener = () => {};
+    }
+    if (!window.removeEventListener) {
+      // @ts-expect-error - Polyfill
+      window.removeEventListener = () => {};
+    }
+    if (!window.dispatchEvent) {
+      // @ts-expect-error - Polyfill
+      window.dispatchEvent = () => true;
+    }
+  }
+};
 
-export default AsyncStorage;
+export const SafeAsyncStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      ensureWindow();
+      return await AsyncStorage.getItem(key);
+    } catch (error) {
+      console.error('[SafeAsyncStorage] getItem error:', error);
+      return null;
+    }
+  },
+  
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      ensureWindow();
+      await AsyncStorage.setItem(key, value);
+    } catch (error) {
+      console.error('[SafeAsyncStorage] setItem error:', error);
+    }
+  },
+  
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      ensureWindow();
+      await AsyncStorage.removeItem(key);
+    } catch (error) {
+      console.error('[SafeAsyncStorage] removeItem error:', error);
+    }
+  },
+  
+  clear: async (): Promise<void> => {
+    try {
+      ensureWindow();
+      await AsyncStorage.clear();
+    } catch (error) {
+      console.error('[SafeAsyncStorage] clear error:', error);
+    }
+  },
+  
+  getAllKeys: async (): Promise<readonly string[]> => {
+    try {
+      ensureWindow();
+      return await AsyncStorage.getAllKeys();
+    } catch (error) {
+      console.error('[SafeAsyncStorage] getAllKeys error:', error);
+      return [];
+    }
+  },
+  
+  multiGet: async (keys: string[]): Promise<readonly [string, string | null][]> => {
+    try {
+      ensureWindow();
+      return await AsyncStorage.multiGet(keys);
+    } catch (error) {
+      console.error('[SafeAsyncStorage] multiGet error:', error);
+      return [];
+    }
+  },
+  
+  multiSet: async (keyValuePairs: [string, string][]): Promise<void> => {
+    try {
+      ensureWindow();
+      await AsyncStorage.multiSet(keyValuePairs);
+    } catch (error) {
+      console.error('[SafeAsyncStorage] multiSet error:', error);
+    }
+  },
+  
+  multiRemove: async (keys: string[]): Promise<void> => {
+    try {
+      ensureWindow();
+      await AsyncStorage.multiRemove(keys);
+    } catch (error) {
+      console.error('[SafeAsyncStorage] multiRemove error:', error);
+    }
+  },
+};
+
+export default SafeAsyncStorage;

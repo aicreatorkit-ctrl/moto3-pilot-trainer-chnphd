@@ -14,9 +14,10 @@ config.cacheStores = [
 config.resolver = {
   ...config.resolver,
   sourceExts: [...(config.resolver?.sourceExts || []), 'tsx', 'ts', 'jsx', 'js', 'json'],
+  resolverMainFields: ['react-native', 'browser', 'main'],
 };
 
-// Add transformer options to handle polyfills
+// Add transformer options
 config.transformer = {
   ...config.transformer,
   getTransformOptions: async () => ({
@@ -25,14 +26,13 @@ config.transformer = {
       inlineRequires: true,
     },
   }),
-};
-
-// Add serializer to inject polyfills at the beginning
-config.serializer = {
-  ...config.serializer,
-  getModulesRunBeforeMainModule: () => {
-    // This ensures polyfills run before any other code
-    return [];
+  minifierConfig: {
+    keep_classnames: true,
+    keep_fnames: true,
+    mangle: {
+      keep_classnames: true,
+      keep_fnames: true,
+    },
   },
 };
 

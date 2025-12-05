@@ -21,31 +21,36 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { setupErrorLogging } from "@/utils/errorLogger";
 
 // Ensure polyfills are loaded
-if (typeof window === 'undefined') {
-  console.warn('[App Layout] window is undefined, creating it');
-  // @ts-expect-error - Create window if it doesn't exist
-  global.window = global as any;
-}
+const ensurePolyfills = () => {
+  if (typeof window === 'undefined') {
+    console.warn('[App Layout] window undefined, creating it');
+    // @ts-expect-error - Create window
+    global.window = global as any;
+  }
 
-if (typeof window !== 'undefined') {
-  if (typeof window.addEventListener === 'undefined') {
-    // @ts-expect-error - Add addEventListener
-    window.addEventListener = () => {};
+  if (typeof window !== 'undefined') {
+    if (!window.addEventListener) {
+      // @ts-expect-error - Polyfill
+      window.addEventListener = () => {};
+    }
+    if (!window.removeEventListener) {
+      // @ts-expect-error - Polyfill
+      window.removeEventListener = () => {};
+    }
+    if (!window.dispatchEvent) {
+      // @ts-expect-error - Polyfill
+      window.dispatchEvent = () => true;
+    }
   }
-  if (typeof window.removeEventListener === 'undefined') {
-    // @ts-expect-error - Add removeEventListener
-    window.removeEventListener = () => {};
-  }
-  if (typeof window.dispatchEvent === 'undefined') {
-    // @ts-expect-error - Add dispatchEvent
-    window.dispatchEvent = () => true;
-  }
-}
+};
+
+// Call polyfills immediately
+ensurePolyfills();
 
 // Setup error logging
 setupErrorLogging();
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Prevent splash screen auto-hide
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
@@ -95,7 +100,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
   
-  // Carica font Inter
+  // Load Inter fonts
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     Inter_400Regular,

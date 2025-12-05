@@ -15,7 +15,6 @@ import { BlurView } from 'expo-blur';
 import { useTheme } from '@react-navigation/native';
 import Animated, {
   useAnimatedStyle,
-  useSharedValue,
   withSpring,
   interpolate,
 } from 'react-native-reanimated';
@@ -45,38 +44,46 @@ export default function FloatingTabBar({
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
-  const animatedValue = useSharedValue(0);
   
-  // Use regular state for container width instead of shared value
+  // Use regular state for animations instead of SharedValue
+  const [animatedIndex, setAnimatedIndex] = React.useState(0);
   const [measuredWidth, setMeasuredWidth] = React.useState(containerWidth);
 
-  // Extract primitive values from theme for use in worklets
-  const isDark = theme.dark;
-  const primaryColor = theme.colors.primary;
+  // Extract ALL primitive values from theme OUTSIDE of any worklet
+  const isDark = React.useMemo(() => theme.dark, [theme.dark]);
+  const primaryColor = React.useMemo(() => theme.colors.primary, [theme.colors.primary]);
+  
+  // Pre-calculate all style values as primitives
+  const indicatorBackgroundColor = React.useMemo(() => 
+    isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+    [isDark]
+  );
+
+  const inactiveIconColor = React.useMemo(() => 
+    isDark ? '#98989D' : '#8E8E93',
+    [isDark]
+  );
+
+  const inactiveLabelColor = React.useMemo(() => 
+    isDark ? '#98989D' : '#8E8E93',
+    [isDark]
+  );
 
   // Improved active tab detection with better path matching
   const activeTabIndex = React.useMemo(() => {
-    // Find the best matching tab based on the current pathname
     let bestMatch = -1;
     let bestMatchScore = 0;
 
     tabs.forEach((tab, index) => {
       let score = 0;
 
-      // Exact route match gets highest score
       if (pathname === tab.route) {
         score = 100;
-      }
-      // Check if pathname starts with tab route (for nested routes)
-      else if (pathname.startsWith(tab.route)) {
+      } else if (pathname.startsWith(tab.route)) {
         score = 80;
-      }
-      // Check if pathname contains the tab name
-      else if (pathname.includes(tab.name)) {
+      } else if (pathname.includes(tab.name)) {
         score = 60;
-      }
-      // Check for partial matches in the route
-      else if (tab.route.includes('/(tabs)/') && pathname.includes(tab.route.split('/(tabs)/')[1])) {
+      } else if (tab.route.includes('/(tabs)/') && pathname.includes(tab.route.split('/(tabs)/')[1])) {
         score = 40;
       }
 
@@ -86,51 +93,53 @@ export default function FloatingTabBar({
       }
     });
 
-    // Default to first tab if no match found
     return bestMatch >= 0 ? bestMatch : 0;
   }, [pathname, tabs]);
 
+  // Update animated index when active tab changes
   React.useEffect(() => {
-    if (activeTabIndex >= 0) {
-      animatedValue.value = withSpring(activeTabIndex, {
-        damping: 20,
-        stiffness: 120,
-        mass: 1,
-      });
-    }
-  }, [activeTabIndex, animatedValue]);
+    setAnimatedIndex(activeTabIndex);
+  }, [activeTabIndex]);
 
   const handleTabPress = (route: string) => {
     router.push(route);
   };
 
-  // Calculate tab width as a primitive number using regular state
+  // Calculate tab width as a primitive number
   const tabWidth = React.useMemo(() => {
     return (measuredWidth - 16) / tabs.length;
   }, [measuredWidth, tabs.length]);
   
-  const tabsLength = tabs.length;
+  // Store tabs length as a primitive
+  const tabsLength = React.useMemo(() => tabs.length, [tabs.length]);
 
-  // Use only primitive values in the animated style
+  // Create animated style using ONLY primitive values
+  // NO theme objects, NO complex calculations inside worklet
   const indicatorStyle = useAnimatedStyle(() => {
     'worklet';
+    
+    // All values used here MUST be primitives
+    const currentIndex = animatedIndex;
+    const width = tabWidth;
+    const length = tabsLength;
+    
     const translateX = interpolate(
-      animatedValue.value,
-      [0, tabsLength - 1],
-      [0, tabWidth * (tabsLength - 1)]
+      currentIndex,
+      [0, length - 1],
+      [0, width * (length - 1)]
     );
     
     return {
-      transform: [{ translateX }],
+      transform: [{ translateX: withSpring(translateX, {
+        damping: 20,
+        stiffness: 120,
+        mass: 1,
+      }) }],
     };
-  }, [tabWidth, tabsLength]);
+  }, [animatedIndex, tabWidth, tabsLength]);
 
-  // Dynamic styles based on theme - using only primitive values
-  const indicatorBackgroundColor = isDark
-    ? 'rgba(255, 255, 255, 0.08)'
-    : 'rgba(0, 0, 0, 0.04)';
-
-  const blurContainerStyle = {
+  // All dynamic styles calculated outside of worklets
+  const blurContainerStyle = React.useMemo(() => ({
     ...styles.blurContainer,
     ...Platform.select({
       ios: {
@@ -154,30 +163,30 @@ export default function FloatingTabBar({
           : '0 8px 32px rgba(0, 0, 0, 0.1)',
       },
     }),
-  };
+  }), [isDark]);
 
-  const backgroundStyle = {
+  const backgroundStyle = React.useMemo(() => ({
     ...styles.background,
     backgroundColor: isDark
       ? (Platform.OS === 'ios' ? 'transparent' : 'rgba(28, 28, 30, 0.1)')
       : (Platform.OS === 'ios' ? 'transparent' : 'rgba(255, 255, 255, 0.1)'),
-  };
+  }), [isDark]);
 
-  const indicatorWidthPercent = `${(100 / tabs.length) - 3}%`;
-
-  const inactiveIconColor = isDark ? '#98989D' : '#8E8E93';
-  const inactiveLabelColor = isDark ? '#98989D' : '#8E8E93';
+  const indicatorWidthPercent = React.useMemo(() => 
+    `${(100 / tabs.length) - 3}%`,
+    [tabs.length]
+  );
 
   // Handle layout measurement
-  const handleLayout = (event: any) => {
+  const handleLayout = React.useCallback((event: any) => {
     const { width } = event.nativeEvent.layout;
     if (width > 0 && width !== measuredWidth) {
       setMeasuredWidth(width);
     }
-  };
+  }, [measuredWidth]);
 
   // Web-specific wrapper to avoid SafeAreaView issues
-  const TabBarContent = () => (
+  const TabBarContent = React.useCallback(() => (
     <View 
       style={[
         styles.container,
@@ -237,7 +246,22 @@ export default function FloatingTabBar({
         </View>
       </BlurView>
     </View>
-  );
+  ), [
+    containerWidth,
+    bottomMargin,
+    handleLayout,
+    blurContainerStyle,
+    borderRadius,
+    backgroundStyle,
+    indicatorStyle,
+    indicatorBackgroundColor,
+    indicatorWidthPercent,
+    tabs,
+    activeTabIndex,
+    primaryColor,
+    inactiveIconColor,
+    inactiveLabelColor,
+  ]);
 
   if (Platform.OS === 'web') {
     return (

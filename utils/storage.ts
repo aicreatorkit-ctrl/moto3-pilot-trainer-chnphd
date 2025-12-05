@@ -1,280 +1,111 @@
 
-/**
- * Enhanced storage utilities with caching and performance optimizations
- */
+import { SafeAsyncStorage } from './asyncStoragePolyfill';
+import { Platform } from 'react-native';
 
-import AsyncStorage from './asyncStoragePolyfill';
-import { errorLogger } from './errorLogger';
+const STORAGE_PREFIX = '@moto3_trainer:';
 
-/**
- * Storage operation result
- */
-interface StorageResult<T> {
-  success: boolean;
-  data?: T;
-  error?: Error;
-}
-
-/**
- * Storage cache entry
- */
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  ttl: number;
-}
-
-/**
- * In-memory cache for frequently accessed data
- */
-class StorageCache {
-  private cache: Map<string, CacheEntry<unknown>> = new Map();
-  private maxSize: number = 100;
-
-  set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
-    // Enforce max size
-    if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey) {
-        this.cache.delete(firstKey);
-      }
-    }
-
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl,
-    });
-  }
-
-  get<T>(key: string): T | null {
-    const entry = this.cache.get(key) as CacheEntry<T> | undefined;
-    
-    if (!entry) {
-      return null;
-    }
-
-    // Check if expired
-    if (Date.now() - entry.timestamp > entry.ttl) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return entry.data;
-  }
-
-  invalidate(key: string): void {
-    this.cache.delete(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
-
-const cache = new StorageCache();
-
-/**
- * Enhanced storage class
- */
 export const storage = {
-  /**
-   * Get item from storage with caching
-   */
-  async getItem<T>(key: string, useCache: boolean = true): Promise<StorageResult<T>> {
+  async getItem(key: string): Promise<string | null> {
     try {
-      // Check cache first
-      if (useCache) {
-        const cached = cache.get<T>(key);
-        if (cached !== null) {
-          return { success: true, data: cached };
-        }
-      }
-
-      const value = await AsyncStorage.getItem(key);
-      
-      if (value === null) {
-        return { success: true, data: undefined };
-      }
-
-      const data = JSON.parse(value) as T;
-      
-      // Update cache
-      if (useCache) {
-        cache.set(key, data);
-      }
-
-      return { success: true, data };
+      const fullKey = `${STORAGE_PREFIX}${key}`;
+      return await SafeAsyncStorage.getItem(fullKey);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, `Storage getItem: ${key}`, 'medium');
-      return { success: false, error: err };
+      console.error('[Storage] getItem error:', error);
+      return null;
     }
   },
 
-  /**
-   * Set item in storage and update cache
-   */
-  async setItem<T>(key: string, value: T): Promise<StorageResult<T>> {
+  async setItem(key: string, value: string): Promise<void> {
     try {
-      const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem(key, jsonValue);
-      
-      // Update cache
-      cache.set(key, value);
-
-      return { success: true, data: value };
+      const fullKey = `${STORAGE_PREFIX}${key}`;
+      await SafeAsyncStorage.setItem(fullKey, value);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, `Storage setItem: ${key}`, 'medium');
-      return { success: false, error: err };
+      console.error('[Storage] setItem error:', error);
     }
   },
 
-  /**
-   * Remove item from storage and cache
-   */
-  async removeItem(key: string): Promise<StorageResult<void>> {
+  async removeItem(key: string): Promise<void> {
     try {
-      await AsyncStorage.removeItem(key);
-      cache.invalidate(key);
-      return { success: true };
+      const fullKey = `${STORAGE_PREFIX}${key}`;
+      await SafeAsyncStorage.removeItem(fullKey);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, `Storage removeItem: ${key}`, 'medium');
-      return { success: false, error: err };
+      console.error('[Storage] removeItem error:', error);
     }
   },
 
-  /**
-   * Get multiple items at once
-   */
-  async multiGet<T>(keys: string[]): Promise<StorageResult<Record<string, T>>> {
+  async clear(): Promise<void> {
     try {
-      const pairs = await AsyncStorage.multiGet(keys);
-      const result: Record<string, T> = {};
-
-      for (const [key, value] of pairs) {
-        if (value !== null) {
-          result[key] = JSON.parse(value) as T;
-        }
-      }
-
-      return { success: true, data: result };
+      const keys = await SafeAsyncStorage.getAllKeys();
+      const appKeys = keys.filter(key => key.startsWith(STORAGE_PREFIX));
+      await SafeAsyncStorage.multiRemove(appKeys as string[]);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, 'Storage multiGet', 'medium');
-      return { success: false, error: err };
+      console.error('[Storage] clear error:', error);
     }
   },
 
-  /**
-   * Set multiple items at once
-   */
-  async multiSet(keyValuePairs: [string, unknown][]): Promise<StorageResult<void>> {
+  async getAllKeys(): Promise<string[]> {
     try {
-      const pairs: [string, string][] = keyValuePairs.map(([key, value]) => [
-        key,
-        JSON.stringify(value),
-      ]);
-
-      await AsyncStorage.multiSet(pairs);
-
-      // Update cache
-      for (const [key, value] of keyValuePairs) {
-        cache.set(key, value);
-      }
-
-      return { success: true };
+      const keys = await SafeAsyncStorage.getAllKeys();
+      return keys
+        .filter(key => key.startsWith(STORAGE_PREFIX))
+        .map(key => key.replace(STORAGE_PREFIX, ''));
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, 'Storage multiSet', 'medium');
-      return { success: false, error: err };
+      console.error('[Storage] getAllKeys error:', error);
+      return [];
     }
   },
 
-  /**
-   * Clear all storage
-   */
-  async clear(): Promise<StorageResult<void>> {
+  async getObject<T>(key: string): Promise<T | null> {
     try {
-      await AsyncStorage.clear();
-      cache.clear();
-      return { success: true };
+      const value = await this.getItem(key);
+      return value ? JSON.parse(value) : null;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, 'Storage clear', 'high');
-      return { success: false, error: err };
+      console.error('[Storage] getObject error:', error);
+      return null;
     }
   },
 
-  /**
-   * Get all keys
-   */
-  async getAllKeys(): Promise<StorageResult<string[]>> {
+  async setObject<T>(key: string, value: T): Promise<void> {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      return { success: true, data: keys };
+      await this.setItem(key, JSON.stringify(value));
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, 'Storage getAllKeys', 'medium');
-      return { success: false, error: err };
+      console.error('[Storage] setObject error:', error);
     }
   },
 
-  /**
-   * Invalidate cache for a key
-   */
-  invalidateCache(key: string): void {
-    cache.invalidate(key);
-  },
-
-  /**
-   * Clear all cache
-   */
-  clearCache(): void {
-    cache.clear();
-  },
-
-  /**
-   * Export all data as JSON (useful for backup/export)
-   */
-  async exportData(): Promise<StorageResult<Record<string, unknown>>> {
+  async exportData(): Promise<Record<string, any>> {
     try {
-      const { data: keys } = await this.getAllKeys();
-      if (!keys) {
-        return { success: true, data: {} };
-      }
+      const keys = await this.getAllKeys();
+      const data: Record<string, any> = {};
 
-      const exportData: Record<string, unknown> = {};
-      
       for (const key of keys) {
-        const { data } = await this.getItem(key);
-        if (data !== undefined) {
-          exportData[key] = data;
+        const value = await this.getItem(key);
+        if (value !== null) {
+          try {
+            data[key] = JSON.parse(value);
+          } catch {
+            data[key] = value;
+          }
         }
       }
 
-      return { success: true, data: exportData };
+      return data;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, 'Storage exportData', 'high');
-      return { success: false, error: err };
+      console.error('[Storage] exportData error:', error);
+      return {};
     }
   },
 
-  /**
-   * Import data from JSON (useful for restore/import)
-   */
-  async importData(data: Record<string, unknown>): Promise<StorageResult<void>> {
+  async importData(data: Record<string, any>): Promise<void> {
     try {
-      const entries = Object.entries(data);
-      await this.multiSet(entries);
-      return { success: true };
+      for (const [key, value] of Object.entries(data)) {
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+        await this.setItem(key, stringValue);
+      }
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorLogger.log(err, 'Storage importData', 'high');
-      return { success: false, error: err };
+      console.error('[Storage] importData error:', error);
     }
   },
 };
+
+export default storage;

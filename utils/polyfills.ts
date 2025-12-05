@@ -1,53 +1,50 @@
 
 /**
- * Polyfills for React Native environment
+ * Comprehensive polyfills for React Native environment
  * This ensures compatibility with libraries that expect browser APIs
- * IMPORTANT: This file must be imported before any other imports that might use these APIs
+ * IMPORTANT: This file must be imported before any other imports
  */
 
-console.log('[Polyfills] Starting initialization...');
-console.log('[Polyfills] Initial window type:', typeof window);
+console.log('[Polyfills] Initializing...');
 
-// Polyfill for window object in React Native
+// Window polyfill
 if (typeof window === 'undefined') {
-  console.log('[Polyfills] window is undefined, creating global.window');
-  // @ts-expect-error - Create a minimal window object
+  console.log('[Polyfills] Creating global.window');
+  // @ts-expect-error - Create window
   global.window = global as any;
-} else {
-  console.log('[Polyfills] window already exists');
 }
 
-// Add addEventListener and removeEventListener to window if they don't exist
+// Window event methods
 if (typeof window !== 'undefined') {
-  if (typeof window.addEventListener === 'undefined') {
+  if (!window.addEventListener) {
     console.log('[Polyfills] Adding window.addEventListener');
-    // @ts-expect-error - Add addEventListener polyfill
+    // @ts-expect-error - Polyfill
     window.addEventListener = (event: string, handler: any, options?: any) => {
-      // Silent polyfill - do nothing
+      // Silent polyfill
     };
   }
   
-  if (typeof window.removeEventListener === 'undefined') {
+  if (!window.removeEventListener) {
     console.log('[Polyfills] Adding window.removeEventListener');
-    // @ts-expect-error - Add removeEventListener polyfill
+    // @ts-expect-error - Polyfill
     window.removeEventListener = (event: string, handler: any, options?: any) => {
-      // Silent polyfill - do nothing
+      // Silent polyfill
     };
   }
 
-  if (typeof window.dispatchEvent === 'undefined') {
+  if (!window.dispatchEvent) {
     console.log('[Polyfills] Adding window.dispatchEvent');
-    // @ts-expect-error - Add dispatchEvent polyfill
+    // @ts-expect-error - Polyfill
     window.dispatchEvent = (event: any) => {
       return true;
     };
   }
 }
 
-// Polyfill for document object
+// Document polyfill
 if (typeof document === 'undefined') {
   console.log('[Polyfills] Creating global.document');
-  // @ts-expect-error - Create a minimal document object
+  // @ts-expect-error - Polyfill
   global.document = {
     createElement: () => ({}),
     createElementNS: () => ({}),
@@ -59,13 +56,13 @@ if (typeof document === 'undefined') {
     dispatchEvent: () => true,
     body: {},
     head: {},
-  } as any;
+  };
 }
 
-// Polyfill for localStorage if needed
+// localStorage polyfill
 if (typeof localStorage === 'undefined') {
   console.log('[Polyfills] Creating global.localStorage');
-  // @ts-expect-error - Create a minimal localStorage object
+  // @ts-expect-error - Polyfill
   global.localStorage = {
     getItem: () => null,
     setItem: () => {},
@@ -76,10 +73,10 @@ if (typeof localStorage === 'undefined') {
   };
 }
 
-// Polyfill for sessionStorage if needed
+// sessionStorage polyfill
 if (typeof sessionStorage === 'undefined') {
   console.log('[Polyfills] Creating global.sessionStorage');
-  // @ts-expect-error - Create a minimal sessionStorage object
+  // @ts-expect-error - Polyfill
   global.sessionStorage = {
     getItem: () => null,
     setItem: () => {},
@@ -90,10 +87,10 @@ if (typeof sessionStorage === 'undefined') {
   };
 }
 
-// Polyfill for location object
+// location polyfill
 if (typeof location === 'undefined') {
   console.log('[Polyfills] Creating global.location');
-  // @ts-expect-error - Create a minimal location object
+  // @ts-expect-error - Polyfill
   global.location = {
     href: '',
     origin: '',
@@ -107,13 +104,13 @@ if (typeof location === 'undefined') {
     reload: () => {},
     replace: () => {},
     assign: () => {},
-  } as any;
+  };
 }
 
-// Polyfill for navigator object
+// navigator polyfill
 if (typeof navigator === 'undefined') {
   console.log('[Polyfills] Creating global.navigator');
-  // @ts-expect-error - Create a minimal navigator object
+  // @ts-expect-error - Polyfill
   global.navigator = {
     userAgent: 'ReactNative',
     product: 'ReactNative',
@@ -121,28 +118,27 @@ if (typeof navigator === 'undefined') {
     language: 'en-US',
     languages: ['en-US'],
     onLine: true,
-  } as any;
+  };
 }
 
-// Polyfill for CustomEvent if needed
+// CustomEvent polyfill
 if (typeof CustomEvent === 'undefined') {
   console.log('[Polyfills] Creating global.CustomEvent');
-  // @ts-expect-error - Create a minimal CustomEvent constructor
+  // @ts-expect-error - Polyfill
   global.CustomEvent = function CustomEvent(event: string, params?: any) {
-    const evt = {
+    return {
       type: event,
       detail: params?.detail,
       bubbles: params?.bubbles || false,
       cancelable: params?.cancelable || false,
     };
-    return evt;
-  } as any;
+  };
 }
 
-// Polyfill for Event if needed
+// Event polyfill
 if (typeof Event === 'undefined') {
   console.log('[Polyfills] Creating global.Event');
-  // @ts-expect-error - Create a minimal Event constructor
+  // @ts-expect-error - Polyfill
   global.Event = function Event(type: string, eventInitDict?: any) {
     return {
       type,
@@ -155,11 +151,11 @@ if (typeof Event === 'undefined') {
       stopPropagation: () => {},
       stopImmediatePropagation: () => {},
     };
-  } as any;
+  };
 }
 
-console.log('[Polyfills] ✅ All polyfills loaded successfully');
-console.log('[Polyfills] Final window type:', typeof window);
-console.log('[Polyfills] window.addEventListener type:', typeof window?.addEventListener);
+console.log('[Polyfills] ✅ All polyfills loaded');
+console.log('[Polyfills] window:', typeof window);
+console.log('[Polyfills] window.addEventListener:', typeof window?.addEventListener);
 
 export {};

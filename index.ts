@@ -2,48 +2,40 @@
 // CRITICAL: Load polyfills FIRST before ANY other imports
 // This must happen synchronously before expo-router or any other code runs
 
-console.log('[Index] Starting polyfill initialization...');
+console.log('[Index] Starting app initialization...');
 
-// Polyfill for window object in React Native
+// Comprehensive polyfill setup
 if (typeof window === 'undefined') {
-  console.log('[Index] window is undefined, creating global.window');
-  // @ts-expect-error - Create a minimal window object
+  console.log('[Index] Creating global.window');
+  // @ts-expect-error - Create window object
   global.window = global as any;
-} else {
-  console.log('[Index] window already exists');
 }
 
-// Add addEventListener and removeEventListener to window if they don't exist
+// Ensure window has all necessary event methods
 if (typeof window !== 'undefined') {
-  if (typeof window.addEventListener === 'undefined') {
+  if (!window.addEventListener) {
     console.log('[Index] Adding window.addEventListener');
-    // @ts-expect-error - Add addEventListener polyfill
-    window.addEventListener = () => {
-      // Silent polyfill
-    };
+    // @ts-expect-error - Polyfill
+    window.addEventListener = () => {};
   }
   
-  if (typeof window.removeEventListener === 'undefined') {
+  if (!window.removeEventListener) {
     console.log('[Index] Adding window.removeEventListener');
-    // @ts-expect-error - Add removeEventListener polyfill
-    window.removeEventListener = () => {
-      // Silent polyfill
-    };
+    // @ts-expect-error - Polyfill
+    window.removeEventListener = () => {};
   }
 
-  if (typeof window.dispatchEvent === 'undefined') {
+  if (!window.dispatchEvent) {
     console.log('[Index] Adding window.dispatchEvent');
-    // @ts-expect-error - Add dispatchEvent polyfill
-    window.dispatchEvent = () => {
-      return true;
-    };
+    // @ts-expect-error - Polyfill
+    window.dispatchEvent = () => true;
   }
 }
 
-// Polyfill for document object
+// Document polyfill
 if (typeof document === 'undefined') {
   console.log('[Index] Creating global.document');
-  // @ts-expect-error - Create a minimal document object
+  // @ts-expect-error - Polyfill
   global.document = {
     createElement: () => ({}),
     createElementNS: () => ({}),
@@ -55,13 +47,13 @@ if (typeof document === 'undefined') {
     dispatchEvent: () => true,
     body: {},
     head: {},
-  } as any;
+  };
 }
 
-// Polyfill for localStorage if needed
+// localStorage polyfill
 if (typeof localStorage === 'undefined') {
   console.log('[Index] Creating global.localStorage');
-  // @ts-expect-error - Create a minimal localStorage object
+  // @ts-expect-error - Polyfill
   global.localStorage = {
     getItem: () => null,
     setItem: () => {},
@@ -72,10 +64,10 @@ if (typeof localStorage === 'undefined') {
   };
 }
 
-// Polyfill for sessionStorage if needed
+// sessionStorage polyfill
 if (typeof sessionStorage === 'undefined') {
   console.log('[Index] Creating global.sessionStorage');
-  // @ts-expect-error - Create a minimal sessionStorage object
+  // @ts-expect-error - Polyfill
   global.sessionStorage = {
     getItem: () => null,
     setItem: () => {},
@@ -86,10 +78,10 @@ if (typeof sessionStorage === 'undefined') {
   };
 }
 
-// Polyfill for location object
+// location polyfill
 if (typeof location === 'undefined') {
   console.log('[Index] Creating global.location');
-  // @ts-expect-error - Create a minimal location object
+  // @ts-expect-error - Polyfill
   global.location = {
     href: '',
     origin: '',
@@ -103,13 +95,13 @@ if (typeof location === 'undefined') {
     reload: () => {},
     replace: () => {},
     assign: () => {},
-  } as any;
+  };
 }
 
-// Polyfill for navigator object
+// navigator polyfill
 if (typeof navigator === 'undefined') {
   console.log('[Index] Creating global.navigator');
-  // @ts-expect-error - Create a minimal navigator object
+  // @ts-expect-error - Polyfill
   global.navigator = {
     userAgent: 'ReactNative',
     product: 'ReactNative',
@@ -117,28 +109,27 @@ if (typeof navigator === 'undefined') {
     language: 'en-US',
     languages: ['en-US'],
     onLine: true,
-  } as any;
+  };
 }
 
-// Polyfill for CustomEvent if needed
+// CustomEvent polyfill
 if (typeof CustomEvent === 'undefined') {
   console.log('[Index] Creating global.CustomEvent');
-  // @ts-expect-error - Create a minimal CustomEvent constructor
+  // @ts-expect-error - Polyfill
   global.CustomEvent = function CustomEvent(event: string, params?: any) {
-    const evt = {
+    return {
       type: event,
       detail: params?.detail,
       bubbles: params?.bubbles || false,
       cancelable: params?.cancelable || false,
     };
-    return evt;
-  } as any;
+  };
 }
 
-// Polyfill for Event if needed
+// Event polyfill
 if (typeof Event === 'undefined') {
   console.log('[Index] Creating global.Event');
-  // @ts-expect-error - Create a minimal Event constructor
+  // @ts-expect-error - Polyfill
   global.Event = function Event(type: string, eventInitDict?: any) {
     return {
       type,
@@ -151,12 +142,12 @@ if (typeof Event === 'undefined') {
       stopPropagation: () => {},
       stopImmediatePropagation: () => {},
     };
-  } as any;
+  };
 }
 
-console.log('[Index] ✅ All polyfills loaded successfully');
-console.log('[Index] window type:', typeof window);
-console.log('[Index] window.addEventListener type:', typeof window?.addEventListener);
+console.log('[Index] ✅ All polyfills loaded');
+console.log('[Index] window:', typeof window);
+console.log('[Index] window.addEventListener:', typeof window?.addEventListener);
 
 // Now import expo-router entry
 import 'expo-router/entry';
