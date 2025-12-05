@@ -47,6 +47,10 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
 
+  // Extract primitive values from theme for use in worklets
+  const isDark = theme.dark;
+  const primaryColor = theme.colors.primary;
+
   // Improved active tab detection with better path matching
   const activeTabIndex = React.useMemo(() => {
     // Find the best matching tab based on the current pathname
@@ -98,6 +102,7 @@ export default function FloatingTabBar({
   };
 
   const indicatorStyle = useAnimatedStyle(() => {
+    'worklet';
     const tabWidth = (containerWidth - 16) / tabs.length;
     return {
       transform: [
@@ -112,47 +117,48 @@ export default function FloatingTabBar({
     };
   });
 
-  // Dynamic styles based on theme
-  const dynamicStyles = {
-    blurContainer: {
-      ...styles.blurContainer,
-      ...Platform.select({
-        ios: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.8)'
-            : 'rgba(255, 255, 255, 0.8)',
-        },
-        android: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          elevation: 8,
-        },
-        web: {
-          backgroundColor: theme.dark
-            ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          boxShadow: theme.dark
-            ? '0 8px 32px rgba(0, 0, 0, 0.4)'
-            : '0 8px 32px rgba(0, 0, 0, 0.1)',
-        },
-      }),
-    },
-    background: {
-      ...styles.background,
-      backgroundColor: theme.dark
-        ? (Platform.OS === 'ios' ? 'transparent' : 'rgba(28, 28, 30, 0.1)')
-        : (Platform.OS === 'ios' ? 'transparent' : 'rgba(255, 255, 255, 0.1)'),
-    },
-    indicator: {
-      ...styles.indicator,
-      backgroundColor: theme.dark
-        ? 'rgba(255, 255, 255, 0.08)'
-        : 'rgba(0, 0, 0, 0.04)',
-      width: `${(100 / tabs.length) - 3}%`,
-    },
+  // Dynamic styles based on theme - using only primitive values
+  const indicatorBackgroundColor = isDark
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'rgba(0, 0, 0, 0.04)';
+
+  const blurContainerStyle = {
+    ...styles.blurContainer,
+    ...Platform.select({
+      ios: {
+        backgroundColor: isDark
+          ? 'rgba(28, 28, 30, 0.8)'
+          : 'rgba(255, 255, 255, 0.8)',
+      },
+      android: {
+        backgroundColor: isDark
+          ? 'rgba(28, 28, 30, 0.95)'
+          : 'rgba(255, 255, 255, 0.95)',
+        elevation: 8,
+      },
+      web: {
+        backgroundColor: isDark
+          ? 'rgba(28, 28, 30, 0.95)'
+          : 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: isDark
+          ? '0 8px 32px rgba(0, 0, 0, 0.4)'
+          : '0 8px 32px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   };
+
+  const backgroundStyle = {
+    ...styles.background,
+    backgroundColor: isDark
+      ? (Platform.OS === 'ios' ? 'transparent' : 'rgba(28, 28, 30, 0.1)')
+      : (Platform.OS === 'ios' ? 'transparent' : 'rgba(255, 255, 255, 0.1)'),
+  };
+
+  const indicatorWidthPercent = `${(100 / tabs.length) - 3}%`;
+
+  const inactiveIconColor = isDark ? '#98989D' : '#8E8E93';
+  const inactiveLabelColor = isDark ? '#98989D' : '#8E8E93';
 
   // Web-specific wrapper to avoid SafeAreaView issues
   const TabBarContent = () => (
@@ -165,10 +171,19 @@ export default function FloatingTabBar({
     ]}>
       <BlurView
         intensity={Platform.OS === 'web' ? 0 : 80}
-        style={[dynamicStyles.blurContainer, { borderRadius }]}
+        style={[blurContainerStyle, { borderRadius }]}
       >
-        <View style={dynamicStyles.background} />
-        <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
+        <View style={backgroundStyle} />
+        <Animated.View 
+          style={[
+            styles.indicator, 
+            indicatorStyle,
+            {
+              backgroundColor: indicatorBackgroundColor,
+              width: indicatorWidthPercent,
+            }
+          ]} 
+        />
         <View style={styles.tabsContainer}>
           {tabs.map((tab, index) => {
             const isActive = activeTabIndex === index;
@@ -185,13 +200,13 @@ export default function FloatingTabBar({
                     ios_icon_name={tab.icon as any}
                     android_material_icon_name={tab.icon as any}
                     size={24}
-                    color={isActive ? theme.colors.primary : (theme.dark ? '#98989D' : '#8E8E93')}
+                    color={isActive ? primaryColor : inactiveIconColor}
                   />
                   <Text
                     style={[
                       styles.tabLabel,
-                      { color: theme.dark ? '#98989D' : '#8E8E93' },
-                      isActive && { color: theme.colors.primary, fontWeight: '600' },
+                      { color: inactiveLabelColor },
+                      isActive && { color: primaryColor, fontWeight: '600' },
                     ]}
                   >
                     {tab.label}
@@ -254,7 +269,6 @@ const styles = StyleSheet.create({
     left: 8,
     bottom: 8,
     borderRadius: 17,
-    width: `${(100 / 2) - 3}%`,
   },
   tabsContainer: {
     flexDirection: 'row',
