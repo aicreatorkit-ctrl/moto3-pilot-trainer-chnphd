@@ -17,7 +17,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
-  useDerivedValue,
 } from 'react-native-reanimated';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -110,33 +109,18 @@ export default function FloatingTabBar({
   const tabWidth = React.useMemo(() => {
     return (measuredWidth - 16) / tabs.length;
   }, [measuredWidth, tabs.length]);
-  
-  // Store tabs length as a primitive
-  const tabsLength = React.useMemo(() => tabs.length, [tabs.length]);
 
-  // Create shared values for worklet-safe access
+  // Create shared value for tab width
   const tabWidthShared = useSharedValue(tabWidth);
-  const tabsLengthShared = useSharedValue(tabsLength);
 
-  // Update shared values when primitives change
+  // Update shared value when tab width changes
   React.useEffect(() => {
     tabWidthShared.value = tabWidth;
   }, [tabWidth, tabWidthShared]);
 
-  React.useEffect(() => {
-    tabsLengthShared.value = tabsLength;
-  }, [tabsLength, tabsLengthShared]);
-
-  // Create animated style using ONLY shared values
-  // NO dependencies array needed - shared values are reactive
+  // Create animated style using ONLY shared values and primitive calculations
   const indicatorStyle = useAnimatedStyle(() => {
-    'worklet';
-    
-    const currentIndex = animatedIndex.value;
-    const width = tabWidthShared.value;
-    const length = tabsLengthShared.value;
-    
-    const translateX = (width * currentIndex);
+    const translateX = animatedIndex.value * tabWidthShared.value;
     
     return {
       transform: [{ 

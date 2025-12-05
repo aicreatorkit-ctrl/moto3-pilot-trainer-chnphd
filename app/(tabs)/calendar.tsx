@@ -8501,4 +8501,4 @@ const COMPLETE_TRAINING_DATA = {
     },
   },
 
-}; 
+};  
