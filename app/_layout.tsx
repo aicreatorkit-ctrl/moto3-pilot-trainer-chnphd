@@ -20,6 +20,28 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { setupErrorLogging } from "@/utils/errorLogger";
 
+// Ensure polyfills are loaded
+if (typeof window === 'undefined') {
+  console.warn('[App Layout] window is undefined, creating it');
+  // @ts-expect-error - Create window if it doesn't exist
+  global.window = global as any;
+}
+
+if (typeof window !== 'undefined') {
+  if (typeof window.addEventListener === 'undefined') {
+    // @ts-expect-error - Add addEventListener
+    window.addEventListener = () => {};
+  }
+  if (typeof window.removeEventListener === 'undefined') {
+    // @ts-expect-error - Add removeEventListener
+    window.removeEventListener = () => {};
+  }
+  if (typeof window.dispatchEvent === 'undefined') {
+    // @ts-expect-error - Add dispatchEvent
+    window.dispatchEvent = () => true;
+  }
+}
+
 // Setup error logging
 setupErrorLogging();
 

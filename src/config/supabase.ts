@@ -7,6 +7,52 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SUPABASE_URL = 'https://kwtqtrjyzdmgjxezdaof.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dHF0cmp5emRtZ2p4ZXpkYW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3ODk2NDIsImV4cCI6MjA4MDM2NTY0Mn0.BX-coYrewdUFT2VyiIMHwllNZ5edqRRnAiQf4ofKzSk';
 
+console.log('[Supabase Config] Module loading...');
+
+// Create a safe AsyncStorage wrapper that ensures window exists
+const SafeAsyncStorage = {
+  getItem: async (key: string) => {
+    try {
+      // Ensure window exists before calling AsyncStorage
+      if (typeof window === 'undefined') {
+        console.warn('[SafeAsyncStorage Config] window is undefined, creating it');
+        // @ts-expect-error - Create window if it doesn't exist
+        global.window = global as any;
+      }
+      return await AsyncStorage.getItem(key);
+    } catch (error) {
+      console.error('[SafeAsyncStorage Config] getItem error:', error);
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      // Ensure window exists before calling AsyncStorage
+      if (typeof window === 'undefined') {
+        console.warn('[SafeAsyncStorage Config] window is undefined, creating it');
+        // @ts-expect-error - Create window if it doesn't exist
+        global.window = global as any;
+      }
+      await AsyncStorage.setItem(key, value);
+    } catch (error) {
+      console.error('[SafeAsyncStorage Config] setItem error:', error);
+    }
+  },
+  removeItem: async (key: string) => {
+    try {
+      // Ensure window exists before calling AsyncStorage
+      if (typeof window === 'undefined') {
+        console.warn('[SafeAsyncStorage Config] window is undefined, creating it');
+        // @ts-expect-error - Create window if it doesn't exist
+        global.window = global as any;
+      }
+      await AsyncStorage.removeItem(key);
+    } catch (error) {
+      console.error('[SafeAsyncStorage Config] removeItem error:', error);
+    }
+  },
+};
+
 // Verifica se Supabase è configurato
 export const isSupabaseConfigured = (): boolean => {
   const hasUrl = SUPABASE_URL && SUPABASE_URL !== '' && !SUPABASE_URL.includes('your-project');
@@ -24,6 +70,29 @@ export const getSupabase = () => {
     console.log('[Supabase Config] Initializing client...');
     
     try {
+      // Ensure window exists before creating client
+      if (typeof window === 'undefined') {
+        console.warn('[Supabase Config] window is undefined during initialization, creating it');
+        // @ts-expect-error - Create window if it doesn't exist
+        global.window = global as any;
+      }
+
+      // Add window event methods if they don't exist
+      if (typeof window !== 'undefined') {
+        if (typeof window.addEventListener === 'undefined') {
+          // @ts-expect-error - Add addEventListener
+          window.addEventListener = () => {};
+        }
+        if (typeof window.removeEventListener === 'undefined') {
+          // @ts-expect-error - Add removeEventListener
+          window.removeEventListener = () => {};
+        }
+        if (typeof window.dispatchEvent === 'undefined') {
+          // @ts-expect-error - Add dispatchEvent
+          window.dispatchEvent = () => true;
+        }
+      }
+
       if (!isSupabaseConfigured()) {
         console.warn('[Supabase Config] Not configured, creating dummy client');
         return createDummyClient();
@@ -31,7 +100,7 @@ export const getSupabase = () => {
       
       supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
-          storage: AsyncStorage,
+          storage: SafeAsyncStorage as any,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: false,
@@ -74,6 +143,9 @@ const createDummyClient = () => {
           error: new Error('Supabase not configured') 
         }) 
       }),
+      insert: () => ({ error: new Error('Supabase not configured') }),
+      update: () => ({ error: new Error('Supabase not configured') }),
+      delete: () => ({ error: new Error('Supabase not configured') }),
     }),
   } as any;
 };
@@ -139,3 +211,5 @@ export const getCurrentUser = async () => {
     return null;
   }
 };
+
+console.log('[Supabase Config] Module loaded successfully');
