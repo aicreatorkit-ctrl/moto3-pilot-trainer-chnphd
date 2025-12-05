@@ -101,21 +101,24 @@ export default function FloatingTabBar({
     router.push(route);
   };
 
+  // Calculate tab width as a primitive value
+  const tabWidth = (containerWidth - 16) / tabs.length;
+  const tabsLength = tabs.length;
+
   const indicatorStyle = useAnimatedStyle(() => {
     'worklet';
-    const tabWidth = (containerWidth - 16) / tabs.length;
     return {
       transform: [
         {
           translateX: interpolate(
             animatedValue.value,
-            [0, tabs.length - 1],
-            [0, tabWidth * (tabs.length - 1)]
+            [0, tabsLength - 1],
+            [0, tabWidth * (tabsLength - 1)]
           ),
         },
       ],
     };
-  });
+  }, [tabWidth, tabsLength]);
 
   // Dynamic styles based on theme - using only primitive values
   const indicatorBackgroundColor = isDark
