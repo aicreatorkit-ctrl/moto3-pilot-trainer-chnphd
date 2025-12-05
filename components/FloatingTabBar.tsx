@@ -16,6 +16,7 @@ import { useTheme } from '@react-navigation/native';
 import Animated, {
   useAnimatedStyle,
   withSpring,
+  useSharedValue,
   interpolate,
 } from 'react-native-reanimated';
 
@@ -45,8 +46,8 @@ export default function FloatingTabBar({
   const pathname = usePathname();
   const theme = useTheme();
   
-  // Use regular state for animations instead of SharedValue
-  const [animatedIndex, setAnimatedIndex] = React.useState(0);
+  // Use SharedValue for animations
+  const animatedIndex = useSharedValue(0);
   const [measuredWidth, setMeasuredWidth] = React.useState(containerWidth);
 
   // Extract ALL primitive values from theme OUTSIDE of any worklet
@@ -98,8 +99,8 @@ export default function FloatingTabBar({
 
   // Update animated index when active tab changes
   React.useEffect(() => {
-    setAnimatedIndex(activeTabIndex);
-  }, [activeTabIndex]);
+    animatedIndex.value = activeTabIndex;
+  }, [activeTabIndex, animatedIndex]);
 
   const handleTabPress = (route: string) => {
     router.push(route);
@@ -119,7 +120,7 @@ export default function FloatingTabBar({
     'worklet';
     
     // All values used here MUST be primitives
-    const currentIndex = animatedIndex;
+    const currentIndex = animatedIndex.value;
     const width = tabWidth;
     const length = tabsLength;
     
@@ -136,7 +137,7 @@ export default function FloatingTabBar({
         mass: 1,
       }) }],
     };
-  }, [animatedIndex, tabWidth, tabsLength]);
+  }, [tabWidth, tabsLength]);
 
   // All dynamic styles calculated outside of worklets
   const blurContainerStyle = React.useMemo(() => ({
