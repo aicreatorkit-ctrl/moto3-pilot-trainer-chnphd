@@ -101,22 +101,21 @@ export default function FloatingTabBar({
     router.push(route);
   };
 
-  // Calculate tab width as a primitive value
-  const tabWidth = (containerWidth - 16) / tabs.length;
-  const tabsLength = tabs.length;
+  // Calculate tab width and tabs length as primitive values BEFORE the worklet
+  const tabWidth = React.useMemo(() => (containerWidth - 16) / tabs.length, [containerWidth, tabs.length]);
+  const tabsLength = React.useMemo(() => tabs.length, [tabs.length]);
 
+  // Use only primitive values in the animated style
   const indicatorStyle = useAnimatedStyle(() => {
     'worklet';
+    const translateX = interpolate(
+      animatedValue.value,
+      [0, tabsLength - 1],
+      [0, tabWidth * (tabsLength - 1)]
+    );
+    
     return {
-      transform: [
-        {
-          translateX: interpolate(
-            animatedValue.value,
-            [0, tabsLength - 1],
-            [0, tabWidth * (tabsLength - 1)]
-          ),
-        },
-      ],
+      transform: [{ translateX }],
     };
   }, [tabWidth, tabsLength]);
 
