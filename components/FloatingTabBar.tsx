@@ -117,21 +117,20 @@ export default function FloatingTabBar({
     tabWidthShared.value = tabWidth;
   }, [tabWidth, tabWidthShared]);
 
-  // CRITICAL: Animated style with ONLY shared values - NO external references
+  // CRITICAL FIX: Animated style with ONLY shared values and inline spring config
+  // Remove 'worklet' directive - it's automatically added by Reanimated
+  // Use inline values only - no external references
   const indicatorStyle = useAnimatedStyle(() => {
-    'worklet';
-    const translateX = animatedIndex.value * tabWidthShared.value;
-    
     return {
       transform: [{ 
-        translateX: withSpring(translateX, {
+        translateX: withSpring(animatedIndex.value * tabWidthShared.value, {
           damping: 20,
           stiffness: 120,
           mass: 1,
         }) 
       }],
     };
-  }, []);
+  });
 
   // All dynamic styles calculated outside of worklets
   const blurContainerStyle = React.useMemo(() => ({
