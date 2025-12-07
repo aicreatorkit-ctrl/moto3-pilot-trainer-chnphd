@@ -8,7 +8,6 @@
     "icon": "./assets/images/natively-dark.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "scheme": "natively",
     "splash": {
       "image": "./assets/images/natively-dark.png",
       "resizeMode": "contain",
@@ -19,7 +18,8 @@
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "scheme": "natively"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +27,8 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively"
+      "package": "com.anonymous.Natively",
+      "scheme": "natively"
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",

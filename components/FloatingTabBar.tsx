@@ -45,13 +45,15 @@ export default function FloatingTabBar({
   const pathname = usePathname();
   const theme = useTheme();
   
-  // Use SharedValue for animations
+  // Shared values for animations - ONLY primitives
   const animatedIndex = useSharedValue(0);
+  const tabWidthShared = useSharedValue(0);
+  
   const [measuredWidth, setMeasuredWidth] = React.useState(containerWidth);
 
-  // Extract ALL primitive values from theme OUTSIDE of any worklet
-  const isDark = React.useMemo(() => theme.dark, [theme.dark]);
-  const primaryColor = React.useMemo(() => theme.colors.primary, [theme.colors.primary]);
+  // Extract ALL values as primitives OUTSIDE worklets
+  const isDark = theme.dark;
+  const primaryColor = theme.colors.primary;
   
   // Pre-calculate all style values as primitives
   const indicatorBackgroundColor = React.useMemo(() => 
@@ -110,16 +112,14 @@ export default function FloatingTabBar({
     return (measuredWidth - 16) / tabs.length;
   }, [measuredWidth, tabs.length]);
 
-  // Create shared value for tab width
-  const tabWidthShared = useSharedValue(tabWidth);
-
   // Update shared value when tab width changes
   React.useEffect(() => {
     tabWidthShared.value = tabWidth;
   }, [tabWidth, tabWidthShared]);
 
-  // Simplified animated style - only use shared values, no external references
+  // CRITICAL: Animated style with ONLY shared values - NO external references
   const indicatorStyle = useAnimatedStyle(() => {
+    'worklet';
     const translateX = animatedIndex.value * tabWidthShared.value;
     
     return {
@@ -131,7 +131,7 @@ export default function FloatingTabBar({
         }) 
       }],
     };
-  });
+  }, []);
 
   // All dynamic styles calculated outside of worklets
   const blurContainerStyle = React.useMemo(() => ({

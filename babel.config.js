@@ -41,8 +41,12 @@ module.exports = function (api) {
       ],
       ...EDITABLE_COMPONENTS,
       "@babel/plugin-proposal-export-namespace-from",
-      // Reanimated plugin MUST be listed last
-      "react-native-reanimated/plugin",
+      [
+        "react-native-reanimated/plugin",
+        {
+          processNestedWorklets: true,
+        }
+      ],
     ],
   };
 };
