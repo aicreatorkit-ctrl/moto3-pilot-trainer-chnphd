@@ -118,10 +118,8 @@ export default function FloatingTabBar({
     tabWidthShared.value = tabWidth;
   }, [tabWidth, tabWidthShared]);
 
-  // Create animated style using ONLY shared values and inline primitive values
-  // NO external objects or functions should be referenced
+  // Simplified animated style - only use shared values, no external references
   const indicatorStyle = useAnimatedStyle(() => {
-    'worklet';
     const translateX = animatedIndex.value * tabWidthShared.value;
     
     return {
@@ -133,7 +131,7 @@ export default function FloatingTabBar({
         }) 
       }],
     };
-  }, []);
+  });
 
   // All dynamic styles calculated outside of worklets
   const blurContainerStyle = React.useMemo(() => ({
